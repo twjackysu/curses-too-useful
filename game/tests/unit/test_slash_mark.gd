@@ -62,6 +62,7 @@ func test_only_sword_hits_leave_a_mark() -> void:
 	assert_not_null(mark, "劍砍的：有刀痕")
 	assert_true(mark.gold and mark.big, "金的、收尾的大小")
 	assert_true(mark.global_position.distance_to(slime.last_hit_fx.global_position) < 0.001, "在命中點上")
+	assert_true(mark.global_position.y < 0.8, "命中點在史萊姆身上，不是飄在牠頭上（高 %.2f m；牠整隻 0.8 m）" % mark.global_position.y)
 	root.queue_free()
 	await tree.process_frame
 

@@ -21,6 +21,15 @@ func _head_height() -> float:
 	return 1.0
 
 
+## 命中點在身體中間（預設是人的胸口 1.05 m，比史萊姆整隻還高：閃光與刀痕會飄在牠頭上）
+func _hit_height() -> float:
+	return BODY_RADIUS
+
+
+func _hit_radius() -> float:
+	return BODY_RADIUS
+
+
 func _build_body() -> void:
 	super._build_body()
 	var shape := CollisionShape3D.new()
