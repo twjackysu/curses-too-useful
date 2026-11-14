@@ -547,7 +547,7 @@ func _hit_fx(info: Dictionary) -> Node3D:
 	pop_quad.size = Vector2.ONE * HIT_POP_SIZE * (1.5 if weak else 1.0)
 	pop.mesh = pop_quad
 	var pop_mat: StandardMaterial3D = ParticleLook.material(flash.light_color, true)
-	# 畫在身體前面：命中點貼著大衣，不關深度測試會被大衣切掉一半
+	# 畫在身體前面：命中點貼著身體，不關深度測試會被身體切掉一半
 	pop_mat.no_depth_test = true
 	pop.material_override = pop_mat
 	pop.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -556,6 +556,12 @@ func _hit_fx(info: Dictionary) -> Node3D:
 	# 連打時同名的兄弟節點：要引擎編成 HitFx2、HitFx3（不要 @Node3D@123 那種看不懂的名字）
 	(get_parent() if get_parent() != null else self).add_child(fx, true)
 	fx.global_position = hit_point(from)
+	# 劍砍的（info 帶著劍掃的方向）：照那個方向閃一道刀痕。炸開的毒、藥瓶沒有
+	var cut: Vector3 = info.get("cut", Vector3.ZERO) as Vector3
+	if cut.length() > 0.001:
+		var cam: Camera3D = get_viewport().get_camera_3d()
+		var to_eye: Vector3 = cam.global_position - fx.global_position if cam != null else out
+		SlashMark.spawn(fx, fx.global_position, cut, to_eye, bool(info.get("gold", false)), bool(info.get("heavy", false))).hold = debug_hold_hit
 	chips.emitting = true
 	if sparks != null:
 		sparks.emitting = true

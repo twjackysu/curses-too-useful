@@ -29,6 +29,8 @@ var burst_lazy: bool = false
 ## 連拍用：`--hold=move_right,sprint` 一直按住這些動作（看走路、跑步的樣子）。
 ## 每一幀重按：視窗失去焦點時引擎會把按著的動作全部放開（xvfb 底下一開始就會發生）。
 var held_actions: PackedStringArray = []
+## 連拍用：`--tap=attack` 一直連按這些動作（一幀按、一幀放＝像玩家一直點左鍵：拍打架用）
+var tapped_actions: PackedStringArray = []
 const BURST_LAZY_BOOT: int = 20
 const BURST_LAZY_WARM: int = 2
 var _frame: int = 0
@@ -53,6 +55,7 @@ func _ready() -> void:
 	burst_count = maxi(int(args.get("burst-count", burst_count)), 1)
 	burst_lazy = args.has("burst-lazy")
 	held_actions = str(args.get("hold", "")).split(",", false)
+	tapped_actions = str(args.get("tap", "")).split(",", false)
 	set_process(screenshot_path != "" or burst_prefix != "")
 
 
@@ -117,6 +120,11 @@ func _process(_delta: float) -> void:
 	_frame += 1
 	for held: String in held_actions:
 		Input.action_press(held)
+	for tap: String in tapped_actions:
+		if _frame % 2 == 0:
+			Input.action_press(tap)
+		else:
+			Input.action_release(tap)
 	if burst_prefix != "":
 		if burst_lazy and _frame > BURST_LAZY_BOOT:
 			RenderingServer.render_loop_enabled = burst_wait(_frame, burst_from, burst_every) <= BURST_LAZY_WARM

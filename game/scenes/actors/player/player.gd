@@ -812,6 +812,9 @@ func strike() -> int:
 	var hits: int = 0
 	var killed: bool = false
 	last_weak_hits = 0
+	# 刀痕（SlashMark）要的：劍往哪裡掃、是不是金的。先問好——砍中之後才上身的狀態不算在這一刀
+	var cut: Vector3 = blade_sweep()
+	var gold: bool = has_reversed_status()
 	for n: Node in get_tree().get_nodes_in_group("damageable"):
 		var target: Node3D = n as Node3D
 		if target == null or target == self:
@@ -826,7 +829,7 @@ func strike() -> int:
 			weak = str(target.call("weakpoint_exposed_to", global_position))
 		var k_dmg: float = weak_damage if weak != "" else 1.0
 		var k_stg: float = weak_stagger if weak != "" else 1.0
-		if h.apply_damage(damage * k_dmg, {"source": self, "stagger": stagger * k_stg, "kind": "blunt", "weak": weak}):
+		if h.apply_damage(damage * k_dmg, {"source": self, "stagger": stagger * k_stg, "kind": "blunt", "weak": weak, "cut": cut, "gold": gold, "heavy": finisher}):
 			hits += 1
 			if weak != "":
 				last_weak_hits += 1
@@ -969,6 +972,13 @@ func _update_trail() -> void:
 ## 現在這一刀（或剛揮完的那一刀）的劍光；空手時是 null
 func slash_trail() -> SlashTrail:
 	return _trails[_trail_i] if not _trails.is_empty() else null
+
+
+## 劍現在往哪裡掃（世界座標的方向）。看劍光剛記的位置；沒有劍光、或才剛開始揮，就當成從右上往左下劈。
+func blade_sweep() -> Vector3:
+	var trail: SlashTrail = slash_trail()
+	var d: Vector3 = trail.sweep() if trail != null else Vector3.ZERO
+	return d if d != Vector3.ZERO else (-_body.global_basis.x - _body.global_basis.y).normalized()
 
 
 ## 身上有沒有反轉中的狀態（任何一種）

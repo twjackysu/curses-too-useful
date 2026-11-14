@@ -76,6 +76,15 @@ func sample_count() -> int:
 	return _hands.size()
 
 
+## 劍尖剛剛往哪裡走（世界座標的方向；刀痕照這個方向畫）。還沒有兩個取樣就是零向量。
+func sweep() -> Vector3:
+	var n: int = _tips.size()
+	if n < 2:
+		return Vector3.ZERO
+	var d: Vector3 = global_basis * (_tips[n - 1] - _tips[maxi(n - 3, 0)])
+	return d.normalized() if d.length() > 0.001 else Vector3.ZERO
+
+
 func _process(delta: float) -> void:
 	var dead: int = 0
 	for i: int in _ages.size():

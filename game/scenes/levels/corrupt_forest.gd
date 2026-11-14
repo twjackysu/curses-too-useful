@@ -113,6 +113,15 @@ func _ready() -> void:
 				_player.start_attack())
 	if not bool(Game.session.state.get_flag(FLAG_SLIMES, false)):
 		_spawn_slimes()
+		# `--burst-on=hit`：第一次有史萊姆挨打的那一刻開始拍（看刀痕、命中的閃光）。
+		# 配 `--joined --at=0,-12 --tap=attack`：不加 `--joined` 會先跳相遇的對話，諾恩不會出手
+		if burst_on == "hit":
+			var waiting: Array[bool] = [true]
+			for s: Slime in slimes:
+				s.health.damaged.connect(func(_amount: float, _info: Dictionary) -> void:
+					if waiting[0]:
+						waiting[0] = false
+						App.burst_start_in(1))
 	elif not bool(Game.session.state.get_flag(FLAG_AFTER_TALK, false)):
 		_after_talk_in = AFTER_TALK_DELAY  # 打完、話還沒講就離開的存檔：讀回來接著講
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
