@@ -116,5 +116,9 @@ func test_swing_draws_a_trail_rust_then_gold_and_bigger_on_the_finisher() -> voi
 	assert_eq(tints[1], SlashTrail.GOLD_TINT, "身上有反轉中的狀態：金色")
 	assert_true(player.is_finisher(), "第三刀是收尾")
 	assert_true(widths[2] > widths[1] * 1.15, "收尾那一刀的弧最大（%.2f 對 %.2f）" % [widths[2], widths[1]])
+	# 金色的收尾面積最大，所以不能也最亮（整片白掉、蓋住後面的人）；鏽色本來就暗，收尾可以亮一點
+	assert_true(SlashTrail.strength_for(true, true) < SlashTrail.strength_for(true, false), "金色的收尾比平常的金色暗")
+	assert_true(SlashTrail.strength_for(false, true) > SlashTrail.strength_for(false, false), "鏽色的收尾比平常的亮")
+	assert_true(absf(float((player.slash_trail().material_override as ShaderMaterial).get_shader_parameter("strength")) - SlashTrail.strength_for(true, true)) < 0.001, "第三刀用的是金色收尾的亮度")
 	root.queue_free()
 	await tree.process_frame

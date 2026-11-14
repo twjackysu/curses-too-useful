@@ -815,21 +815,27 @@ func strike() -> int:
 	# 刀痕（SlashMark）要的：劍往哪裡掃、是不是金的。先問好——砍中之後才上身的狀態不算在這一刀
 	var cut: Vector3 = blade_sweep()
 	var gold: bool = has_reversed_status()
+	# 由近到遠砍：一刀掃到好幾隻時，只有最近的那一隻畫收尾的大刀痕（`heavy`），後面的畫平常的大小、暗一點（`echo`）——
+	# 每一隻都畫大的，幾道疊在一起畫面中間白成一片，反而看不出砍了誰
+	var targets: Array[Node3D] = []
 	for n: Node in get_tree().get_nodes_in_group("damageable"):
 		var target: Node3D = n as Node3D
 		if target == null or target == self:
 			continue
 		if not in_strike_arc(global_position, forward, target.global_position, reach, arc):
 			continue
-		var h: Health = target.get_node_or_null("Health") as Health
-		if h == null:
-			continue
+		if target.get_node_or_null("Health") is Health:
+			targets.append(target)
+	var here: Vector3 = global_position
+	targets.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_squared_to(here) < b.global_position.distance_squared_to(here))
+	for target: Node3D in targets:
+		var h: Health = target.get_node("Health") as Health
 		var weak: String = ""
 		if target.has_method("weakpoint_exposed_to"):
 			weak = str(target.call("weakpoint_exposed_to", global_position))
 		var k_dmg: float = weak_damage if weak != "" else 1.0
 		var k_stg: float = weak_stagger if weak != "" else 1.0
-		if h.apply_damage(damage * k_dmg, {"source": self, "stagger": stagger * k_stg, "kind": "blunt", "weak": weak, "cut": cut, "gold": gold, "heavy": finisher}):
+		if h.apply_damage(damage * k_dmg, {"source": self, "stagger": stagger * k_stg, "kind": "blunt", "weak": weak, "cut": cut, "gold": gold, "heavy": finisher and hits == 0, "echo": hits > 0}):
 			hits += 1
 			if weak != "":
 				last_weak_hits += 1

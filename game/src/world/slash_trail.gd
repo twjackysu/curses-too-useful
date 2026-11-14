@@ -14,6 +14,9 @@ const RUST_STRENGTH: float = 0.9
 const GOLD_TINT: Color = Color(1.0, 0.72, 0.25)
 const GOLD_CORE: Color = Color(1.0, 0.95, 0.75)
 const GOLD_STRENGTH: float = 2.2
+## 收尾的那一刀：鏽色的亮一點；金色的反而要暗——它的面積是平常的兩倍多，一樣亮的話整片白掉、蓋住後面的人
+const BIG_GAIN: float = 1.25
+const GOLD_BIG_GAIN: float = 0.6
 ## 帶子從手到劍尖的哪一段（0＝手、1＝劍尖）；收尾的那一刀比劍還長
 const SPAN: Vector2 = Vector2(0.3, 1.08)
 const SPAN_BIG: Vector2 = Vector2(0.12, 1.35)
@@ -64,7 +67,14 @@ func begin(gold: bool, big: bool) -> void:
 	recording = true
 	_mat.set_shader_parameter("tint", GOLD_TINT if gold else RUST_TINT)
 	_mat.set_shader_parameter("core", GOLD_CORE if gold else RUST_CORE)
-	_mat.set_shader_parameter("strength", (GOLD_STRENGTH if gold else RUST_STRENGTH) * (1.25 if big else 1.0))
+	_mat.set_shader_parameter("strength", strength_for(gold, big))
+
+
+## 這一刀多亮（shader 的 strength）。純函式。
+static func strength_for(gold: bool, big: bool) -> float:
+	if gold:
+		return GOLD_STRENGTH * (GOLD_BIG_GAIN if big else 1.0)
+	return RUST_STRENGTH * (BIG_GAIN if big else 1.0)
 
 
 ## 這一刀揮完了：不再記，剩下的照壽命消失。

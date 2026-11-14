@@ -482,6 +482,8 @@ const HIT_SPARK_COLOR: Color = Color(1.0, 0.7, 0.32)
 const HIT_FLASH_SEC: float = 0.14
 const HIT_FLASH_ENERGY: float = 3.2
 const HIT_FLASH_RANGE: float = 3.0
+## 同一刀掃到的第二隻、第三隻的閃光剩幾成（三盞一樣亮的燈疊在一起，站在中間的諾恩會整個白掉）
+const HIT_ECHO_FLASH: float = 0.35
 ## 粒子飛多久；整組在這之後收掉
 const HIT_FX_SEC: float = 0.5
 ## 命中點那一下的亮斑（一片面向鏡頭的加法圓點，HIT_POP_SEC 秒內放大、淡掉）：小亮點太細，要有一下「啪」
@@ -521,6 +523,8 @@ func _hit_fx(info: Dictionary) -> Node3D:
 	var from: Vector3 = src.global_position if src != null and is_instance_valid(src) else global_position + forward()
 	var out: Vector3 = hit_dir(from)
 	var weak: bool = str(info.get("weak", "")) != ""
+	# 同一刀已經砍中過別隻（出手的人由近到遠砍）：閃光與刀痕都暗一點，幾隻疊在一起才不會白成一片
+	var echo: bool = bool(info.get("echo", false))
 	var fx := Node3D.new()
 	fx.name = "HitFx"
 	fx.set_meta("weak", weak)
@@ -533,7 +537,7 @@ func _hit_fx(info: Dictionary) -> Node3D:
 	var flash := OmniLight3D.new()
 	flash.name = "Flash"
 	flash.light_color = Color(1.0, 0.86, 0.62) if weak else HIT_CHIP_COLOR
-	flash.light_energy = HIT_FLASH_ENERGY * (1.5 if weak else 1.0)
+	flash.light_energy = HIT_FLASH_ENERGY * (1.5 if weak else 1.0) * (HIT_ECHO_FLASH if echo else 1.0)
 	flash.omni_range = HIT_FLASH_RANGE
 	flash.omni_attenuation = 1.4
 	flash.shadow_enabled = false
@@ -556,12 +560,15 @@ func _hit_fx(info: Dictionary) -> Node3D:
 	# 連打時同名的兄弟節點：要引擎編成 HitFx2、HitFx3（不要 @Node3D@123 那種看不懂的名字）
 	(get_parent() if get_parent() != null else self).add_child(fx, true)
 	fx.global_position = hit_point(from)
-	# 劍砍的（info 帶著劍掃的方向）：照那個方向閃一道刀痕。炸開的毒、藥瓶沒有
+	# 劍砍的（info 帶著劍掃的方向）：照那個方向閃一道刀痕，橫過身體的中心。炸開的毒、藥瓶沒有
 	var cut: Vector3 = info.get("cut", Vector3.ZERO) as Vector3
 	if cut.length() > 0.001:
+		var center: Vector3 = global_position + Vector3.UP * _hit_height()
 		var cam: Camera3D = get_viewport().get_camera_3d()
-		var to_eye: Vector3 = cam.global_position - fx.global_position if cam != null else out
-		SlashMark.spawn(fx, fx.global_position, cut, to_eye, bool(info.get("gold", false)), bool(info.get("heavy", false))).hold = debug_hold_hit
+		var to_eye: Vector3 = cam.global_position - center if cam != null else out
+		var mark: SlashMark = SlashMark.spawn(fx, center, cut, to_eye, bool(info.get("gold", false)), bool(info.get("heavy", false)), echo)
+		mark.set_pull(_hit_radius() + SlashMark.PULL_MARGIN)
+		mark.hold = debug_hold_hit
 	chips.emitting = true
 	if sparks != null:
 		sparks.emitting = true

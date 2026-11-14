@@ -4,6 +4,7 @@ extends MeshInstance3D
 ## 很快衝到全長，再變細、淡掉。看得出是「劍砍的」、往哪裡砍的（碎屑與閃光看不出來）。
 ## 顏色跟劍光（SlashTrail）同一組：平常鏽色，身上有反轉中的狀態是金的；收尾的那一刀比較長、比較粗、留得比較久。
 ## 面向鏡頭只在生出來的那一刻算一次（只活 0.2 秒）。照遊戲時間走：打擊停頓時整條亮線停在敵人身上。
+## 畫在被砍的那一隻前面，但不會畫到比牠更靠近鏡頭的人身上（`set_pull`）。同一刀掃到好幾隻：最近的那一隻最亮，其他的暗一點（`echo`）。
 
 const SHADER: Shader = preload("res://src/world/slash_mark.gdshader")
 const LENGTH: float = 1.9
@@ -17,9 +18,16 @@ const START_LEN: float = 0.6
 const SHOOT_SEC: float = 0.05
 const RUST_STRENGTH: float = 1.5
 const GOLD_STRENGTH: float = 2.6
+## 同一刀掃到的第二隻、第三隻：暗一點（幾道一樣亮的疊在一起會白成一片）
+const ECHO_DIM: float = 0.55
+const PULL_MARGIN: float = 0.12
 
 var gold: bool = false
 var big: bool = false
+## 這一刀已經砍中過別隻（不是最近的那一隻）
+var echo: bool = false
+## 往鏡頭拉近幾公尺再做深度測試（看 slash_mark.gdshader）
+var pull: float = PULL_MARGIN
 ## 截圖用：停在剛砍下去的樣子，不淡、不收
 var hold: bool = false
 
@@ -27,12 +35,14 @@ var _age: float = 0.0
 var _mat: ShaderMaterial
 
 
-## 在 at（世界座標）閃一道。cut＝劍往哪裡掃；to_eye＝從那一點看向鏡頭的方向。
-static func spawn(parent: Node, at: Vector3, cut: Vector3, to_eye: Vector3, is_gold: bool, is_big: bool) -> SlashMark:
+## 在 at（世界座標；敵人身體的中心，不是朝著出手的人的那一面——兩個人貼在一起時那一面就在出手的人身上）閃一道。
+## cut＝劍往哪裡掃；to_eye＝從那一點看向鏡頭的方向。
+static func spawn(parent: Node, at: Vector3, cut: Vector3, to_eye: Vector3, is_gold: bool, is_big: bool, is_echo: bool = false) -> SlashMark:
 	var m := SlashMark.new()
 	m.name = "SlashMark"
 	m.gold = is_gold
 	m.big = is_big
+	m.echo = is_echo
 	m.top_level = true
 	m.mesh = QuadMesh.new()
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -40,7 +50,8 @@ static func spawn(parent: Node, at: Vector3, cut: Vector3, to_eye: Vector3, is_g
 	m._mat.shader = SHADER
 	m._mat.set_shader_parameter("tint", SlashTrail.GOLD_TINT if is_gold else SlashTrail.RUST_CORE)
 	m._mat.set_shader_parameter("core", SlashTrail.GOLD_CORE if is_gold else Color(1.0, 0.85, 0.7))
-	m._mat.set_shader_parameter("strength", GOLD_STRENGTH if is_gold else RUST_STRENGTH)
+	m._mat.set_shader_parameter("strength", m.strength())
+	m._mat.set_shader_parameter("pull", m.pull)
 	m.material_override = m._mat
 	parent.add_child(m)
 	# top_level：自己的 transform 就是世界座標
@@ -59,6 +70,18 @@ static func facing(cut: Vector3, to_eye: Vector3) -> Basis:
 		x -= z * x.dot(z)
 	x = x.normalized()
 	return Basis(x, z.cross(x), z)
+
+
+## 往鏡頭拉近幾公尺再做深度測試。刀痕橫過敵人身體的中心，所以拉「牠的身體半徑＋`PULL_MARGIN`」剛好離開牠的身體；
+## 只拉這麼多，比牠更靠近鏡頭的人（站在中間的諾恩）還是擋得到刀痕。
+func set_pull(meters: float) -> void:
+	pull = meters
+	_mat.set_shader_parameter("pull", pull)
+
+
+## 多亮（shader 的 strength）
+func strength() -> float:
+	return (GOLD_STRENGTH if gold else RUST_STRENGTH) * (ECHO_DIM if echo else 1.0)
 
 
 ## 現在多長、多寬（m）
