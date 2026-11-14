@@ -348,6 +348,52 @@ func test_in_a_fight_sera_panics_and_her_wrong_vial_reverses_into_two_boons() ->
 	assert_true(absf(hp0 - player.health.hp - 2.0) < 0.01, "這時候挨打只扣兩成（扣了 %.1f）" % (hp0 - player.health.hp))
 
 
+## 席菈平常跟在鏡頭後面：她喊的話以前不在畫面裡就不顯示，教學戰那兩句玩家根本看不到。
+## 現在看不到她的時候，那一句改成畫面下方的「席菈：……」；看得到她就照舊浮在她頭上（不寫名字）。
+func test_sera_line_moves_to_the_bottom_with_her_name_when_she_is_off_screen() -> void:
+	_new_game_joined()
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	var sera: Sera = level.sera
+	sera.set_physics_process(false)
+	player.snap_camera()
+	var cam: Camera3D = tree.root.get_camera_3d()
+	assert_not_null(cam, "有鏡頭")
+	var view: Vector2 = tree.root.get_visible_rect().size
+	var back: Vector3 = cam.global_basis.z
+	back.y = 0.0
+	# 她在鏡頭後面 3 m
+	sera.global_position = Vector3(cam.global_position.x, player.global_position.y, cam.global_position.z) + back.normalized() * 3.0
+	hud.show_bark(sera, "BARK_SERA_PANIC", 30.0, Sera.NAME_KEY)
+	await tree.process_frame
+	var texts: PackedStringArray = hud.bark_texts()
+	assert_eq(texts.size(), 1, "看不到她：那一句還是顯示")
+	if texts.size() == 1:
+		assert_true(texts[0].begins_with(tr("SPK_SHEILA")) and texts[0].ends_with(tr("BARK_SERA_PANIC")), "寫了是誰講的（%s）" % texts[0])
+		var rect: Rect2 = hud.bark_rects()[0]
+		assert_true(rect.position.y > view.y * 0.55 and rect.end.y < view.y - 100.0, "在畫面下方、生命條上面（y %.0f～%.0f，畫面高 %.0f）" % [rect.position.y, rect.end.y, view.y])
+		assert_true(absf(rect.get_center().x - view.x * 0.5) < 2.0, "左右置中")
+	# 沒給名字的照舊不顯示（貼在邊上的一句話看不出是誰講的）
+	hud.show_bark(sera, "BARK_SERA_PANIC", 30.0)
+	await tree.process_frame
+	assert_eq(hud.bark_texts().size(), 0, "沒給名字、又看不到人：不顯示")
+	# 她走到鏡頭前面 6 m、離諾恩遠一點（不被他擋住）：回到她頭上，不寫名字
+	var right: Vector3 = cam.global_basis.x
+	right.y = 0.0
+	sera.global_position = Vector3(cam.global_position.x, player.global_position.y, cam.global_position.z) - back.normalized() * 6.0 + right.normalized() * 1.5
+	hud.show_bark(sera, "BARK_SERA_PANIC", 30.0, Sera.NAME_KEY)
+	await tree.process_frame
+	texts = hud.bark_texts()
+	assert_eq(texts, PackedStringArray(["BARK_SERA_PANIC"]), "看得到她：字在她頭上，不寫名字")
+	if texts.size() == 1:
+		var on: Vector2 = cam.unproject_position(sera.global_position + Vector3.UP * 2.1)
+		assert_true(hud.bark_rects()[0].get_center().distance_to(on) < 80.0, "貼著她的頭（差 %.0f px）" % hud.bark_rects()[0].get_center().distance_to(on))
+	level.queue_free()
+	await tree.process_frame
+
+
 ## 「趁現在砍」：像玩家那樣——往最近的那一隻小跑過去，夠得到就一直按出手。量三隻史萊姆全倒要幾幀；回傳 -1＝時間內沒清完。
 var _mash_swings: int = 0
 

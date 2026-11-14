@@ -62,6 +62,9 @@ const BARK_EDGE: float = 14.0
 ## 頭頂的那一點超出畫面這麼多（px）以內還算在畫面裡
 const BARK_OFFSCREEN: float = 40.0
 const BARK_STACK_GAP: float = 4.0
+## 講的人看不到的時候，那一句改放在畫面下方中間（「名字：台詞」）：離畫面底邊多遠（px）、用哪個翻譯 key 把名字與台詞接起來
+const BARK_NAMED_BOTTOM: float = 176.0
+const BARK_NAMED_KEY: String = "BARK_NAMED"
 ## 講的人的臉被比較靠近鏡頭的另一個角色擋住就不顯示：第 99 輪的過肩連拍上，站在後面 8 m 的人講的話
 ## 畫在前面那個人的頭上，看起來像前面那個人講的。臉＝腳上面 head × BARK_FACE；擋人的身體＝腳到 BARK_BODY_HEIGHT、左右各 BARK_BODY_HALF 公尺。
 const BARK_FACE: float = 0.76
@@ -247,7 +250,9 @@ func _process(delta: float) -> void:
 
 ## 角色頭上跳一句話（翻譯 key 或已經翻好的字），seconds 秒後淡掉。head＝字浮在腳上面幾公尺。
 ## 同一個角色的上一句直接換掉；同時最多 BARK_MAX 句（最舊的先拿掉）。
-func show_bark(speaker: Node3D, key: String, seconds: float = 2.4, color: Color = BARK_COLOR, head: float = 2.1) -> void:
+## who＝講的人的名字（翻譯 key）：有給的話，講的人不在畫面裡、或臉被別人擋住時，這一句改成畫面下方的「名字：台詞」
+## （席菈平常跟在鏡頭後面——她喊的話不這樣放，玩家根本看不到）；沒給就照舊不顯示。
+func show_bark(speaker: Node3D, key: String, seconds: float = 2.4, who: String = "", color: Color = BARK_COLOR, head: float = 2.1) -> void:
 	if speaker == null or key == "":
 		return
 	var i: int = _barks.size() - 1
@@ -271,7 +276,7 @@ func show_bark(speaker: Node3D, key: String, seconds: float = 2.4, color: Color 
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.modulate.a = 0.0
 	_bark_root.add_child(l)
-	_barks.append({"speaker": speaker, "label": l, "key": key, "age": 0.0, "life": maxf(seconds, 0.2), "head": head})
+	_barks.append({"speaker": speaker, "label": l, "key": key, "age": 0.0, "life": maxf(seconds, 0.2), "head": head, "who": who})
 	_update_barks(0.0)
 
 
@@ -309,14 +314,21 @@ func _update_barks(delta: float) -> void:
 			continue
 		var at: Vector3 = (b["speaker"] as Node3D).global_position + Vector3.UP * float(b["head"])
 		var on: Vector2 = cam.unproject_position(at)
-		# 講話的人不在畫面裡（或在鏡頭後面）就不顯示：貼在畫面邊上的一句話看不出是誰講的（第 98 輪的連拍）
-		l.visible = not cam.is_position_behind(at) and Rect2(Vector2.ZERO, view).grow(BARK_OFFSCREEN).has_point(on)
-		if l.visible and bark_speaker_hidden(cam, b["speaker"] as Node3D, float(b["head"])):
-			l.visible = false
+		var seen: bool = not cam.is_position_behind(at) and Rect2(Vector2.ZERO, view).grow(BARK_OFFSCREEN).has_point(on) \
+			and not bark_speaker_hidden(cam, b["speaker"] as Node3D, float(b["head"]))
+		# 講話的人看不到（不在畫面裡、在鏡頭後面、臉被別人擋住）：知道名字就改成畫面下方的「名字：台詞」；
+		# 不知道名字就不顯示——貼在畫面邊上的一句話看不出是誰講的（第 98 輪的連拍）
+		var who: String = str(b["who"])
+		l.visible = seen or who != ""
 		if not l.visible:
 			continue
+		var words: String = str(b["key"]) if seen else tr(BARK_NAMED_KEY).format({"who": tr(who), "line": tr(str(b["key"]))})
+		if l.text != words:
+			l.text = words
 		var size: Vector2 = l.get_minimum_size()
 		var p: Vector2 = on - Vector2(size.x * 0.5, size.y + BARK_RISE_PX * age / life)
+		if not seen:
+			p = Vector2((view.x - size.x) * 0.5, view.y - BARK_NAMED_BOTTOM - size.y)
 		var rect := Rect2(Vector2(clampf(p.x, BARK_EDGE, maxf(view.x - size.x - BARK_EDGE, BARK_EDGE)), clampf(p.y, BARK_EDGE, maxf(view.y - size.y - BARK_EDGE, BARK_EDGE))), size)
 		# 幾個人站得近（或離鏡頭遠）的時候字會疊在一起看不懂（第 98 輪的連拍）：後講的往上讓，上面沒位置就往下
 		var step: float = -(size.y + BARK_STACK_GAP)
@@ -364,6 +376,16 @@ func _bark_blocked(rect: Rect2, placed: Array[Rect2]) -> bool:
 		if r.intersects(rect):
 			return true
 	return false
+
+
+## 畫面上看得到的那幾句現在寫的字（頭上的是翻譯 key，畫面下方的是接好名字的字；測試用）
+func bark_texts() -> PackedStringArray:
+	var out := PackedStringArray()
+	for b: Dictionary in _barks:
+		var l: Label = b["label"] as Label
+		if l.visible:
+			out.append(l.text)
+	return out
 
 
 ## 畫面上看得到的那幾句各佔哪一塊（測試用）

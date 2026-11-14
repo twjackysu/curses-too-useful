@@ -7,6 +7,8 @@ extends CharacterBody3D
 ## 她沒有諾恩的體質：瘴氣對她是真的毒，所以靠近瘴氣就把防毒面具戴上（劇本節點 2），離開一下子才拿下來。
 ## 還沒結伴（joined＝false）的時候站在原地等：不跟、不射，諾恩走近會轉過來看他。
 
+## 她的名字（翻譯 key；對話資料裡也是這個）
+const NAME_KEY: String = "SPK_SHEILA"
 const CROSSBOW_MODEL: String = "tripo/weapon_alchemy_crossbow"
 const VIAL_SOURCE: String = "sera_paralysis_vial"
 const TURN_SPEED: float = 8.0

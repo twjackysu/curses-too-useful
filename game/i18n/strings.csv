@@ -131,6 +131,7 @@ CH1_REVERSAL_LINE2,Every ailment on you flips into a boon.,落在你身上的異
 CH1_SLIMES_CLEARED,The glade is clear.,空地清乾淨了。
 BARK_SERA_PANIC,"S-slimes! H-hang on, I will back you up!",史、史萊姆！等、等一下，我來幫你——
 BARK_SERA_MISFIRE,"No no no! Norn, I am so sorry, I messed up again!",完了完了！諾恩，對不起我又搞砸了！
+BARK_NAMED,{who}: {line},{who}：{line}
 BARK_SERA_NOTICE,"Ah... u-um, excuse me!",啊……那、那個！
 BARK_SERA_MASK,"Mask, mask... okay, it is on!",面具、面具……好，戴好了！
 CH1_MISFIRE_LINE1,Paralyzed → Faster attacks　Defense zero → Less damage taken,麻痺 → 出手加速　防禦歸零 → 受傷減少

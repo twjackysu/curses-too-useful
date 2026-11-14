@@ -168,14 +168,14 @@ func _tick_meeting(st: GameState) -> void:
 	var dist: float = sera.global_position.distance_to(_player.global_position)
 	if not _sera_called and dist < Sera.NOTICE_DIST:
 		_sera_called = true
-		_hud.show_bark(sera, "BARK_SERA_NOTICE", 2.6)
+		_hud.show_bark(sera, "BARK_SERA_NOTICE", 2.6, Sera.NAME_KEY)
 	if dist < SERA_MEET_DIST or _player.global_position.z < SERA_WAIT_POS.z + 1.0:
 		Game.start_dialogue(JOIN_DIALOGUE)
 
 
 func _on_sera_mask_changed(on: bool) -> void:
 	if on and sera.joined and Game.session.state.grant_once("ch1.sera_mask_bark"):
-		_hud.show_bark(sera, "BARK_SERA_MASK", 2.8)
+		_hud.show_bark(sera, "BARK_SERA_MASK", 2.8, Sera.NAME_KEY)
 
 
 ## 教學戰的誤射（劇本節點 2）：舉弩的時候喊一句；藥瓶砸中之後抱頭道歉，畫面中間寫這兩種狀態反轉成什麼。
@@ -186,11 +186,11 @@ func _tick_misfire() -> void:
 	if _misfire_step == 0:
 		if sera.brain.is_aiming():
 			_misfire_step = 1
-			_hud.show_bark(sera, "BARK_SERA_PANIC")
+			_hud.show_bark(sera, "BARK_SERA_PANIC", 2.4, Sera.NAME_KEY)
 	elif sera.last_vial != null and (not is_instance_valid(sera.last_vial) or sera.last_vial.landed):
 		sera.vial_source = Sera.VIAL_SOURCE
 		Game.session.set_flag(FLAG_MISFIRE, true)
-		_hud.show_bark(sera, "BARK_SERA_MISFIRE", 3.4)
+		_hud.show_bark(sera, "BARK_SERA_MISFIRE", 3.4, Sera.NAME_KEY)
 		_hud.show_center_lines("CH1_MISFIRE_LINE1", "CH1_MISFIRE_LINE2", 5.0, Hud.CENTER_LINE2_COLOR)
 
 
