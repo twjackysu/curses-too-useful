@@ -223,6 +223,57 @@ func test_noen_starts_alone_meets_sera_at_the_miasma_and_she_joins_with_her_mask
 	assert_false(sera.masked, "離開一下子就拿下來")
 
 
+## 對話時鏡頭帶到講話的人臉上：相遇那一段先看席菈、換諾恩講就切到他（他已經轉過去面向她）、講完回到玩家的鏡頭。
+func test_talk_camera_shows_whoever_is_speaking_then_hands_back() -> void:
+	_game().call("new_game", false)
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var sera: Sera = level.sera
+	var cam: TalkCamera = level.talk_camera
+	var own: Camera3D = tree.root.get_viewport().get_camera_3d()
+	assert_true(own != null and own != cam, "平常是玩家自己的鏡頭")
+	assert_false(cam.is_talking())
+	# 走到她旁邊、背對著她：開口
+	player.global_position = CorruptForest.SERA_WAIT_POS + Vector3(1.4, 0.05, 2.6)
+	for i: int in 3:
+		await tree.physics_frame
+	assert_true(bool(_game().call("is_in_dialogue")))
+	assert_true(cam.is_talking() and cam.current, "對話一開始就接手")
+	assert_eq(cam.speaker(), sera as Node3D, "第一句是她（？？？）")
+	for i: int in int(TalkCamera.BLEND_SEC * 60.0) + 12:
+		await tree.physics_frame
+	assert_eq(tree.root.get_viewport().get_camera_3d(), cam as Camera3D)
+	var to_sera: Vector3 = (TalkCamera.aim_point(sera.global_position) - cam.global_position).normalized()
+	assert_true((-cam.global_basis.z).dot(to_sera) > 0.999, "滑到位之後對著席菈")
+	assert_true(cam.global_position.distance_to(sera.global_position) < 3.4, "是近景（離她 %.1f m）" % cam.global_position.distance_to(sera.global_position))
+	assert_true(absf(cam.fov - TalkCamera.TALK_FOV) < 0.1)
+	var sera_face: Vector3 = -sera.global_basis.z
+	assert_true(sera_face.dot((cam.global_position - sera.global_position).normalized()) > 0.5, "拍到的是她的臉，不是後腦勺")
+	var to_her: Vector3 = sera.global_position - player.global_position
+	to_her.y = 0.0
+	assert_true(player.facing().dot(to_her.normalized()) > 0.95, "諾恩轉過去面向她")
+	# 換諾恩講：直接切到他那邊
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	runner.advance()
+	await tree.physics_frame
+	await tree.physics_frame
+	assert_eq(cam.speaker(), player as Node3D)
+	var to_noen: Vector3 = (TalkCamera.aim_point(player.global_position) - cam.global_position).normalized()
+	assert_true((-cam.global_basis.z).dot(to_noen) > 0.999, "換人講就切過去，不是慢慢搖")
+	assert_true(player.facing().dot((cam.global_position - player.global_position).normalized()) > 0.5, "拍到的是他的臉")
+	# 講完：滑回玩家的鏡頭
+	runner.advance()
+	runner.advance()
+	runner.choose(0)
+	runner.advance()
+	assert_false(bool(_game().call("is_in_dialogue")))
+	for i: int in int(TalkCamera.BLEND_SEC * 60.0) + 6:
+		await tree.physics_frame
+	assert_false(cam.is_talking())
+	assert_eq(tree.root.get_viewport().get_camera_3d(), own, "講完鏡頭還給玩家")
+
+
 ## 結伴之後讀檔（或倒下重來）：從原本的出生點開始，席菈在旁邊，不會再問一次。
 func test_continue_after_joining_starts_with_sera_beside_noen() -> void:
 	_new_game_joined()

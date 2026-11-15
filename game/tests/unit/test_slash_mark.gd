@@ -78,6 +78,9 @@ func test_norn_strike_marks_the_slime_along_the_blade() -> void:
 	root.add_child(slime)
 	await tree.physics_frame
 	assert_true(absf(player.blade_sweep().length() - 1.0) < 0.001, "還沒揮也有一個方向（%s）" % player.blade_sweep())
+	# 剛載入的那一幀特別長：馬上出手的話，出手的時鐘先跑、模型的動作還沒跟上，量到的是拉開的方向（機器忙的時候才會）
+	for i: int in 6:
+		await tree.process_frame
 	var golds: Array[bool] = []
 	var alongs: Array[Vector3] = []
 	for swing: int in 2:

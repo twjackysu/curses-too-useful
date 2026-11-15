@@ -48,6 +48,10 @@ var _potion_player: PlayerController
 var _banner_tween: Tween
 ## 畫面中間的兩行字（第一次反轉：「中毒 → 回血」「落在你身上的異常狀態，全都會反轉成增益。」）
 var _center: VBoxContainer
+## 中間那兩行字平常的高度（show_center_lines 算的）；對話中改放在 CENTER_TALK_Y
+const CENTER_TALK_Y: float = 44.0
+const CENTER_SLIDE_SPEED: float = 1400.0
+var _center_y: float = 0.0
 var _center_tween: Tween
 var _text_back: StyleBoxFlat  # 中央兩行字與左上目標共用的暗底
 ## 第二行比第一行晚出現幾秒
@@ -235,6 +239,11 @@ func _build() -> void:
 func _process(delta: float) -> void:
 	if App.last_device != _hint_device:
 		_refresh_hint()
+	# 對話中鏡頭在講話的人臉上（TalkCamera）：左上的目標與操作提示先收起來，講完再回來
+	var talking: bool = Game.is_in_dialogue()
+	_objective_box.visible = _objective.text != "" and not talking
+	# 中間那兩行字（第一次反轉的說明）還亮著就開始對話時：移到畫面最上面，不蓋住講話的人的臉
+	_center.position.y = move_toward(_center.position.y, CENTER_TALK_Y if talking else _center_y, CENTER_SLIDE_SPEED * delta)
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	var pc: PlayerController = player as PlayerController
 	# 身上的毒可以放出去的時候（戰鬥場），那一列後面寫按哪個鍵、會扣多少
@@ -323,7 +332,8 @@ func _update_barks(delta: float) -> void:
 		# 講話的人看不到（不在畫面裡、在鏡頭後面、臉被別人擋住）：知道名字就改成畫面下方的「名字：台詞」；
 		# 不知道名字就不顯示——貼在畫面邊上的一句話看不出是誰講的（第 98 輪的連拍）
 		var who: String = str(b["who"])
-		l.visible = seen or who != ""
+		# 對話中不顯示：畫面下方那一行會壓在對話框底下，頭上的那一句在近景裡飄到畫面外
+		l.visible = (seen or who != "") and not Game.is_in_dialogue()
 		if not l.visible:
 			continue
 		var words: String = str(b["key"]) if seen else tr(BARK_NAMED_KEY).format({"who": tr(who), "line": tr(str(b["key"]))})
@@ -570,6 +580,7 @@ func show_center_lines(key1: String, key2: String, seconds: float = 4.0, line1_c
 	_center.reset_size()
 	_center.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
 	_center.position.y -= 150.0
+	_center_y = _center.position.y
 	_center.queue_redraw()
 	if _center_tween != null:
 		_center_tween.kill()

@@ -57,6 +57,8 @@ const SERA_START_OFFSET: Vector3 = Vector3(-1.7, 0.0, -2.6)
 var slimes: Array[Slime] = []
 var miasma: PoisonMist
 var sera: Sera
+var talk_camera: TalkCamera
+var _talk_skip: int = 0
 ## 離瘴氣裡那段對話還有幾秒（< 0＝沒有在等）
 var _gate_talk_in: float = -1.0
 ## 離戰後那段對話還有幾秒（< 0＝沒有在等）
@@ -97,6 +99,10 @@ func _ready() -> void:
 		_player.global_position = Vector3(float(at[0]), spawn.global_position.y, float(at[1]))
 	_player.snap_camera()
 	_spawn_sera()
+	# 截圖用：`--talk-skip=N` 對話一開始就先按掉 N 句（拍第 N+1 句的鏡位；相遇那一段配 `--at=-0.3,12.2`）
+	_talk_skip = int(str(args.get("talk-skip", "0")))
+	if _talk_skip > 0:
+		Game.dialogue_started.connect(_skip_lines)
 	# 連拍用（scripts/burst.sh）：`--burst-on=reversal` 進場 1.5 秒後讓諾恩吸到瘴氣、`--burst-on=vial` 讓席菈射一瓶，從那一刻開始拍
 	var burst_on: String = str(args.get("burst-on", ""))
 	if burst_on == "reversal" or burst_on == "vial" or burst_on == "ask":
@@ -235,6 +241,11 @@ func slimes_alive() -> int:
 	return n
 
 
+func _skip_lines(r: DialogueRunner) -> void:
+	for i: int in _talk_skip:
+		r.advance.call_deferred()
+
+
 func _spawn_sera() -> void:
 	sera = Sera.new()
 	sera.name = "Sera"
@@ -256,6 +267,11 @@ func _spawn_sera() -> void:
 	else:
 		sera.ask_enabled = true
 	add_child(sera)
+	# 對話時鏡頭帶到講話的人臉上；一開始的「？？？」也是她
+	talk_camera = TalkCamera.new()
+	talk_camera.name = "TalkCamera"
+	talk_camera.cast = {"SPK_NOEN": _player, Sera.NAME_KEY: sera, "SPK_UNKNOWN": sera}
+	add_child(talk_camera)
 
 
 func _spawn_slimes() -> void:

@@ -67,6 +67,9 @@ var _lock_marker: MeshInstance3D
 
 ## 目前的過肩偏移（SpringArm 的 x，m）
 var _shoulder: float = SHOULDER_OFFSET
+## 對話中要面向的地方（INF＝沒有）；轉得比走路慢，看得出是「轉過去聽她講」
+const TALK_TURN_SPEED: float = 6.0
+var _talk_point: Vector3 = Vector3.INF
 var _dodge_left: float = 0.0
 var _dodge_cooldown: float = 0.0
 var _dodge_dir: Vector3 = Vector3.ZERO
@@ -196,6 +199,16 @@ func _ready() -> void:
 	_build_lock_marker()
 
 
+## 對話開始時轉過去面向這個地方（講完就不管了，照平常的往哪走面向哪）。
+func talk_to(point: Vector3) -> void:
+	_talk_point = point
+
+
+## 身體現在面向哪（水平的單位向量）
+func facing() -> Vector3:
+	return -_body.global_basis.z
+
+
 ## 把輸入（x=左右，y=前後，前為負）依鏡頭水平角度轉成世界方向。純函式，方便測試。
 static func move_direction(input: Vector2, camera_yaw: float) -> Vector3:
 	var dir := Basis(Vector3.UP, camera_yaw) * Vector3(input.x, 0.0, input.y)
@@ -321,7 +334,14 @@ func _physics_process(delta: float) -> void:
 		velocity.z = horizontal.z
 	_sprinting = sprinting
 
-	if lock_target != null and _dodge_left <= 0.0 and not sprinting:
+	if not talking:
+		_talk_point = Vector3.INF
+	if talking and _talk_point.is_finite():
+		# 對話中轉過去面向講話的對象（TalkCamera 開場時叫 talk_to）
+		var to_p: Vector3 = _talk_point - global_position
+		if Vector2(to_p.x, to_p.z).length() > 0.05:
+			_body.rotation.y = lerp_angle(_body.rotation.y, atan2(-to_p.x, -to_p.z), clampf(TALK_TURN_SPEED * delta, 0.0, 1.0))
+	elif lock_target != null and _dodge_left <= 0.0 and not sprinting:
 		var to_t: Vector3 = lock_target.global_position - global_position
 		_body.rotation.y = lerp_angle(_body.rotation.y, atan2(-to_t.x, -to_t.z), clampf(TURN_SPEED * delta, 0.0, 1.0))
 	elif swing_holds_facing():
