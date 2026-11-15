@@ -24,7 +24,7 @@
 | 4 | 公會大廳 | 節點 1、結尾 | 沒有。模型有：`lilith`、`prop_guild_counter_v2`、`prop_aptitude_crystal`、`prop_guild_quest_board`、`prop_guild_signboard`、`guild_adventurer_a/b`、`royal_inspector` |
 | 5 | 城鎮（公會外、黑市商人、酒館地下室） | 時段 A | 沒有。模型有：`black_market_merchant`、`prop_cursed_ring`；建築用 `art-inbox/props/` 的 CC0 套件 |
 
-**先把 1 做成好玩的 3 分鐘（垂直切片）**：進森林 → 吸到瘴氣反轉（有完整回饋）→ 三隻史萊姆 → 席菈誤射藥水 → 超頻一刀清場 → 戰後對話。核心循環、兩個主角、兩把新武器、反轉回饋全部驗證一次，好玩了再往外擴。
+**順序（Jacky 2026-11-15，D-290）**：1 算做完、不再磨 → **2 → 3 → 4 一輪做完一整段**（先求有、能玩、看得懂；用現有的 Tripo 模型，不是灰盒）→ 四段都有了才開始打磨 → 5 城鎮。做 4 的時候新遊戲改從公會大廳開始，演完直接接到森林入口。進度看 [`../NEXT.md`](../NEXT.md) 最上面「★ 現在做的這一段」。
 
 ## 系統
 
