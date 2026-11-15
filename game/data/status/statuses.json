@@ -86,11 +86,12 @@
 			"duration": 12.0
 		},
 		"sera_blind_smoke": {
-			"_doc": "按鍵向席菈要的【致盲煙霧彈】（劇本節點 3）：致盲 → 鷹眼（每一刀都算砍在破綻上）。color＝藥瓶與煙的顏色（沒寫是紫的）。",
+			"_doc": "按鍵向席菈要的【致盲煙霧彈】（劇本節點 3）：致盲 → 鷹眼（每一刀都算砍在破綻上）。color＝藥瓶與煙的顏色（沒寫是紫的）；smoke＝砸開時腳邊冒一圈煙。",
 			"status": "blind",
 			"rate": 1.0,
 			"duration": 8.0,
-			"color": "#f2e27a"
+			"color": "#f2e27a",
+			"smoke": true
 		}
 	},
 	"items": {

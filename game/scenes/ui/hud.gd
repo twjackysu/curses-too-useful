@@ -24,6 +24,7 @@ var _objective_box: VBoxContainer
 var _hint: Label
 var _hint_key: String = ""
 var _extra_hint_key: String = ""
+var _extra_hint_args: Dictionary = {}
 var _hint_device: int = -1
 var _saved: Label
 var _died: Label
@@ -470,10 +471,12 @@ func _refresh_objective(fade_in: bool) -> void:
 
 
 ## 關卡加的第二行操作提示（翻譯 key；空的＝拿掉）：任務階段的提示寫不到的——劇情演到某一拍才開放的操作（向席菈要藥）。
-func set_extra_hint(key: String) -> void:
-	if key == _extra_hint_key:
+## args＝字裡除了按鍵以外要填的東西（例：{sec} 還要等幾秒）。
+func set_extra_hint(key: String, args: Dictionary = {}) -> void:
+	if key == _extra_hint_key and args == _extra_hint_args:
 		return
 	_extra_hint_key = key
+	_extra_hint_args = args
 	_refresh_hint()
 
 
@@ -493,9 +496,11 @@ func _refresh_hint() -> void:
 	for action: String in InputSetup.ACTION_KEYS:
 		keys[action] = InputGlyphs.label_for_action(action, _hint_device)
 	var lines: PackedStringArray = []
-	for key: String in [_hint_key, _extra_hint_key]:
-		if key != "":
-			lines.append(tr(key).format(keys))
+	if _hint_key != "":
+		lines.append(tr(_hint_key).format(keys))
+	if _extra_hint_key != "":
+		keys.merge(_extra_hint_args)
+		lines.append(tr(_extra_hint_key).format(keys))
 	_hint.text = "\n".join(lines)
 
 

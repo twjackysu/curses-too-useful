@@ -32,6 +32,8 @@ const NOTICE_DIST: float = 9.0
 signal mask_changed(on: bool)
 ## 玩家向她要一瓶的那一刻。ok＝她答應了（馬上舉弩）；false＝還在裝上一瓶（關卡接這個讓她回一句）
 signal asked(ok: bool)
+## 要過一瓶之後，她把下一瓶裝好、又可以要了的那一刻
+signal reloaded
 
 var brain: SeraBrain = SeraBrain.new()
 ## 下一瓶射什麼（statuses.json 的來源）；關卡可以換（教學戰的第一瓶是她慌了拿錯的那一瓶）
@@ -101,10 +103,13 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed(ASK_ACTION):
 		ask()
 	var was_aiming: bool = brain.is_aiming()
+	var was_loading: bool = brain.ask_left > 0.0
 	if brain.tick(delta, threat_near()):
 		fire()
 	elif brain.is_aiming() and not was_aiming:
 		_puppet.play_action("shoot")
+	if was_loading and brain.ask_left <= 0.0:
+		reloaded.emit()
 
 
 ## 諾恩附近有沒有活著的敵人

@@ -1,5 +1,5 @@
 shader_type spatial;
-// 腳下的接地陰影：送葬者在霧裡像浮在石板上（夜裡月光的影子被霧吃掉）。
+// 腳下的接地陰影：沒有它角色像浮在地上（夜裡月光的影子被霧吃掉）。
 // 一片貼地的圓，中間最暗、往外柔和淡出；黑色＋透明度，所以照樣被霧蓋住（遠處不會突兀一塊黑）。
 // 前兆範圍（telegraph，y 0.03）畫在它上面。
 render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, shadows_disabled;

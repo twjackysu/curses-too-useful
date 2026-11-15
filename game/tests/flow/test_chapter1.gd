@@ -48,6 +48,14 @@ func _load_level() -> CorruptForest:
 	return _level
 
 
+## 這段字裡有沒有數字（左上的提示平常只有按鍵與字；席菈在裝藥的時候才有倒數）
+func _has_digit(text: String) -> bool:
+	for i: int in text.length():
+		if text[i] >= "0" and text[i] <= "9":
+			return true
+	return false
+
+
 func test_new_game_starts_chapter_one_and_autosaves() -> void:
 	var s: GameSession = _session()
 	assert_false(s.in_story(), "還沒開新遊戲")
@@ -303,7 +311,7 @@ func test_sera_starts_in_view_and_follows_behind_noen() -> void:
 
 
 ## 拿錯的那一瓶演完之後，玩家可以按鍵向席菈要【致盲煙霧彈】（劇本節點 3 的「索取特定藥水」）：附近沒有敵人她也射，
-## 落在諾恩身上反轉成鷹眼；剛要過一瓶她還在裝填，會回一句。
+## 砸開在腳邊冒一圈煙、落在諾恩身上反轉成鷹眼；剛要過一瓶她還在裝填，會回一句、左上那一行改寫還要等幾秒，裝好了她喊一聲。
 func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 	_new_game_joined()
 	_session().set_flag(CorruptForest.FLAG_REVERSAL, true)
@@ -315,6 +323,7 @@ func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 	var hud: Hud = level.get_node("Hud") as Hud
 	assert_false(sera.threat_near(), "史萊姆還很遠")
 	assert_true(sera.ask_enabled)
+	assert_false(_has_digit(hud.hint_text()), "還沒要：提示寫按哪個鍵，沒有倒數：%s" % hud.hint_text())
 	Input.action_press(Sera.ASK_ACTION)
 	await tree.physics_frame
 	Input.action_release(Sera.ASK_ACTION)
@@ -323,6 +332,9 @@ func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 	assert_true(hud.bark_keys().has("BARK_SERA_ASK"), "她應了一聲")
 	assert_false(sera.ask(), "還在裝這一瓶")
 	assert_true(hud.bark_keys().has("BARK_SERA_RELOADING"), "按了沒射也有回應")
+	await tree.physics_frame
+	assert_true(hud.hint_text().contains("[Q]") and hud.hint_text().contains(str(int(CombatTuning.num("sera.ask_cooldown")))),
+		"提示改寫她還要裝幾秒：%s" % hud.hint_text())
 	var frames: int = 0
 	while sera.vials_fired == 0 and frames < 120:
 		await tree.physics_frame
@@ -334,6 +346,15 @@ func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 	for i: int in int(CombatTuning.num("sera.vial_flight") * 60.0) + 6:
 		await tree.physics_frame
 	assert_true(vial.landed and player.status_effects.strikes_weakpoint(), "落在諾恩身上：致盲 → 鷹眼")
+	assert_true(vial.smoky and vial.smoke != null, "煙霧彈砸開有煙")
+	if vial.smoke != null:
+		assert_true(absf(vial.smoke.global_position.y - player.global_position.y - SeraVial.SMOKE_Y) < 0.05
+			and Vector2(vial.smoke.global_position.x - player.global_position.x, vial.smoke.global_position.z - player.global_position.z).length() < 0.3,
+			"煙從他腳邊往外滾（不是從胸口往上冒，不擋住人）：%s" % str(vial.smoke.global_position - player.global_position))
+		assert_eq(vial.smoke.gravity.x, 0.0)
+		assert_true(vial.smoke.flatness == 1.0 and vial.smoke.gravity.y < 1.0, "貼著地面往四面八方")
+		assert_eq(vial.smoke.explosiveness, 1.0, "一次全部出來（還沒出來的粒子會在腳邊畫成一團黑的）")
+		assert_eq(ParticleLook.untextured(vial).size(), 0, "煙是圓的軟邊，不是方塊")
 	assert_true(player.reversal_cue.is_playing(), "反轉的回饋自己播了")
 	for i: int in 3:
 		await tree.physics_frame
@@ -341,6 +362,13 @@ func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 	for i: int in 200:
 		await tree.physics_frame
 	assert_eq(sera.vials_fired, 1, "只射要的那一瓶")
+	assert_true(_has_digit(hud.hint_text()) and not hud.bark_keys().has("BARK_SERA_READY"), "還在裝：%s" % hud.hint_text())
+	sera.brain.ask_left = 0.05
+	for i: int in 6:
+		await tree.physics_frame
+	assert_true(hud.bark_keys().has("BARK_SERA_READY"), "裝好了她喊一聲")
+	assert_false(_has_digit(hud.hint_text()), "提示改回按哪個鍵：%s" % hud.hint_text())
+	assert_true(sera.ask(), "可以再要一瓶")
 
 
 ## 教學戰照劇本：席菈慌了，第一瓶拿錯成【重度麻痺＋防禦歸零】→ 落在諾恩身上變成出手快 150%＋受傷少 80%；之後她射平常的那一瓶。
@@ -376,6 +404,7 @@ func test_in_a_fight_sera_panics_and_her_wrong_vial_reverses_into_two_boons() ->
 	for i: int in int(CombatTuning.num("sera.vial_flight") * 60.0) + 6:
 		await tree.physics_frame
 	assert_true(vial.landed, "藥瓶砸在諾恩身上")
+	assert_true(vial.smoke == null, "她自己射的藥瓶沒有煙（只有煙霧彈有）")
 	assert_true(player.status_effects.has("paralysis") and player.status_effects.has("defense_zero"), "麻痺與防禦歸零一起上身")
 	assert_eq(player.status_effects.source_of("paralysis"), CorruptForest.PANIC_VIAL)
 	assert_false(player.status_effects.blocks_attack(), "不會被麻痺定住")
