@@ -55,6 +55,8 @@ var _potion_player: PlayerController
 var _banner_tween: Tween
 ## 畫面中間的兩行字（第一次反轉：「中毒 → 回血」「落在你身上的異常狀態，全都會反轉成增益。」）
 var _center: VBoxContainer
+## 中間那兩行現在是哪兩個翻譯 key（Label 上放的是翻好、折好行的字）
+var _center_keys: PackedStringArray = []
 ## 中間那兩行字平常的高度（show_center_lines 算的）；對話中改放在 CENTER_TALK_Y
 const CENTER_TALK_Y: float = 44.0
 const CENTER_SLIDE_SPEED: float = 1400.0
@@ -66,6 +68,8 @@ const CENTER_LINE_GAP: float = 0.9
 ## 中央兩行字的暗底比字多出多少（左右、上下）
 const CENTER_BACK_PAD: Vector2 = Vector2(30.0, 12.0)
 const CENTER_LINE2_COLOR: Color = Color(1.0, 0.84, 0.4)
+## 中央那兩行字一行最寬多少（px，畫面寬 1920）：超過就折行
+const CENTER_MAX_WIDTH: float = 1500.0
 ## 角色頭上的一句話（諾恩的碎念、旁人的反應）：跟著角色走、不停住遊戲、不是對話框。同一個角色同時只有一句
 const BARK_FADE_IN: float = 0.12
 const BARK_FADE_OUT: float = 0.45
@@ -239,6 +243,8 @@ func _build() -> void:
 		l.add_theme_color_override("font_outline_color", Color(0.02, 0.03, 0.04, 0.9))
 		l.add_theme_constant_override("outline_size", 6)
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		l.set_meta("glyph", true)  # 翻好、折好行的字（不是翻譯 key）
 		_center.add_child(l)
 	_center.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
 	_center.modulate.a = 0.0
@@ -649,9 +655,16 @@ func show_center_lines(key1: String, key2: String, seconds: float = 4.0, line1_c
 	var l1: Label = _center.get_child(0) as Label
 	var l2: Label = _center.get_child(1) as Label
 	l1.add_theme_color_override("font_color", line1_color)
-	l1.text = key1
-	l2.text = key2
+	_center_keys = PackedStringArray([key1, key2])
 	l2.modulate.a = 0.0
+	# 太長的一行（英文的說明常常比中文長一倍）從中間的空白折成兩行，不衝出畫面。
+	# 不用 Label 的自動換行：放在容器裡的自動換行會把整塊的高度算得很高（後面的暗底跟著變成一大片）
+	for i: int in 2:
+		var l: Label = _center.get_child(i) as Label
+		var text: String = tr(_center_keys[i])
+		if l.get_theme_font("font").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, l.get_theme_font_size("font_size")).x > CENTER_MAX_WIDTH:
+			text = wrap_in_two(text)
+		l.text = text
 	_center.reset_size()
 	_center.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
 	_center.position.y -= 150.0
@@ -670,7 +683,17 @@ func show_center_lines(key1: String, key2: String, seconds: float = 4.0, line1_c
 func center_lines() -> PackedStringArray:
 	if _center.modulate.a <= 0.0 and (_center_tween == null or not _center_tween.is_running()):
 		return PackedStringArray()
-	return PackedStringArray([(_center.get_child(0) as Label).text, (_center.get_child(1) as Label).text])
+	return _center_keys
+
+
+## 一行字從最靠近中間的空白折成兩行（沒有空白就不折）。純函式。
+static func wrap_in_two(text: String) -> String:
+	var mid: int = text.length() / 2
+	var best: int = -1
+	for i: int in text.length():
+		if text[i] == " " and (best < 0 or absi(i - mid) < absi(best - mid)):
+			best = i
+	return text if best < 0 else text.substr(0, best) + "\n" + text.substr(best + 1)
 
 
 ## 立刻收掉上方的提示（截圖旗標直接跳段落時用：前一段的提示不該留到下一段的對話上）

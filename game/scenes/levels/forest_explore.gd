@@ -78,6 +78,7 @@ var chest: Interactable
 var swamp_miasma: PoisonMist
 var _fire_light: OmniLight3D
 var _fire_t: float = 0.0
+var _burst_on: String = ""
 ## 等營火那段話講完要跳「解鎖連攜」
 var _duo_pending: bool = false
 ## 還沒打倒的每一群：名字 → 那一群的敵人
@@ -128,6 +129,13 @@ func _ready() -> void:
 	_build_campfire()
 	_build_swamp()
 	sera.fired.connect(_on_sera_fired)
+	# 連拍用（scripts/burst.sh，配 `--explore --at=x,z`）：`--burst-on=wolf|treant|mold` 那一種敵人第一次擺前兆的那一刻開始拍；
+	# `--burst-on=chest` 進場 1.2 秒後打開詛咒寶箱、`--burst-on=camp` 在營火休息（第一次會開始對話），從那一刻開始拍
+	_burst_on = str(App.parse_user_args(OS.get_cmdline_user_args()).get("burst-on", ""))
+	if _burst_on == "chest" or _burst_on == "camp":
+		get_tree().create_timer(1.2).timeout.connect(func() -> void:
+			App.burst_start_in(1)
+			(chest if _burst_on == "chest" else campfire).use(player))
 	Game.dialogue_ended.connect(_on_dialogue_ended)
 	Game.session.stage_changed.connect(_on_stage_changed)
 
@@ -478,6 +486,12 @@ func pack_alive(pack_id: String) -> int:
 
 
 func _tick_packs() -> void:
+	if _burst_on in ["wolf", "treant", "mold"]:
+		for e: Node in get_tree().get_nodes_in_group("enemies"):
+			if str(e.name).contains("_" + _burst_on) and (e as EnemyActor).brain.state == EnemyBrain.State.TELEGRAPH:
+				_burst_on = ""
+				App.burst_start_in(1)
+				break
 	for pack_id: String in packs.keys():
 		if pack_alive(pack_id) == 0:
 			packs.erase(pack_id)

@@ -1,0 +1,9 @@
+# 腐敗之森自由探索（時段 B）的固定鏡頭組：名稱 幀數 旗標…（都用玩家的鏡頭；--explore＝直接從探索開放之後開始）
+# 陷阱林（蜘蛛網、噴發口、可以採的毒蕈）／營火／狼徑（三隻瘴氣狼）／毒沼的詛咒寶箱／樹人窪地（孢子樹人＋兩隻史萊姆）。
+# 敵人會動、席菈會射：每次拍的時間點不完全一樣，跟基準的差異數字只能參考，要看圖。
+# 用法同 forest.txt：scripts/shots.sh explore [--save-baseline]
+explore-traps 50 --level=corrupt_forest --explore --at=0.5,-25 --locale=zh_TW
+explore-camp 40 --level=corrupt_forest --explore --at=-22.3,-41.5 --locale=zh_TW
+explore-wolves 30 --level=corrupt_forest --explore --at=23.5,-38.5 --locale=zh_TW
+explore-swamp 30 --level=corrupt_forest --explore --at=43.6,-65 --cam-yaw=-12 --locale=zh_TW
+explore-hollow 60 --level=corrupt_forest --explore --at=0,-57.5 --locale=zh_TW

@@ -274,3 +274,10 @@ func test_controls_menu_rebind_cancel_reset() -> void:
 	await tree.process_frame
 	settings.call("load_settings", real_path)
 	settings.call("apply")
+
+
+## 畫面中間的說明太長（英文）時從最靠近中間的空白折成兩行；沒有空白的（中文）不折。
+func test_long_center_line_wraps_in_two_at_the_middle_space() -> void:
+	assert_eq(Hud.wrap_in_two("aaa bbb ccc ddd"), "aaa bbb\nccc ddd")
+	assert_eq(Hud.wrap_in_two("one two"), "one\ntwo")
+	assert_eq(Hud.wrap_in_two("沒有空白的一行"), "沒有空白的一行")

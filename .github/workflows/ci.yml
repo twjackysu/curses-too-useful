@@ -192,6 +192,12 @@ jobs:
           shot 11-forest-noen-side 60 --level=corrupt_forest --cam-yaw=90 --locale=zh_TW
           shot 12-forest-noen-front 60 --level=corrupt_forest --cam-yaw=180 --locale=zh_TW
           shot 13-forest-en 60 --level=corrupt_forest --locale=en
+          # 跟 scripts/shots/explore.txt 同一組：自由探索的幾個地方（陷阱林／營火／狼徑／毒沼的寶箱／樹人窪地）
+          shot 20-explore-traps 50 --level=corrupt_forest --explore --at=0.5,-25 --locale=zh_TW
+          shot 21-explore-camp 40 --level=corrupt_forest --explore --at=-22.3,-41.5 --locale=zh_TW
+          shot 22-explore-wolves 30 --level=corrupt_forest --explore --at=23.5,-38.5 --locale=zh_TW
+          shot 23-explore-swamp 30 --level=corrupt_forest --explore --at=43.6,-65 --cam-yaw=-12 --locale=zh_TW
+          shot 24-explore-hollow 60 --level=corrupt_forest --explore --at=0,-57.5 --locale=zh_TW
           ls -la build/screens
           test -n "$(ls build/screens/*.png 2>/dev/null)"
           cd build && python3 -c "import shutil; shutil.make_archive('screens', 'zip', 'screens')"
