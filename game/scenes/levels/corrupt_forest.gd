@@ -19,6 +19,9 @@ const GLADE_RADIUS: float = 8.0
 const SLIME_SPOTS: Array[Vector3] = [Vector3(-2.5, 0, -15), Vector3(2.5, 0, -16), Vector3(0, 0, -19)]
 const TREE_MODEL: String = "tripo/prop_corrupt_tree"
 const MUSHROOM_MODEL: String = "tripo/prop_glow_toxic_mushroom"
+## 夜光毒蕈放的算圖層：它們自己的燈不照這一層（_small_prop）
+const GLOW_PROP_LAYER: int = 1 << 1
+const MUSHROOM_SHADER: Shader = preload("res://src/world/glow_mushroom.gdshader")
 const BUSH_MODEL: String = "tripo/prop_rotten_fruit_bush"
 const TREE_COUNT: int = 46
 const GRASS_PATCHES: int = 230
@@ -476,29 +479,36 @@ func _small_prop(model: String, at: Vector3, yaw: float, glows: bool) -> Node3D:
 		look = mesh
 	root.add_child(look)
 	if glows:
-		_self_lit(look, 0.45)
+		_paint_mushroom(look)
 		var light := OmniLight3D.new()
+		light.name = "Glow"
 		light.light_color = Color(0.45, 0.75, 1.0)
 		light.light_energy = 1.6
 		light.omni_range = 5.0
 		light.position = Vector3(0, 0.8, 0)
+		# 這盞燈就在蕈傘中間：照到毒蕈自己的話整叢被打成一片白。毒蕈放在另一個算圖層、這盞燈不照那一層——
+		# 它自己的亮是 shader 的發光，燈只照地面與旁邊的東西
+		light.light_cull_mask = 0xFFFFF & ~GLOW_PROP_LAYER
 		root.add_child(light)
 	return root
 
 
-## 讓模型自己發光（發光色＝它原本的顏色）：夜光毒蕈在暗處要看得出是亮的。
-static func _self_lit(model: Node3D, energy: float) -> void:
-	for n: Node in model.find_children("*", "MeshInstance3D", true, false):
+## 夜光毒蕈的顏色照形狀算（glow_mushroom.gdshader）：Tripo 那個模型的顏色貼圖是一張灰的，直接用整叢是白的。
+## 原本的灰貼圖與法線貼圖留著當表面的細節。
+static func _paint_mushroom(model: Node3D) -> void:
+	var meshes: Array[Node] = model.find_children("*", "MeshInstance3D", true, false)
+	if model is MeshInstance3D:
+		meshes.append(model)
+	for n: Node in meshes:
 		var mi := n as MeshInstance3D
+		mi.layers = GLOW_PROP_LAYER
 		for surface: int in mi.mesh.get_surface_count():
+			var mat := ShaderMaterial.new()
+			mat.shader = MUSHROOM_SHADER
 			var src := mi.get_active_material(surface) as BaseMaterial3D
-			if src == null:
-				continue
-			var mat := src.duplicate() as BaseMaterial3D
-			mat.emission_enabled = true
-			mat.emission = Color.BLACK
-			mat.emission_texture = mat.albedo_texture
-			mat.emission_energy_multiplier = energy
+			if src != null:
+				mat.set_shader_parameter("detail", src.albedo_texture)
+				mat.set_shader_parameter("normal_map", src.normal_texture)
 			mi.set_surface_override_material(surface, mat)
 
 

@@ -1,8 +1,9 @@
 shader_type spatial;
-// 硬撐的紅光：蓋在敵人整個身體上的一層（GeometryInstance3D.material_overlay），加法混色。
-// 只有棍頭的兩圈箍變紅時，縮小的連拍圖上看不出來——「該閃了」的訊號要大到整個人的輪廓都是紅的。
-// 邊緣（視線擦過的地方）最亮、正面也有一層底色：遠看是一個紅色的人形，近看是一圈紅邊。
-// strength 由程式每幀寫（剛變紅的那一下最亮、之後一下一下跳、擺前兆時再往上）。
+// 蓋在身體上的一層加法光：邊緣（視線擦過的地方）最亮，正面可以再墊一層底色（fill）。兩個地方在用：
+// ・硬撐的紅光（EnemyActor，掛在 material_overlay）：「該閃了」的訊號要大到整個輪廓都是紅的——
+//   遠看是一個紅色的人形，近看是一圈紅邊。
+// ・劇毒史萊姆的綠邊（Slime，掛在材質的 next_pass，fill 0、rim_power 大）：細細的一圈，從紫霧裡看得出牠在哪。
+// strength 由程式每幀寫（硬撐：剛變紅的那一下最亮、之後一下一下跳、擺前兆時再往上；史萊姆：蓄力時變亮）。
 render_mode unshaded, blend_add, cull_back, depth_draw_never, shadows_disabled;
 
 uniform vec3 glow_color : source_color = vec3(1.0, 0.16, 0.05);

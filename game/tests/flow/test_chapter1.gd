@@ -601,6 +601,52 @@ func test_slime_chases_bumps_and_its_poison_heals_noen() -> void:
 	assert_true(player.status_effects.has("poison"), "撞到會中毒（對諾恩是回血）")
 
 
+## 史萊姆是紫的、霧也是紫的：牠身上一圈螢光綠的邊、腳下一盞綠燈，蓄力時變亮、倒下就熄。
+## 夜光毒蕈的顏色照形狀算，自己的燈不照毒蕈（照到會整叢變成一片白）。
+func test_slimes_glow_green_in_the_purple_fog_and_mushrooms_have_colour() -> void:
+	_new_game_joined()
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var slime: Slime = level.slimes[0]
+	for other: Slime in [level.slimes[1], level.slimes[2]]:
+		other.set_physics_process(false)
+	assert_true(slime.rim_surface_count() > 0, "身上有綠邊（%d 塊）" % slime.rim_surface_count())
+	var glow: OmniLight3D = slime.glow_light()
+	assert_true(glow.light_color.g > glow.light_color.r * 2.0 and glow.light_color.g > glow.light_color.b * 2.0, "腳下的光是綠的（霧是紫的）")
+	assert_false(glow.shadow_enabled, "小燈不算影子")
+	await tree.physics_frame
+	assert_true(absf(slime.glow_level() - 1.0) < 0.001, "還沒蓄力：平常的亮度（%.2f）" % slime.glow_level())
+	player.global_position = slime.global_position + Vector3(0, 0.05, 1.2)
+	var peak: float = 1.0
+	for i: int in 240:
+		await tree.physics_frame
+		peak = maxf(peak, slime.glow_level())
+		if slime.brain.state == EnemyBrain.State.STRIKE:
+			break
+	assert_true(peak > Slime.GLOW_WINDUP * 0.8, "蓄力要撲的時候越來越亮（最亮 %.2f 倍）" % peak)
+	assert_true(absf(glow.light_energy - Slime.GLOW_ENERGY * slime.glow_level()) < 0.001, "腳下的燈跟身上的邊一起亮")
+	slime.health.apply_damage(9999.0, {"source": player})
+	for i: int in 90:
+		await tree.process_frame
+		if slime.glow_level() <= 0.0:
+			break
+	assert_true(slime.glow_level() <= 0.0 and glow.light_energy <= 0.0, "倒下之後綠光熄掉（%.2f）" % slime.glow_level())
+	var lamps: int = 0
+	for prop: Node in level.get_node("Forest").get_children():
+		var lamp: OmniLight3D = prop.get_node_or_null("Glow") as OmniLight3D
+		if lamp == null:
+			continue
+		lamps += 1
+		for n: Node in prop.find_children("*", "MeshInstance3D", true, false):
+			var mi := n as MeshInstance3D
+			assert_eq(mi.layers & lamp.light_cull_mask, 0, "夜光毒蕈自己的燈不照毒蕈")
+			var paint := mi.get_surface_override_material(0) as ShaderMaterial
+			assert_true(paint != null and paint.shader == CorruptForest.MUSHROOM_SHADER, "毒蕈的顏色照形狀算（模型的顏色貼圖是灰的）")
+		assert_true(lamp.light_cull_mask & 1 == 1, "照得到地面與旁邊的東西")
+	assert_true(lamps > 0, "有會發光的毒蕈（%d 叢）" % lamps)
+
+
 func test_clearing_the_slimes_finishes_the_slice() -> void:
 	_new_game_joined()
 	var s: GameSession = _session()
