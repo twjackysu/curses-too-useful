@@ -1,6 +1,6 @@
 class_name ForestExplore
 extends Node
-## 腐敗之森的自由探索（docs/story/chapter-1.md 時段 B）：採夜光毒蕈、通往祭壇的路。
+## 腐敗之森的自由探索（docs/story/chapter-1.md 時段 B）：採夜光毒蕈、三種陷阱、通往祭壇的路。
 ## CorruptForest 生出它、給它諾恩、HUD 與席菈；它把東西放進關卡（目標指引要從關卡底下找節點）。位置照 ForestMap。
 ## 劇情旗標：ch1.mushrooms（採了幾朵）、ch1.mushroom_<n>（第 n 朵採過了）、ch1.altar_gate_reached（走到祭壇路口）、
 ## ch1.respawn（讀檔、倒下重來從哪裡開始："glade"／"camp"）。任務 data/quests/ch1_main.json 的 gather、to_altar 兩個階段看前兩個。
@@ -18,6 +18,16 @@ const MUSHROOM_SPOTS: Array[Vector3] = [
 	Vector3(33.0, 0, -53.5), Vector3(36.0, 0, -67.0), Vector3(-5.5, 0, -63.0),
 ]
 const MUSHROOM_SIZE: float = 1.3
+## 三種陷阱（劇本：一般遊戲要閃，這裡要故意踩進去）。毒氣噴發口：一小團比瘴氣濃的毒（PoisonMist）；
+## 麻痺蜘蛛網（WebTrap）：x、z、網張開的方向（度）；腐敗野果：走近按鍵吃一顆，過一下子才再長
+const VENT_SPOTS: Array[Vector3] = [Vector3(-3.6, 0, -31.5), Vector3(4.6, 0, -40.5), Vector3(18.5, 0, -39.0), Vector3(5.5, 0, -55.5)]
+const VENT_RADIUS: float = 2.3
+const VENT_MODEL: String = "tripo/prop_poison_vent"
+const VENT_SCALE: float = 2.2
+const WEB_SPOTS: Array[Vector3] = [Vector3(-0.9, -28.5, 90.0), Vector3(11.5, -39.8, 20.0), Vector3(-1.0, -51.0, 90.0), Vector3(31.5, -53.5, 130.0)]
+const BUSH_SPOTS: Array[Vector3] = [Vector3(5.6, 0, -33.0), Vector3(-20.0, 0, -50.0), Vector3(27.0, 0, -37.5), Vector3(-4.5, 0, -55.0)]
+const FRUIT_SOURCE: String = "rotten_fruit"
+const FRUIT_REGROW_SEC: float = 8.0
 ## 教學戰打完、講完話之前，往北走到這條線就過不去（不然可以拖著史萊姆跑進後面的森林）
 const NORTH_GATE_Z: float = -24.5
 const GATE_BARK_EVERY: float = 6.0
@@ -31,6 +41,11 @@ var player: PlayerController
 var hud: Hud
 var sera: Sera
 var mushrooms: Array[Interactable] = []
+var vents: Array[PoisonMist] = []
+var webs: Array[WebTrap] = []
+var bushes: Array[Interactable] = []
+## 每一叢野果還要幾秒才再長出來（0＝可以吃）
+var _regrow: PackedFloat32Array = []
 var _gate_bark_in: float = 0.0
 
 
@@ -60,6 +75,7 @@ func _ready() -> void:
 	gate.position = ForestMap.at(ForestMap.ALTAR_GATE)
 	level.add_child(gate)
 	_spawn_mushrooms()
+	_spawn_traps()
 	Game.session.stage_changed.connect(_on_stage_changed)
 
 
@@ -71,6 +87,7 @@ func _physics_process(delta: float) -> void:
 	for m: Interactable in mushrooms:
 		if is_instance_valid(m) and not m.is_queued_for_deletion():
 			m.enabled = open and not bool(st.get_flag(_mushroom_flag(mushrooms.find(m)), false))
+	_tick_traps(delta)
 	_gate_bark_in = maxf(_gate_bark_in - delta, 0.0)
 	if not open and player.global_position.z < NORTH_GATE_Z:
 		player.global_position.z = NORTH_GATE_Z
@@ -156,6 +173,115 @@ func _on_mushroom_used(_by: PlayerController, i: int) -> void:
 	var t: Tween = m.create_tween()
 	t.tween_property(m, "scale", Vector3.ONE * 0.05, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	t.tween_callback(m.queue_free)
+
+
+# ---------------------------------------------------------------- 陷阱
+
+func _spawn_traps() -> void:
+	for i: int in VENT_SPOTS.size():
+		var vent: PoisonMist = PoisonMist.create(VENT_RADIUS, "vent_gas")
+		vent.name = "Vent%d" % (i + 1)
+		vent.position = VENT_SPOTS[i]
+		var base: Node3D = PropModels.instance(VENT_MODEL)
+		if base == null:
+			base = _stand_in_vent()
+		base.name = "Base"
+		base.scale = Vector3.ONE * VENT_SCALE
+		base.rotation.y = float(i) * 1.3
+		vent.add_child(base)
+		vent.add_child(_gas_jet())
+		var glow := OmniLight3D.new()
+		glow.name = "Glow"
+		glow.light_color = Color(0.6, 1.0, 0.35)
+		glow.light_energy = 1.4
+		glow.omni_range = 4.0
+		glow.shadow_enabled = false
+		glow.position = Vector3(0, 0.7, 0)
+		vent.add_child(glow)
+		level.add_child(vent)
+		vents.append(vent)
+	for i: int in WEB_SPOTS.size():
+		var web: WebTrap = WebTrap.create("Web%d" % (i + 1), Vector3(WEB_SPOTS[i].x, 0.0, WEB_SPOTS[i].y), deg_to_rad(WEB_SPOTS[i].z))
+		web.snared.connect(_on_web_snared)
+		level.add_child(web)
+		webs.append(web)
+	for i: int in BUSH_SPOTS.size():
+		var bush: Interactable = Interactable.create("FruitBush%d" % (i + 1), BUSH_SPOTS[i], "HINT_EAT_FRUIT", 2.4)
+		var look: Node3D = ForestScenery.small_prop(ForestScenery.BUSH_MODEL, Vector3.ZERO, float(i) * 2.1, false)
+		look.scale = Vector3.ONE * 1.15
+		bush.add_child(look)
+		bush.add_child(_sparkles(Color(1.0, 0.45, 0.35)))
+		bush.used.connect(_on_fruit_eaten.bind(i))
+		level.add_child(bush)
+		bushes.append(bush)
+		_regrow.append(0.0)
+
+
+## 野果過一下子再長；第一次走進毒氣裡席菈喊一聲
+func _tick_traps(delta: float) -> void:
+	for i: int in bushes.size():
+		if _regrow[i] > 0.0:
+			_regrow[i] = maxf(_regrow[i] - delta, 0.0)
+		bushes[i].enabled = _regrow[i] <= 0.0
+		(bushes[i].get_node("Sparkles") as CPUParticles3D).emitting = bushes[i].enabled
+	for vent: PoisonMist in vents:
+		if vent.contains(player.global_position) and Game.session.state.grant_once("ch1.vent_bark") and sera.joined:
+			hud.show_bark(sera, "BARK_SERA_VENT", 3.2, Sera.NAME_KEY)
+
+
+func _on_web_snared(_by: PlayerController) -> void:
+	if Game.session.state.grant_once("ch1.web_bark") and sera.joined:
+		hud.show_bark(sera, "BARK_SERA_WEB", 3.2, Sera.NAME_KEY)
+
+
+func _on_fruit_eaten(by: PlayerController, i: int) -> void:
+	if _regrow[i] > 0.0:
+		return
+	_regrow[i] = FRUIT_REGROW_SEC
+	by.status_effects.apply_source(FRUIT_SOURCE)
+	Sfx.play_at(level, "poison_hiss", bushes[i].global_position + Vector3.UP, -8.0)
+	if Game.session.state.grant_once("ch1.fruit_bark") and sera.joined:
+		hud.show_bark(sera, "BARK_SERA_FRUIT", 3.2, Sera.NAME_KEY)
+
+
+## 噴發口往上噴的毒氣：一股黃綠的煙（底座的模型只留鐵格柵與石頭）
+static func _gas_jet() -> CPUParticles3D:
+	var ps := CPUParticles3D.new()
+	ps.name = "Jet"
+	ps.amount = 16
+	ps.lifetime = 1.5
+	ps.preprocess = 1.5
+	ps.direction = Vector3.UP
+	ps.spread = 16.0
+	ps.gravity = Vector3(0, 0.6, 0)
+	ps.initial_velocity_min = 1.3
+	ps.initial_velocity_max = 2.4
+	ps.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	ps.emission_sphere_radius = 0.25
+	ps.position = Vector3(0, 0.15, 0)
+	var fade := Gradient.new()
+	fade.offsets = PackedFloat32Array([0.0, 0.15, 1.0])
+	fade.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0.7), Color(1, 1, 1, 0)])
+	ps.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.75, 0.75)
+	quad.material = ParticleLook.material(Color(0.62, 0.95, 0.35, 0.55))
+	ps.mesh = quad
+	ps.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return ps
+
+
+static func _stand_in_vent() -> Node3D:
+	var mesh := MeshInstance3D.new()
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.18
+	ring.outer_radius = 0.34
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.3, 0.28, 0.33)
+	ring.material = stone
+	mesh.mesh = ring
+	mesh.position = Vector3(0, 0.05, 0)
+	return mesh
 
 
 func _on_stage_changed(quest_id: String, _from: String, to: String) -> void:

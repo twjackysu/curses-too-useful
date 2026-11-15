@@ -8,6 +8,8 @@ Tripo 的產物塞在邊長 1 的方塊裡、朝向隨意（武器常常是斜�
       --sink：整個往下沉幾公尺（模型自帶一圈底座時，讓底座的邊緣埋進地面）。
       --moss-below：這個高度以下的面，貼圖上黃綠色（草皮）的地方改塗成 MOSS（跟關卡地面的苔一樣的暗色）；
           蘑菇、樹根這些不是黃綠色的不動。Tripo 的樹自帶一圈亮黃綠的土丘，放進暗紫的森林裡太搶眼。
+      --keep-below：只留這個高度比例以下的部分，上面的面刪掉（毒氣噴發口只要底座：模型的毒煙是實心的、還帶兩顆眼睛，
+          煙改用粒子）。--height 是留下來那一段的高度。
 用法：python3 -I tools/blender/tripo_prop.py --src <glb> --out <glb> --kind weapon --like staff
 來源檔是外來的資料：只讀幾何與貼圖，不執行裡面的任何東西。
 """
@@ -97,6 +99,7 @@ def main():
     ap.add_argument("--turn", type=float, default=0.0, help="物件繞上下軸多轉幾度")
     ap.add_argument("--sink", type=float, default=0.0, help="物件往下沉幾公尺")
     ap.add_argument("--moss-below", type=float, default=0.0, help="這個高度（公尺）以下的黃綠色草皮改塗成地面的苔色")
+    ap.add_argument("--keep-below", type=float, default=0.0, help="只留這個高度比例（0～1）以下的部分")
     args = ap.parse_args()
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -105,6 +108,19 @@ def main():
     for o in list(bpy.context.scene.objects):
         if o not in meshes:
             bpy.data.objects.remove(o)
+    if args.keep_below > 0.0:
+        import bmesh
+        zs = np.array([(o.matrix_world @ v.co).z for o in meshes for v in o.data.vertices], dtype=float)
+        cut = zs.min() + (zs.max() - zs.min()) * args.keep_below
+        for o in meshes:
+            bm = bmesh.new()
+            bm.from_mesh(o.data)
+            doomed = [f for f in bm.faces if min((o.matrix_world @ v.co).z for v in f.verts) > cut]
+            bmesh.ops.delete(bm, geom=doomed, context="FACES")
+            loose = [v for v in bm.verts if not v.link_faces]
+            bmesh.ops.delete(bm, geom=loose, context="VERTS")
+            bm.to_mesh(o.data)
+            bm.free()
     pts = np.array([o.matrix_world @ v.co for o in meshes for v in o.data.vertices], dtype=float)
 
     if args.kind == "weapon":

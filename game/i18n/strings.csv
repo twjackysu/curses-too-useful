@@ -151,6 +151,10 @@ CH1_MUSHROOM_PICKED,Glowing toxic mushroom {have}/{need},夜光毒蕈 {have}/{ne
 CH1_SCREAM_LINE1,A scream echoes from deep in the forest!,森林深處傳來慘叫聲！
 CH1_SCREAM_LINE2,It came from the altar to the north.,聲音是從北邊的祭壇傳來的。
 HINT_PICK_MUSHROOM,{key} Pick the glowing mushroom,{key} 採夜光毒蕈
+HINT_EAT_FRUIT,{key} Eat a rotten wild fruit,{key} 吃一顆腐敗野果
+BARK_SERA_VENT,"That is a poison vent! Go arou— w-why are you standing IN it!?",那是毒氣噴發口！繞過——你、你怎麼站進去了！？
+BARK_SERA_WEB,"That web is coated in paralytic venom... you did that on purpose, did you not!",那張網有麻痺毒……你是故意撞上去的對不對！
+BARK_SERA_FRUIT,"Do not eat that, it is rott— ...never mind. Enjoy.",那個爛掉了不能吃——……算了，你吃吧。
 BARK_SERA_SCREAM,"Th-that was a person! Over by the altar...!",那、那是人的聲音！在祭壇那邊……！
 BARK_SERA_NOT_YET,"W-wait! We have not dealt with the slimes here yet...!",等、等一下！這邊的史萊姆還沒解決……！
 CH1_SLIMES_CLEARED,The glade is clear.,空地清乾淨了。

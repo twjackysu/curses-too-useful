@@ -956,3 +956,73 @@ func test_continue_during_exploration_starts_at_the_glade_without_picked_mushroo
 	for i: int in 3:
 		await tree.physics_frame
 	assert_true(player.global_position.z < -29.0, "探索開放之後過得去")
+
+
+## 劇本時段 B 的三種陷阱——都要故意踩進去：毒氣噴發口（中毒 → 回血）、麻痺蜘蛛網（麻痺＋緩速 → 出手加速＋跑得更快）、
+## 腐敗野果（衰弱＋中毒 → 砍得更重＋回血）。第一次踩席菈各喊一句。
+func test_traps_are_supplies_vent_web_and_rotten_fruit() -> void:
+	_new_game_joined()
+	var s: GameSession = _session()
+	for flag: String in [CorruptForest.FLAG_REVERSAL, CorruptForest.FLAG_GATE_TALK, CorruptForest.FLAG_MISFIRE, CorruptForest.FLAG_SLIMES, CorruptForest.FLAG_AFTER_TALK]:
+		s.set_flag(flag, true)
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	var explore: ForestExplore = level.explore
+	assert_eq(explore.vents.size(), ForestExplore.VENT_SPOTS.size())
+	assert_eq(explore.webs.size(), ForestExplore.WEB_SPOTS.size())
+	assert_eq(explore.bushes.size(), ForestExplore.BUSH_SPOTS.size())
+	for trap: Node3D in explore.vents + explore.webs + explore.bushes:
+		assert_true(ForestMap.trail_distance(ForestMap.flat(trap.global_position)) < 3.5, "陷阱在路邊或空地上，不在樹林深處：%s" % trap.name)
+	# 毒氣噴發口
+	player.health.hp = 30.0
+	player.global_position = explore.vents[0].global_position + Vector3(0.3, 0.05, 0.0)
+	for i: int in 40:
+		await tree.physics_frame
+	assert_eq(player.status_effects.source_of("poison"), "vent_gas", "站在噴發口上中毒")
+	assert_true(player.health.hp > 30.0, "對諾恩是回血（%.1f）" % player.health.hp)
+	assert_true(hud.bark_keys().has("BARK_SERA_VENT"), "席菈喊一句")
+	assert_true(level.sera.masked or not explore.vents[0].contains(level.sera.global_position), "席菈不會沒戴面具站在毒氣裡")
+	# 麻痺蜘蛛網：穿過去黏一次；站在網裡不會一直疊；走開再回來才再黏
+	var web: WebTrap = explore.webs[0]
+	var across: Vector3 = web.global_basis.x
+	player.global_position = web.global_position + across * 2.5 + Vector3(0, 0.05, 0)
+	for i: int in 3:
+		await tree.physics_frame
+	assert_eq(web.snares, 0, "還沒碰到")
+	player.global_position = web.global_position + across * 0.2 + Vector3(0, 0.05, 0)
+	for i: int in 30:
+		await tree.physics_frame
+	assert_eq(web.snares, 1, "碰到網黏一次，站著不會一直疊")
+	assert_true(player.status_effects.has("paralysis") and player.status_effects.has("slow"), "麻痺＋緩速")
+	assert_false(player.status_effects.blocks_attack(), "諾恩不會被定住")
+	assert_true(player.status_effects.attack_speed() > 1.4 and player.status_effects.move_speed_scale() > 1.1,
+		"出手加速＋跑得更快（×%.2f、×%.2f）" % [player.status_effects.attack_speed(), player.status_effects.move_speed_scale()])
+	assert_true(hud.bark_keys().has("BARK_SERA_WEB"))
+	player.global_position = web.global_position + across * 3.0 + Vector3(0, 0.05, 0)
+	for i: int in 3:
+		await tree.physics_frame
+	player.global_position = web.global_position + Vector3(0, 0.05, 0)
+	for i: int in 3:
+		await tree.physics_frame
+	assert_eq(web.snares, 2, "走開再撞一次：再黏一次")
+	assert_true(player.status_effects.rate("slow") >= 2.0, "緩速疊到兩層")
+	# 跑得更快是真的：往前跑一秒，比沒有緩速的時候遠
+	var bush: Interactable = explore.bushes[0]
+	player.global_position = bush.global_position + Vector3(1.2, 0.05, 0.0)
+	await tree.physics_frame
+	assert_false(bush.interact_hint().is_empty(), "走近野果叢有提示")
+	bush.use(player)
+	assert_true(player.status_effects.has("weakness"), "吃了衰弱")
+	assert_true(player.status_effects.damage_dealt_scale() > 1.1, "對諾恩是砍得更重（×%.2f）" % player.status_effects.damage_dealt_scale())
+	assert_true(hud.bark_keys().has("BARK_SERA_FRUIT"))
+	await tree.physics_frame
+	assert_false(bush.enabled, "剛吃過，要等它再長")
+	bush.use(player)
+	assert_true(absf(player.status_effects.rate("weakness") - 1.0) < 0.01, "還沒長出來不能連吃")
+	explore._regrow[0] = 0.02
+	for i: int in 4:
+		await tree.physics_frame
+	assert_true(bush.enabled, "過一下子再長出來")
+	assert_eq(hud.status.rows.size(), 4, "狀態列四格：中毒、麻痺、緩速、衰弱")
