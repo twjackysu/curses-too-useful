@@ -5,7 +5,8 @@ extends CharacterBody3D
 ## 要做什麼由 SeraBrain 決定（純邏輯、有測試），這裡只管走路、轉身、舉弩、生出藥瓶。
 ## 不擋路、不會被打（collision_layer＝0）；樹與地形擋得住她。離太遠（被卡住）就直接出現在諾恩後面。
 ## 她沒有諾恩的體質：瘴氣對她是真的毒，所以靠近瘴氣就把防毒面具戴上（劇本節點 2），離開一下子才拿下來。
-## 還沒結伴（joined＝false）的時候站在原地等：不跟、不射，諾恩走近會轉過來看他。
+## 還沒結伴（joined＝false）的時候等在原地：不跟、不射；關卡給了她在看的東西（hesitate_at＝瘴氣）就在它前面走近幾步又退回來，
+## 諾恩走近才停下來、轉過來看他。
 
 ## 她的名字（翻譯 key；對話資料裡也是這個）
 const NAME_KEY: String = "SPK_SHEILA"
@@ -27,6 +28,9 @@ const MASK_OFF_DELAY: float = 1.5
 const MASK_OFFSET: Vector3 = Vector3(0.0, -0.005, -0.115)
 ## 還沒結伴時，諾恩走到這麼近她才轉過來
 const NOTICE_DIST: float = 9.0
+## 猶豫時轉身的速度（比平常慢：看得出她轉過去、又回頭）；還沒轉到這個程度（面向與要走的方向的內積）先不邁步
+const HESITATE_TURN_SPEED: float = 5.0
+const HESITATE_FACING: float = 0.6
 
 ## 面具戴上／拿下來的那一刻（關卡接這個讓她喊一句）
 signal mask_changed(on: bool)
@@ -43,6 +47,10 @@ var ask_enabled: bool = false
 var _asked: bool = false
 ## 結伴了沒（關卡照劇情旗標設）
 var joined: bool = true
+## 還沒結伴時她想進去又不敢進去的地方（關卡設成瘴氣的位置）；沒設就站著不動
+var hesitate_at: Vector3 = Vector3.INF
+var _wait_home: Vector3 = Vector3.INF
+var _wait_t: float = 0.0
 var masked: bool = false
 var _mask: Node3D
 var _mask_off_in: float = 0.0
@@ -90,6 +98,9 @@ func _physics_process(delta: float) -> void:
 	if joined and dist > SNAP_DIST:
 		global_position = target.global_position + Vector3.BACK.rotated(Vector3.UP, target.yaw) * CombatTuning.num("sera.follow_near", 4.5)
 		return
+	if not joined and dist >= NOTICE_DIST and hesitate_at.is_finite():
+		_hesitate(delta)
+		return
 	var locked: bool = Game.is_player_locked() or not joined
 	var speed: float = 0.0 if locked else brain.follow_speed(dist)
 	var dir: Vector3 = to / dist if dist > 0.01 else Vector3.ZERO
@@ -110,6 +121,26 @@ func _physics_process(delta: float) -> void:
 		_puppet.play_action("shoot")
 	if was_loading and brain.ask_left <= 0.0:
 		reloaded.emit()
+
+
+## 還沒結伴、諾恩還沒走近：在原位與瘴氣之間來回（現在想站哪由 SeraBrain.hesitate_goal 決定）。
+## 先轉過去再邁步；站著的時候看著瘴氣。
+func _hesitate(delta: float) -> void:
+	if not _wait_home.is_finite():
+		_wait_home = global_position
+	_wait_t += delta
+	var toward: Vector3 = hesitate_at - _wait_home
+	toward.y = 0.0
+	toward = toward.normalized()
+	var step: Vector3 = _wait_home + toward * SeraBrain.hesitate_goal(_wait_t) - global_position
+	step.y = 0.0
+	var moving: bool = step.length() > 0.08
+	var dir: Vector3 = step.normalized() if moving else toward
+	var speed: float = SeraBrain.HESITATE_SPEED if moving and (-global_basis.z).dot(dir) >= HESITATE_FACING else 0.0
+	velocity = Vector3(dir.x * speed, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, dir.z * speed)
+	move_and_slide()
+	_puppet.set_move_speed(speed)
+	rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(delta * HESITATE_TURN_SPEED, 1.0))
 
 
 ## 諾恩附近有沒有活著的敵人

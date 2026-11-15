@@ -90,3 +90,14 @@ func test_asking_again_has_to_wait_for_her_to_reload() -> void:
 	assert_true(b.request(), "裝好了，可以再要")
 	assert_true(_n("ask_cooldown") > float(StatusRules.load_default().source(Sera.ASK_SOURCE)["duration"]),
 		"要來的增益會斷一下才能再要：不是按著不放就一直有")
+
+
+## 還沒結伴：往瘴氣走幾步 → 退回原位，一直重複；最近也到不了戴面具的距離
+func test_waiting_alone_she_steps_toward_the_miasma_and_back() -> void:
+	assert_eq(SeraBrain.hesitate_goal(0.0), SeraBrain.HESITATE_STEP, "一開始就往前走（玩家進場幾秒內看得到她在動）")
+	assert_eq(SeraBrain.hesitate_goal(SeraBrain.HESITATE_IN_SEC + 0.1), 0.0, "然後退回原位")
+	assert_eq(SeraBrain.hesitate_goal(SeraBrain.HESITATE_CYCLE_SEC + 0.1), SeraBrain.HESITATE_STEP, "再來一次")
+	var walk: float = SeraBrain.HESITATE_STEP / SeraBrain.HESITATE_SPEED
+	assert_true(SeraBrain.HESITATE_IN_SEC > walk + 1.0, "走到前面之後停下來看一秒以上")
+	assert_true(SeraBrain.HESITATE_CYCLE_SEC - SeraBrain.HESITATE_IN_SEC > walk + 1.5, "走回原位、轉回來之後也停一下")
+

@@ -242,6 +242,9 @@ func _process(delta: float) -> void:
 	# 對話中鏡頭在講話的人臉上（TalkCamera）：左上的目標與操作提示先收起來，講完再回來
 	var talking: bool = Game.is_in_dialogue()
 	_objective_box.visible = _objective.text != "" and not talking
+	# 左下的狀態列與生命條也是：對話框會蓋到它們的右半邊（字被切掉一半）
+	status.visible = not talking
+	combat.visible = not talking
 	# 中間那兩行字（第一次反轉的說明）還亮著就開始對話時：移到畫面最上面，不蓋住講話的人的臉
 	_center.position.y = move_toward(_center.position.y, CENTER_TALK_Y if talking else _center_y, CENTER_SLIDE_SPEED * delta)
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
@@ -257,6 +260,8 @@ func _process(delta: float) -> void:
 	var view_h: float = get_viewport().get_visible_rect().size.y
 	status.position = Vector2(56.0, view_h - 182.0 - status.custom_minimum_size.y)
 	_refresh_potion(pc, view_h, delta)
+	if talking:
+		potion.visible = false
 	guide.refresh(get_parent(), player, get_viewport().get_camera_3d(), combat.in_combat, delta)
 	_update_barks(delta)
 

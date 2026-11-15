@@ -160,9 +160,28 @@ func test_noen_starts_alone_meets_sera_at_the_miasma_and_she_joins_with_her_mask
 	assert_true(sera.global_position.distance_to(player.global_position) > 15.0, "開場身邊沒有人（席菈在 %.0f m 外）" % sera.global_position.distance_to(player.global_position))
 	assert_false(sera.joined)
 	assert_false(sera.masked, "她等在瘴氣外面，沒戴面具（看得到臉）")
-	for i: int in 90:
+	# 一個人等的時候：往瘴氣走幾步、停下來看、轉身走回原位、再回頭看（想進去又不敢）
+	var home: Vector3 = CorruptForest.SERA_WAIT_POS
+	var to_mist: Vector3 = (CorruptForest.MIASMA_POS - home).normalized()
+	var nearest: float = 0.0
+	var farthest: float = 0.0
+	var walked: bool = false
+	var turned_away: bool = false
+	var ever_masked: bool = false
+	for i: int in int(SeraBrain.HESITATE_CYCLE_SEC * 60.0) - 6:
 		await tree.physics_frame
-	assert_true(sera.global_position.distance_to(CorruptForest.SERA_WAIT_POS) < 0.3, "還沒結伴不會跟過來")
+		var off: Vector3 = sera.global_position - home
+		nearest = maxf(nearest, off.dot(to_mist))
+		farthest = maxf(farthest, Vector2(off.x, off.z).length())
+		walked = walked or sera.puppet().move_speed > 0.0
+		turned_away = turned_away or (-sera.global_basis.z).dot(to_mist) < -0.6
+		ever_masked = ever_masked or sera.masked
+	assert_true(walked and nearest > SeraBrain.HESITATE_STEP - 0.2, "往瘴氣走了幾步（最近走到 %.2f m）" % nearest)
+	assert_true(farthest < SeraBrain.HESITATE_STEP + 0.2, "還沒結伴不會跟過來，只在瘴氣前面來回（最遠離原位 %.2f m）" % farthest)
+	assert_true(turned_away, "轉身走回去")
+	assert_false(ever_masked, "走到最近也還不到要戴面具的地方")
+	assert_true(Vector2(sera.global_position.x - home.x, sera.global_position.z - home.z).length() < 0.3, "一輪走完回到原位")
+	assert_true((-sera.global_basis.z).dot(to_mist) > 0.8, "又回頭看著瘴氣")
 	assert_eq(sera.vials_fired, 0)
 	assert_false(bool(_game().call("is_in_dialogue")), "離得遠不會開口")
 	# 走近：她先出聲、轉過來
@@ -241,8 +260,13 @@ func test_talk_camera_shows_whoever_is_speaking_then_hands_back() -> void:
 	assert_true(bool(_game().call("is_in_dialogue")))
 	assert_true(cam.is_talking() and cam.current, "對話一開始就接手")
 	assert_eq(cam.speaker(), sera as Node3D, "第一句是她（？？？）")
+	# 滑過去的路上不擦過諾恩的頭
+	var closest: float = 99.0
 	for i: int in int(TalkCamera.BLEND_SEC * 60.0) + 12:
 		await tree.physics_frame
+		closest = minf(closest, Vector2(cam.global_position.x - player.global_position.x, cam.global_position.z - player.global_position.z).length())
+	var arrived: float = Vector2(cam.global_position.x - player.global_position.x, cam.global_position.z - player.global_position.z).length()
+	assert_true(closest > minf(arrived, TalkCamera.HEAD_CLEAR) - 0.1, "鏡頭滑過去時離諾恩的頭最近 %.2f m（到位之後 %.2f m）" % [closest, arrived])
 	assert_eq(tree.root.get_viewport().get_camera_3d(), cam as Camera3D)
 	var to_sera: Vector3 = (TalkCamera.aim_point(sera.global_position) - cam.global_position).normalized()
 	assert_true((-cam.global_basis.z).dot(to_sera) > 0.999, "滑到位之後對著席菈")
@@ -328,11 +352,15 @@ func test_after_the_first_reversal_sera_and_noen_talk_once() -> void:
 	for i: int in 20:
 		await tree.physics_frame
 	assert_true(level.sera.global_position.distance_to(before) < 0.05, "講話的時候席菈站著")
+	var hud: Hud = level.get_node("Hud") as Hud
+	assert_true(player.status_effects.has("poison"), "身上還有毒")
+	assert_false(hud.status.visible or hud.combat.visible, "對話中左下的狀態列與生命條收起來（對話框會蓋到它們）")
 	for i: int in 4:
 		runner.advance()
 	assert_false(bool(_game().call("is_in_dialogue")), "四句講完")
 	for i: int in 120:
 		await tree.physics_frame
+	assert_true(hud.status.visible and hud.combat.visible, "講完就回來")
 	assert_false(bool(_game().call("is_in_dialogue")), "只講一次")
 
 

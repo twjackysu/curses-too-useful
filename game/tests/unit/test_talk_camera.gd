@@ -35,3 +35,46 @@ func test_reverse_shot_stays_on_the_same_side_of_the_line() -> void:
 func test_shot_is_finite_when_both_stand_on_the_same_spot() -> void:
 	var s: Transform3D = TalkCamera.shot(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
 	assert_true(s.origin.is_finite() and s.basis.x.is_finite() and absf(s.basis.determinant() - 1.0) < 0.001)
+
+
+
+## 滑過去的路：直線會擦過誰的頭就往外繞一個弧，兩端不動
+func test_glide_bulges_away_from_a_head_in_the_way() -> void:
+	# 相遇那一段的位置：玩家的鏡頭在諾恩右後方，席菈的鏡位在他左前方，直線從他頭邊 0.7 m 擦過去
+	var noen := Vector3(-0.3, 0, 12.2)
+	var from := Vector3(0.2, 2.1, 15.6)
+	var to := Vector3(-1.22, 1.5, 11.8)
+	var heads: Array[Vector3] = [noen, Vector3(-1.4, 0, 9.5)]
+	var d: Vector3 = TalkCamera.detour(from, to, heads)
+	assert_true(d.length() > 0.3 and d.length() <= TalkCamera.MAX_DETOUR + 0.001, "要繞（%.2f m）" % d.length())
+	assert_true(absf(d.y) < 0.001, "只往旁邊繞，不改高度")
+	var straight: float = 99.0
+	var at_closest: float = 0.0
+	var curved: float = 99.0
+	for i: int in 41:
+		var t: float = i / 40.0
+		var p: Vector3 = from.lerp(to, t)
+		var q: Vector3 = p + d * sin(PI * t)
+		var gap: float = Vector2(p.x - noen.x, p.z - noen.z).length()
+		if gap < straight:
+			straight = gap
+			at_closest = Vector2(q.x - noen.x, q.z - noen.z).length()
+		curved = minf(curved, Vector2(q.x - noen.x, q.z - noen.z).length())
+	assert_true(straight < 0.8, "直線離他的頭 %.2f m" % straight)
+	assert_true(at_closest > TalkCamera.HEAD_CLEAR - 0.05, "原本擦過去的那一點繞開了（%.2f m）" % at_closest)
+	# 整條路上最近的地方變成終點（鏡位本來就在他前面一公尺，那時候已經背對他了）
+	var end: float = Vector2(to.x - noen.x, to.z - noen.z).length()
+	assert_true(curved > end - 0.01, "路上沒有比終點更靠近他的地方（最近 %.2f m、終點 %.2f m）" % [curved, end])
+	# 路上沒有人：不繞
+	var nobody: Array[Vector3] = [Vector3(6, 0, 6)]
+	assert_eq(TalkCamera.detour(from, to, nobody), Vector3.ZERO)
+	# 有人站在起點旁邊（瘴氣裡那一段：席菈跟在後面，就在玩家的鏡頭旁邊）：兩端不能動，不用繞
+	var beside_start: Array[Vector3] = [Vector3(from.x + 0.4, 0, from.z + 0.3)]
+	assert_eq(TalkCamera.detour(from, to, beside_start), Vector3.ZERO)
+	var beside_end: Array[Vector3] = [Vector3(to.x - 0.5, 0, to.z - 0.6)]
+	assert_eq(TalkCamera.detour(from, to, beside_end), Vector3.ZERO)
+	# 兩端疊在一起、剛好穿過頭：算得出來
+	var through: Array[Vector3] = [Vector3(0, 0, 2)]
+	assert_true(TalkCamera.detour(Vector3(0, 2, 0), Vector3(0, 2, 4), through).is_finite())
+	assert_eq(TalkCamera.detour(from, from, heads), Vector3.ZERO)
+

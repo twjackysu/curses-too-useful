@@ -263,6 +263,7 @@ func _spawn_sera() -> void:
 	else:
 		sera.joined = false
 		sera.position = SERA_WAIT_POS  # 面向 −Z：看著瘴氣
+		sera.hesitate_at = MIASMA_POS  # 想進去又不敢：在瘴氣前面走近幾步又退回來
 	# 教學戰那一瓶拿錯的演完（或是那一場已經打完了），玩家才可以按鍵向她要藥——在那之前他還不知道她的藥落在自己身上是好東西
 	var st: GameState = Game.session.state
 	if not bool(st.get_flag(FLAG_MISFIRE, false)) and not bool(st.get_flag(FLAG_SLIMES, false)):

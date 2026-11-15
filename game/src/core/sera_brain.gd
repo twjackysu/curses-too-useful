@@ -7,6 +7,14 @@ extends RefCounted
 
 enum State { READY, AIM }
 
+## 還沒結伴、一個人站在瘴氣前面的時候（劇本節點 2：她不敢自己進去）：往瘴氣走幾步、停下來看、轉身走回原位、再回頭看，一直重複。
+## 走到最近的地方離瘴氣的邊還有半公尺以上（不到戴面具的距離：相遇的時候要看得到臉）。
+const HESITATE_STEP: float = 1.1
+const HESITATE_SPEED: float = 1.2
+## 一輪幾秒；前面這麼多秒是「往前走＋站在前面看」，剩下的是「走回去＋站在原位看」
+const HESITATE_CYCLE_SEC: float = 6.0
+const HESITATE_IN_SEC: float = 2.4
+
 var state: State = State.READY
 ## 正在往諾恩走
 var following: bool = false
@@ -21,6 +29,11 @@ var _requested: bool = false
 
 func _init() -> void:
 	shot_left = CombatTuning.num("sera.first_vial_delay", 1.5)
+
+
+## 猶豫的第 t 秒，她想站在「原位往瘴氣」幾公尺的地方（0＝原位）。
+static func hesitate_goal(t: float) -> float:
+	return HESITATE_STEP if fposmod(t, HESITATE_CYCLE_SEC) < HESITATE_IN_SEC else 0.0
 
 
 ## 這一幀要往諾恩走多快（m/s；0＝站著）。dist＝跟諾恩的水平距離。瞄準中不走。
