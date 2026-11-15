@@ -11,6 +11,8 @@ var target: PlayerController
 var source: String = ""
 var flight: float = 0.55
 var landed: bool = false
+## 這一瓶的顏色：資料表的來源有寫 color 就用它（致盲煙霧彈是螢光黃），沒寫是紫的
+var liquid: Color = LIQUID
 var _from: Vector3
 var _t: float = 0.0
 var _bottle: MeshInstance3D
@@ -22,6 +24,9 @@ static func launch(parent: Node, from: Vector3, p_target: PlayerController, p_so
 	v.name = "SeraVial"
 	v.target = p_target
 	v.source = p_source
+	var tint: String = str(StatusRules.load_default().source(p_source).get("color", ""))
+	if Color.html_is_valid(tint):
+		v.liquid = Color.html(tint)
 	v.flight = maxf(CombatTuning.num("sera.vial_flight", 0.55), 0.05)
 	v._from = from
 	parent.add_child(v)
@@ -36,13 +41,13 @@ func _ready() -> void:
 	glass.height = 0.2
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = LIQUID
+	mat.albedo_color = liquid
 	glass.material = mat
 	_bottle.mesh = glass
 	_bottle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_bottle)
 	var glow := OmniLight3D.new()
-	glow.light_color = LIQUID
+	glow.light_color = liquid
 	glow.light_energy = 1.6
 	glow.omni_range = 3.0
 	glow.light_specular = 0.0
@@ -68,7 +73,7 @@ func _physics_process(delta: float) -> void:
 		_land()
 
 
-## 砸在諾恩身上：上狀態、玻璃聲、一團紫色的藥水往外濺。
+## 砸在諾恩身上：上狀態、玻璃聲、一團藥水往外濺。
 func _land() -> void:
 	landed = true
 	target.status_effects.apply_source(source)
@@ -100,7 +105,7 @@ func _particles(amount: int, life: float, speed: float, size: float) -> CPUParti
 	p.color_ramp = fade
 	var quad := QuadMesh.new()
 	quad.size = Vector2(size, size)
-	quad.material = ParticleLook.material(LIQUID, true)
+	quad.material = ParticleLook.material(liquid, true)
 	p.mesh = quad
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return p

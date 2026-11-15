@@ -3,6 +3,7 @@ extends RefCounted
 ## 席菈在場上要做什麼（純邏輯；數值在 data/combat/tuning.json 的 sera）。
 ## 跟：離諾恩超過 follow_far 就跟上，走到 follow_near 以內才停（兩個數字之間不改主意，才不會一步一停）。
 ## 射：諾恩附近有敵人時倒數，時間到先舉弩瞄準 aim_time 秒再擊發；沒有敵人就把倒數退回「第一瓶」。
+## 要：玩家按鍵向她要一瓶（request）——不管附近有沒有敵人，馬上舉弩；要過之後 ask_cooldown 秒內她還在裝填，不能再要。
 
 enum State { READY, AIM }
 
@@ -13,6 +14,8 @@ var following: bool = false
 var shot_left: float = 0.0
 ## 舉著弩還要瞄幾秒
 var aim_left: float = 0.0
+## 剛要過一瓶：還要幾秒才能再要（她在裝填）
+var ask_left: float = 0.0
 var _requested: bool = false
 
 
@@ -36,6 +39,7 @@ func follow_speed(dist: float) -> float:
 
 ## 每幀呼叫一次。threat＝諾恩附近有活著的敵人。回傳 true＝這一幀擊發。
 func tick(delta: float, threat: bool) -> bool:
+	ask_left = maxf(ask_left - delta, 0.0)
 	if state == State.AIM:
 		aim_left -= delta
 		if aim_left > 0.0:
@@ -56,9 +60,14 @@ func tick(delta: float, threat: bool) -> bool:
 	return false
 
 
-## 現在就要一瓶：不管附近有沒有敵人，下一幀就開始瞄準（之後玩家按鍵向她要藥也走這裡；現在只有連拍工具在用）。
-func request() -> void:
+## 現在就要一瓶：不管附近有沒有敵人，下一幀就開始瞄準。回傳她答不答應——
+## 正舉著弩、已經答應了一瓶還沒射、或剛要過（ask_cooldown 秒內還在裝填）＝false，什麼都不變。
+func request() -> bool:
+	if state == State.AIM or _requested or ask_left > 0.0:
+		return false
 	_requested = true
+	ask_left = CombatTuning.num("sera.ask_cooldown", 10.0)
+	return true
 
 
 func is_aiming() -> bool:

@@ -11,6 +11,9 @@ extends CharacterBody3D
 const NAME_KEY: String = "SPK_SHEILA"
 const CROSSBOW_MODEL: String = "tripo/weapon_alchemy_crossbow"
 const VIAL_SOURCE: String = "sera_paralysis_vial"
+## 玩家按鍵向她要的那一瓶：【致盲煙霧彈】（劇本節點 3；落在諾恩身上＝鷹眼）
+const ASK_SOURCE: String = "sera_blind_smoke"
+const ASK_ACTION: String = "ask_sera"
 const TURN_SPEED: float = 8.0
 const GRAVITY: float = 18.0
 const SNAP_DIST: float = 18.0
@@ -27,10 +30,15 @@ const NOTICE_DIST: float = 9.0
 
 ## 面具戴上／拿下來的那一刻（關卡接這個讓她喊一句）
 signal mask_changed(on: bool)
+## 玩家向她要一瓶的那一刻。ok＝她答應了（馬上舉弩）；false＝還在裝上一瓶（關卡接這個讓她回一句）
+signal asked(ok: bool)
 
 var brain: SeraBrain = SeraBrain.new()
 ## 下一瓶射什麼（statuses.json 的來源）；關卡可以換（教學戰的第一瓶是她慌了拿錯的那一瓶）
 var vial_source: String = VIAL_SOURCE
+## 玩家可不可以按鍵向她要藥（關卡照劇情開：教學戰那一瓶拿錯的演完才開）
+var ask_enabled: bool = false
+var _asked: bool = false
 ## 結伴了沒（關卡照劇情旗標設）
 var joined: bool = true
 var masked: bool = false
@@ -90,6 +98,8 @@ func _physics_process(delta: float) -> void:
 		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
 	if locked:
 		return
+	if Input.is_action_just_pressed(ASK_ACTION):
+		ask()
 	var was_aiming: bool = brain.is_aiming()
 	if brain.tick(delta, threat_near()):
 		fire()
@@ -107,11 +117,23 @@ func threat_near() -> bool:
 	return false
 
 
-## 擊發：從弩口生一瓶藥飛向諾恩。
+## 玩家向她要一瓶（按鍵，或測試直接叫）：她馬上舉弩，這一瓶射的是 ASK_SOURCE。還沒開放（ask_enabled）就當沒聽到；
+## 開放了但她還在裝上一瓶＝不射、回傳 false。
+func ask() -> bool:
+	if not ask_enabled:
+		return false
+	var ok: bool = brain.request()
+	_asked = _asked or ok
+	asked.emit(ok)
+	return ok
+
+
+## 擊發：從弩口生一瓶藥飛向諾恩。玩家要的那一瓶射 ASK_SOURCE，她自己射的是 vial_source。
 func fire() -> SeraVial:
 	vials_fired += 1
 	var from: Vector3 = _crossbow.global_position if _crossbow != null else global_position + Vector3.UP * 1.2
-	last_vial = SeraVial.launch(get_parent(), from, target, vial_source)
+	last_vial = SeraVial.launch(get_parent(), from, target, ASK_SOURCE if _asked else vial_source)
+	_asked = false
 	Sfx.play_at(self, "whoosh", from, -6.0)
 	return last_vial
 

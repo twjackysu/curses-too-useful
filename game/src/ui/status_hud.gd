@@ -15,6 +15,7 @@ const COL_BOTTLE: Color = Color(0.78, 0.86, 0.62)
 const COL_BOLT: Color = Color(1.0, 0.86, 0.35)
 const COL_SHIELD: Color = Color(0.72, 0.78, 0.88)
 const COL_BLOOD: Color = Color(0.86, 0.2, 0.22)
+const COL_EYE: Color = Color(0.93, 0.93, 0.88)
 
 ## 翻面那一刻彈出去的金圈多久散掉、散到多大（px）
 const PULSE_SEC: float = 0.45
@@ -113,6 +114,8 @@ func _draw() -> void:
 			_draw_shield(Vector2.ZERO)
 		elif str(r["id"]) == "bleed":
 			_draw_drop(Vector2.ZERO)
+		elif str(r["id"]) == "blind":
+			_draw_eye(Vector2.ZERO)
 		if gold:
 			_draw_reverse_mark(Vector2(ICON * 0.34, ICON * 0.34))
 		draw_set_transform(Vector2.ZERO)
@@ -160,6 +163,21 @@ func _draw_drop(c: Vector2) -> void:
 	draw_circle(c + Vector2(0, 3.5), 6.0, COL_BLOOD)
 	draw_colored_polygon(PackedVector2Array([c + Vector2(0, -10.0), c + Vector2(5.4, 1.0), c + Vector2(-5.4, 1.0)]), COL_BLOOD)
 	draw_circle(c + Vector2(-2.2, 4.0), 1.6, Color(1.0, 0.75, 0.72, 0.85))
+
+
+## 致盲的原圖示：一隻眼睛，一道斜線劃過去
+func _draw_eye(c: Vector2) -> void:
+	var lid := PackedVector2Array()
+	for i: int in 13:
+		var a: float = PI * float(i) / 12.0
+		lid.append(c + Vector2(-cos(a) * 10.0, -sin(a) * 6.5))
+	for i: int in 13:
+		var a: float = PI * float(i) / 12.0
+		lid.append(c + Vector2(cos(a) * 10.0, sin(a) * 6.5))
+	draw_colored_polygon(lid, COL_EYE)
+	draw_circle(c, 3.6, Color(0.1, 0.11, 0.14))
+	draw_line(c + Vector2(-8.0, 8.0), c + Vector2(8.0, -8.0), Color(0.1, 0.11, 0.14), 3.4)
+	draw_line(c + Vector2(-8.0, 8.0), c + Vector2(8.0, -8.0), COL_EYE, 1.4)
 
 
 ## 會疊的狀態：圖示右上角的層數

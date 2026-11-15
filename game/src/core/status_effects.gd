@@ -12,6 +12,7 @@ extends RefCounted
 const PARALYSIS: String = "paralysis"
 const DEFENSE_ZERO: String = "defense_zero"
 const BLEED: String = "bleed"
+const BLIND: String = "blind"
 
 ## event："start"（新上身）、"refresh"（同種刷新）、"end"（時間到）、"clear"（被清掉）
 signal changed(status_id: String, event: String)
@@ -73,6 +74,11 @@ func attack_speed() -> float:
 	if has(PARALYSIS):
 		speed = clampf(rate(PARALYSIS), 1.0, maxf(rules.max_reversed_rate(PARALYSIS), 1.0))
 	return speed + rate(BLEED) * rules.haste_per_rate(BLEED)
+
+
+## 致盲被反轉（鷹眼）：每一刀都算砍在破綻上（傷害、失衡加倍的倍率在 `noen.weak_*_mult`，見 PlayerController.strike）。
+func strikes_weakpoint() -> bool:
+	return reverses and has(BLIND)
 
 
 ## 受到直接傷害時乘幾倍（防禦歸零）：沒反轉＝多吃（1 + 強度）；反轉＝少吃（1 − 強度，強度不超過 max_reversed_rate）。身上沒有＝1。

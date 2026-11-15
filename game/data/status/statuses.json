@@ -1,5 +1,5 @@
 {
-	"_doc": "異常狀態、來源與可攜藥劑。kind=dot：每秒扣血／反轉後回血；kind=action：不碰生命，影響出手（沒反轉＝不能出手；反轉＝出手加速，rate 是倍率）；kind=guard：不碰生命，影響受到的直接傷害（rate 是比例：沒反轉＝多吃這麼多；反轉＝少吃這麼多）；kind=bleed：rate 是層數，沒反轉＝每秒扣 rate 點血，反轉＝出手加速（每層快 haste_per_rate）。stack_max＝再上一次是把強度加上去（最多到這個數），沒寫的狀態只留比較強的那一份。來源的 also＝同一下再套用另一個來源（一瓶藥帶兩種狀態）。新的狀態照這張表加（docs/design/13-chapter-1-plan.md「系統」）。",
+	"_doc": "異常狀態、來源與可攜藥劑。kind=dot：每秒扣血／反轉後回血；kind=action：不碰生命，影響出手（沒反轉＝不能出手；反轉＝出手加速，rate 是倍率）；kind=guard：不碰生命，影響受到的直接傷害（rate 是比例：沒反轉＝多吃這麼多；反轉＝少吃這麼多）；kind=bleed：rate 是層數，沒反轉＝每秒扣 rate 點血，反轉＝出手加速（每層快 haste_per_rate）；kind=aim：不碰生命，反轉＝每一刀都算砍在破綻上（傷害、失衡照 noen.weak_*_mult 加倍；沒反轉的「看不見、砍不中」還沒做——現在只有諾恩會中）。stack_max＝再上一次是把強度加上去（最多到這個數），沒寫的狀態只留比較強的那一份。來源的 also＝同一下再套用另一個來源（一瓶藥帶兩種狀態）。新的狀態照這張表加（docs/design/13-chapter-1-plan.md「系統」）。",
 	"statuses": {
 		"poison": {
 			"max_duration": 30.0,
@@ -20,6 +20,12 @@
 			"max_reversed_rate": 0.8,
 			"name_key": "STATUS_DEFENSE_ZERO",
 			"reversed_key": "STATUS_DEFENSE_ZERO_REVERSED"
+		},
+		"blind": {
+			"kind": "aim",
+			"max_duration": 15.0,
+			"name_key": "STATUS_BLIND",
+			"reversed_key": "STATUS_BLIND_REVERSED"
 		},
 		"bleed": {
 			"kind": "bleed",
@@ -78,6 +84,13 @@
 			"status": "paralysis",
 			"rate": 1.35,
 			"duration": 12.0
+		},
+		"sera_blind_smoke": {
+			"_doc": "按鍵向席菈要的【致盲煙霧彈】（劇本節點 3）：致盲 → 鷹眼（每一刀都算砍在破綻上）。color＝藥瓶與煙的顏色（沒寫是紫的）。",
+			"status": "blind",
+			"rate": 1.0,
+			"duration": 8.0,
+			"color": "#f2e27a"
 		}
 	},
 	"items": {

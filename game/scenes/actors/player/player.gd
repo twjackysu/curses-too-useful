@@ -809,6 +809,8 @@ func strike() -> int:
 	var stagger: float = CombatTuning.num("noen.blunt_stagger", 20.0)
 	var weak_damage: float = CombatTuning.num("noen.weak_damage_mult", 2.0)
 	var weak_stagger: float = CombatTuning.num("noen.weak_stagger_mult", 2.0)
+	# 鷹眼（致盲被反轉）：每一刀都算砍在破綻上——跟砍跪著的敵人同一套（傷害、失衡加倍，比較大的閃光與停頓）
+	var eagle: bool = status_effects.strikes_weakpoint()
 	var hits: int = 0
 	var killed: bool = false
 	last_weak_hits = 0
@@ -833,6 +835,8 @@ func strike() -> int:
 		var weak: String = ""
 		if target.has_method("weakpoint_exposed_to"):
 			weak = str(target.call("weakpoint_exposed_to", global_position))
+		if weak == "" and eagle:
+			weak = "eagle"
 		var k_dmg: float = weak_damage if weak != "" else 1.0
 		var k_stg: float = weak_stagger if weak != "" else 1.0
 		if h.apply_damage(damage * k_dmg, {"source": self, "stagger": stagger * k_stg, "kind": "blunt", "weak": weak, "cut": cut, "gold": gold, "heavy": finisher and hits == 0, "echo": hits > 0}):

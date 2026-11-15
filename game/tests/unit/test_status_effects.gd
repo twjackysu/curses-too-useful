@@ -341,3 +341,21 @@ func test_bad_also_is_reported_and_dropped() -> void:
 	var fx := StatusEffects.new(r, true)
 	assert_eq(fx.apply_source("a"), "start", "照樣能套用，不會無限繞")
 	assert_eq(fx.apply_source("c"), "refresh")
+
+
+## 致盲：落在諾恩身上反轉成鷹眼（每一刀都算砍在破綻上），不碰生命；時間到就沒了。別人身上不會變成好處。
+func test_reversed_blind_makes_every_cut_find_a_weak_spot() -> void:
+	var rules: StatusRules = _rules()
+	var norn := StatusEffects.new(rules, true)
+	var other := StatusEffects.new(rules, false)
+	assert_false(norn.strikes_weakpoint(), "身上沒有致盲")
+	assert_eq(norn.apply_source(Sera.ASK_SOURCE), "start")
+	other.apply_source(Sera.ASK_SOURCE)
+	assert_true(norn.has("blind") and norn.strikes_weakpoint(), "諾恩：致盲 → 鷹眼")
+	assert_false(other.strikes_weakpoint(), "別人中了致盲沒有好處")
+	assert_eq(norn.attack_speed(), 1.0, "不是出手加速")
+	var h := _hurt(50.0)
+	norn.tick(1.0, h)
+	assert_eq(h.hp, 50.0, "不碰生命")
+	norn.tick(float(rules.source(Sera.ASK_SOURCE)["duration"]), h)
+	assert_false(norn.has("blind") or norn.strikes_weakpoint(), "時間到就沒了")

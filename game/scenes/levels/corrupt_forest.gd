@@ -39,6 +39,7 @@ const GATE_DIALOGUE: String = "ch1_forest_gate"
 const AFTER_DIALOGUE: String = "ch1_after_slimes"
 ## 教學戰席菈拿錯的那一瓶（statuses.json 的來源）
 const PANIC_VIAL: String = "sera_panic_vial"
+const ASK_HINT: String = "HINT_ASK_SERA"
 ## 史萊姆都倒了之後隔多久席菈才開口（等最後一刀的停頓與橫幅）
 const AFTER_TALK_DELAY: float = 1.6
 ## 第一次反轉之後隔多久席菈才開口（等碎裂與金光演完）
@@ -97,11 +98,16 @@ func _ready() -> void:
 	_spawn_sera()
 	# 連拍用（scripts/burst.sh）：`--burst-on=reversal` 進場 1.5 秒後讓諾恩吸到瘴氣、`--burst-on=vial` 讓席菈射一瓶，從那一刻開始拍
 	var burst_on: String = str(args.get("burst-on", ""))
-	if burst_on == "reversal" or burst_on == "vial":
+	if burst_on == "reversal" or burst_on == "vial" or burst_on == "ask":
 		get_tree().create_timer(1.5).timeout.connect(func() -> void:
 			App.burst_start_in(1)
 			if burst_on == "vial":
 				sera.brain.request()
+			elif burst_on == "ask":
+				# 玩家按鍵要的那一瓶（致盲煙霧彈）：跳過教學戰拿錯的那一瓶
+				sera.vial_source = Sera.VIAL_SOURCE
+				sera.ask_enabled = true
+				sera.ask()
 			else:
 				_player.status_effects.apply_source("miasma"))
 	# `--burst-on=combo`：進場 1.5 秒後連砍三下（一下收招就接下一下），從第一下開始拍
@@ -147,9 +153,14 @@ func _physics_process(delta: float) -> void:
 		if _gate_talk_in < 0.0 and Game.start_dialogue(GATE_DIALOGUE):
 			Game.session.set_flag(FLAG_GATE_TALK, true)
 	_tick_misfire()
+	_hud.set_extra_hint(ASK_HINT if sera.ask_enabled else "")
 	if not slimes.is_empty() and not bool(st.get_flag(FLAG_SLIMES, false)) and slimes_alive() == 0:
 		Game.session.set_flag(FLAG_SLIMES, true)
 		_hud.show_banner("CH1_SLIMES_CLEARED", 4.0)
+		# 打得太快，拿錯的那一瓶還沒舉起來就清場了：那一拍不演了，之後照平常的來
+		if _misfire_step == 0 and sera.vial_source == PANIC_VIAL:
+			sera.vial_source = Sera.VIAL_SOURCE
+			sera.ask_enabled = true
 		_after_talk_in = AFTER_TALK_DELAY
 	if _after_talk_in >= 0.0:
 		_after_talk_in -= delta
@@ -189,9 +200,15 @@ func _tick_misfire() -> void:
 			_hud.show_bark(sera, "BARK_SERA_PANIC", 2.4, Sera.NAME_KEY)
 	elif sera.last_vial != null and (not is_instance_valid(sera.last_vial) or sera.last_vial.landed):
 		sera.vial_source = Sera.VIAL_SOURCE
+		sera.ask_enabled = true
 		Game.session.set_flag(FLAG_MISFIRE, true)
 		_hud.show_bark(sera, "BARK_SERA_MISFIRE", 3.4, Sera.NAME_KEY)
 		_hud.show_center_lines("CH1_MISFIRE_LINE1", "CH1_MISFIRE_LINE2", 5.0, Hud.CENTER_LINE2_COLOR)
+
+
+## 玩家按鍵向她要藥：答應了喊一句，還在裝上一瓶也回一句（不然按了沒反應像壞掉）。
+func _on_sera_asked(ok: bool) -> void:
+	_hud.show_bark(sera, "BARK_SERA_ASK" if ok else "BARK_SERA_RELOADING", 2.2, Sera.NAME_KEY)
 
 
 func slimes_alive() -> int:
@@ -207,6 +224,7 @@ func _spawn_sera() -> void:
 	sera.name = "Sera"
 	sera.target = _player
 	sera.mask_changed.connect(_on_sera_mask_changed)
+	sera.asked.connect(_on_sera_asked)
 	if bool(Game.session.state.get_flag(FLAG_JOINED, false)):
 		sera.position = _player.global_position + SERA_START_OFFSET
 		# 面向諾恩（一進場看得到她的臉）
@@ -214,8 +232,12 @@ func _spawn_sera() -> void:
 	else:
 		sera.joined = false
 		sera.position = SERA_WAIT_POS  # 面向 −Z：看著瘴氣
-	if not bool(Game.session.state.get_flag(FLAG_MISFIRE, false)):
+	# 教學戰那一瓶拿錯的演完（或是那一場已經打完了），玩家才可以按鍵向她要藥——在那之前他還不知道她的藥落在自己身上是好東西
+	var st: GameState = Game.session.state
+	if not bool(st.get_flag(FLAG_MISFIRE, false)) and not bool(st.get_flag(FLAG_SLIMES, false)):
 		sera.vial_source = PANIC_VIAL
+	else:
+		sera.ask_enabled = true
 	add_child(sera)
 
 

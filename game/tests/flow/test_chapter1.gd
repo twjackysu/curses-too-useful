@@ -302,6 +302,47 @@ func test_sera_starts_in_view_and_follows_behind_noen() -> void:
 	assert_true(sera.global_position.distance_to(player.global_position) < CombatTuning.num("sera.follow_far"), "被甩太遠就直接出現在後面")
 
 
+## 拿錯的那一瓶演完之後，玩家可以按鍵向席菈要【致盲煙霧彈】（劇本節點 3 的「索取特定藥水」）：附近沒有敵人她也射，
+## 落在諾恩身上反轉成鷹眼；剛要過一瓶她還在裝填，會回一句。
+func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
+	_new_game_joined()
+	_session().set_flag(CorruptForest.FLAG_REVERSAL, true)
+	_session().set_flag(CorruptForest.FLAG_MISFIRE, true)
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var sera: Sera = level.sera
+	var hud: Hud = level.get_node("Hud") as Hud
+	assert_false(sera.threat_near(), "史萊姆還很遠")
+	assert_true(sera.ask_enabled)
+	Input.action_press(Sera.ASK_ACTION)
+	await tree.physics_frame
+	Input.action_release(Sera.ASK_ACTION)
+	await tree.physics_frame
+	assert_true(sera.brain.is_aiming(), "按了她就舉弩")
+	assert_true(hud.bark_keys().has("BARK_SERA_ASK"), "她應了一聲")
+	assert_false(sera.ask(), "還在裝這一瓶")
+	assert_true(hud.bark_keys().has("BARK_SERA_RELOADING"), "按了沒射也有回應")
+	var frames: int = 0
+	while sera.vials_fired == 0 and frames < 120:
+		await tree.physics_frame
+		frames += 1
+	assert_eq(sera.vials_fired, 1, "沒有敵人也射")
+	var vial: SeraVial = sera.last_vial
+	assert_eq(vial.source, Sera.ASK_SOURCE, "射的是致盲煙霧彈")
+	assert_true(vial.liquid != SeraVial.LIQUID, "顏色跟平常的紫色藥瓶不一樣")
+	for i: int in int(CombatTuning.num("sera.vial_flight") * 60.0) + 6:
+		await tree.physics_frame
+	assert_true(vial.landed and player.status_effects.strikes_weakpoint(), "落在諾恩身上：致盲 → 鷹眼")
+	assert_true(player.reversal_cue.is_playing(), "反轉的回饋自己播了")
+	for i: int in 3:
+		await tree.physics_frame
+	assert_eq(hud.status.rows.size(), 1)
+	for i: int in 200:
+		await tree.physics_frame
+	assert_eq(sera.vials_fired, 1, "只射要的那一瓶")
+
+
 ## 教學戰照劇本：席菈慌了，第一瓶拿錯成【重度麻痺＋防禦歸零】→ 落在諾恩身上變成出手快 150%＋受傷少 80%；之後她射平常的那一瓶。
 func test_in_a_fight_sera_panics_and_her_wrong_vial_reverses_into_two_boons() -> void:
 	_new_game_joined()
@@ -318,6 +359,8 @@ func test_in_a_fight_sera_panics_and_her_wrong_vial_reverses_into_two_boons() ->
 	assert_eq(player.status_effects.attack_speed(), 1.0)
 	assert_eq(sera.vial_source, CorruptForest.PANIC_VIAL, "第一瓶是拿錯的那一瓶")
 	var hud: Hud = level.get_node("Hud") as Hud
+	assert_false(sera.ask(), "拿錯的那一瓶還沒演：還不能向她要藥")
+	assert_false(hud.hint_text().contains("[Q]"), "提示也還沒有那一行")
 	var frames: int = 0
 	var aimed: bool = false
 	while sera.vials_fired == 0 and frames < 400:
@@ -343,6 +386,9 @@ func test_in_a_fight_sera_panics_and_her_wrong_vial_reverses_into_two_boons() ->
 	assert_eq(_session().state.get_flag(CorruptForest.FLAG_MISFIRE), true)
 	assert_eq(sera.vial_source, Sera.VIAL_SOURCE, "只拿錯一次，之後是平常的那一瓶")
 	assert_eq(hud.status.rows.size(), 2, "狀態列兩格")
+	assert_true(sera.ask_enabled, "拿錯的那一瓶演完，可以按鍵向她要藥了")
+	await tree.physics_frame
+	assert_true(hud.hint_text().contains("[Q]"), "操作提示多一行向席菈要藥：%s" % hud.hint_text())
 	var hp0: float = player.health.hp
 	player.health.apply_damage(10.0, {})
 	assert_true(absf(hp0 - player.health.hp - 2.0) < 0.01, "這時候挨打只扣兩成（扣了 %.1f）" % (hp0 - player.health.hp))
@@ -488,6 +534,7 @@ func test_clearing_the_slimes_finishes_the_slice() -> void:
 	var hud: Hud = level.get_node("Hud") as Hud
 	assert_eq(hud.banner_text(), "CH1_SLIMES_CLEARED")
 	assert_eq(s.quests.stage_of("ch1_main"), "after_fight", "還有戰後那段話")
+	assert_true(level.sera.ask_enabled and level.sera.vial_source == Sera.VIAL_SOURCE, "拿錯的那一瓶還沒射就清場了：那一拍不演，之後可以向她要藥")
 	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_AFTER")
 	assert_false(bool(_game().call("is_in_dialogue")), "不是最後一刀的那一幀就講")
 	var frames: int = 0
@@ -515,7 +562,7 @@ func test_clearing_the_slimes_finishes_the_slice() -> void:
 	assert_true(s.story_finished(), "目前的內容到底了")
 	assert_true(hud.is_objective_shown(), "做完之後左上還是有字")
 	assert_eq(hud.objective_text_key(), Hud.STORY_END_KEY, "寫的是「目前的內容到這裡」")
-	assert_eq(hud.hint_text(), "", "沒有操作提示了")
+	assert_true(hud.hint_text().contains("[Q]") and not hud.hint_text().contains("\n"), "操作提示只剩向席菈要藥的那一行：%s" % hud.hint_text())
 
 
 ## 左上的目標一直在畫面上（不會過幾秒就淡掉），下面一行寫現在用得到的按鍵。

@@ -52,7 +52,7 @@
     "flinch_push": 0.4
   },
   "sera": {
-    "_doc": "席菈（後排）。離諾恩超過 follow_far 就跟上、走到 follow_near 以內停下，比 follow_far + run_extra 還遠用跑的；諾恩 threat_range 內有敵人時，first_vial_delay 秒後射第一瓶、之後每 vial_interval 秒一瓶；每瓶先舉弩瞄 aim_time 秒，藥瓶飛 vial_flight 秒。",
+    "_doc": "席菈（後排）。離諾恩超過 follow_far 就跟上、走到 follow_near 以內停下，比 follow_far + run_extra 還遠用跑的；諾恩 threat_range 內有敵人時，first_vial_delay 秒後射第一瓶、之後每 vial_interval 秒一瓶；每瓶先舉弩瞄 aim_time 秒，藥瓶飛 vial_flight 秒。玩家按鍵向她要的那一瓶不用等敵人，要過之後 ask_cooldown 秒內不能再要（她在裝填）。",
     "follow_near": 4.5,
     "follow_far": 6.0,
     "run_extra": 3.0,
@@ -61,6 +61,7 @@
     "threat_range": 12.0,
     "first_vial_delay": 1.5,
     "vial_interval": 9.0,
+    "ask_cooldown": 10.0,
     "aim_time": 0.6,
     "vial_flight": 0.55
   },

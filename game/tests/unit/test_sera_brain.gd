@@ -58,7 +58,7 @@ func test_fight_over_resets_to_the_quick_first_vial() -> void:
 
 func test_a_requested_vial_comes_without_any_enemy() -> void:
 	var b := SeraBrain.new()
-	b.request()
+	assert_true(b.request(), "她答應了")
 	assert_false(b.tick(DT, false))
 	assert_true(b.is_aiming(), "要了就馬上舉弩")
 	var t: float = 0.0
@@ -67,3 +67,26 @@ func test_a_requested_vial_comes_without_any_enemy() -> void:
 	assert_true(absf(t - _n("aim_time")) < 0.05, "瞄完就射")
 	for i: int in 300:
 		assert_false(b.tick(DT, false), "只射要的那一瓶")
+
+
+## 向她要過一瓶之後她要裝填：ask_cooldown 秒內再要不會答應（也不會偷偷排一瓶），時間到了才可以。
+func test_asking_again_has_to_wait_for_her_to_reload() -> void:
+	var b := SeraBrain.new()
+	assert_true(b.request())
+	assert_false(b.request(), "已經答應一瓶了，還沒射")
+	var shots: int = 0
+	var t: float = 0.0
+	while t < _n("ask_cooldown") - 0.2:
+		t += DT
+		if b.is_aiming():
+			assert_false(b.request(), "正舉著弩")
+		if b.tick(DT, false):
+			shots += 1
+			assert_false(b.request(), "剛射完，還在裝填")
+	assert_eq(shots, 1, "被拒絕的那幾次沒有偷偷多射")
+	assert_false(b.request(), "還差一點")
+	for i: int in 30:
+		b.tick(DT, false)
+	assert_true(b.request(), "裝好了，可以再要")
+	assert_true(_n("ask_cooldown") > float(StatusRules.load_default().source(Sera.ASK_SOURCE)["duration"]),
+		"要來的增益會斷一下才能再要：不是按著不放就一直有")

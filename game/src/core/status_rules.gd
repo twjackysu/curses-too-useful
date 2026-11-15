@@ -50,7 +50,8 @@ static func load_file(path: String) -> StatusRules:
 
 
 ## 狀態的種類："dot"＝每秒扣血／反轉後回血（中毒）；"action"＝不碰生命，影響能不能出手、出手多快（麻痺）；
-## "guard"＝不碰生命，影響受到的直接傷害（防禦歸零）；"bleed"＝沒反轉每秒扣血、反轉後出手加速（流血）
+## "guard"＝不碰生命，影響受到的直接傷害（防禦歸零）；"bleed"＝沒反轉每秒扣血、反轉後出手加速（流血）；
+## "aim"＝不碰生命，反轉後每一刀都算砍在破綻上（致盲 → 鷹眼）
 func kind(status_id: String) -> String:
 	return str((statuses.get(status_id, {}) as Dictionary).get("kind", "dot"))
 

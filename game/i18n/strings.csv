@@ -63,6 +63,7 @@ ACT_RELEASE,Release (burst your poison),釋放（把身上的毒炸出去）
 ACT_LOCK_ON,Lock On,鎖定
 ACT_INTERACT,Interact,互動
 ACT_USE_ITEM,Use item,使用道具
+ACT_ASK_SERA,Ask Sera for a vial,向席菈要一瓶藥
 ACT_PAUSE,Pause,暫停
 GLYPH_UNKNOWN,Unbound,未設定
 GLYPH_MOUSE_LEFT,LMB,滑鼠左鍵
@@ -113,6 +114,8 @@ STATUS_PARALYSIS,Paralyzed,麻痺
 STATUS_PARALYSIS_REVERSED,Paralyzed → Faster attacks,麻痺 → 出手加速
 STATUS_DEFENSE_ZERO,Defense zero,防禦歸零
 STATUS_DEFENSE_ZERO_REVERSED,Defense zero → Less damage taken,防禦歸零 → 受傷減少
+STATUS_BLIND,Blinded,致盲
+STATUS_BLIND_REVERSED,Blinded → Every cut finds a weak spot,致盲 → 刀刀砍中要害
 STATUS_BLEED,Bleeding,流血
 STATUS_BLEED_REVERSED,Bleeding → Faster with every cut,流血 → 越砍越快
 GAME_TITLE,These Curses Are Far Too Useful to Me,這些詛咒對我太有用了
@@ -134,6 +137,9 @@ BARK_SERA_MISFIRE,"No no no! Norn, I am so sorry, I messed up again!",完了完�
 BARK_NAMED,{who}: {line},{who}：{line}
 BARK_SERA_NOTICE,"Ah... u-um, excuse me!",啊……那、那個！
 BARK_SERA_MASK,"Mask, mask... okay, it is on!",面具、面具……好，戴好了！
+BARK_SERA_ASK,"The smoke one? O-okay, here it comes!",煙霧彈？好、好，接好了！
+BARK_SERA_RELOADING,"W-wait, I am still loading the next one!",等、等一下，還在裝下一瓶！
+HINT_ASK_SERA,{ask_sera} Ask Sera for a blinding smoke vial,{ask_sera} 向席菈要一瓶致盲煙霧彈
 CH1_MISFIRE_LINE1,Paralyzed → Faster attacks　Defense zero → Less damage taken,麻痺 → 出手加速　防禦歸零 → 受傷減少
 CH1_MISFIRE_LINE2,"You attack 150% faster, every cut hits that much harder, and you take 80% less damage. Cut them down!",出手快 150%、每一刀也重 150%，受到的傷害少 80%。趁現在砍！
 DLG_CH1_GATE_001,"W-wait, that is miasma! Without a mask, normal people collapse in ten minutes!",等、等一下，那是瘴氣！沒戴面具進去，普通人十分鐘就會倒下的！

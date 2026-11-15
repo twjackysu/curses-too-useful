@@ -23,6 +23,7 @@ var _objective_box: VBoxContainer
 ## 目標下面那一行操作提示（任務階段的 hint；裡面的 {attack} 這類動作名換成現在裝置的按鍵）
 var _hint: Label
 var _hint_key: String = ""
+var _extra_hint_key: String = ""
 var _hint_device: int = -1
 var _saved: Label
 var _died: Label
@@ -439,11 +440,19 @@ func _refresh_objective(fade_in: bool) -> void:
 		_objective_tween.tween_property(_objective_box, "modulate:a", 1.0, OBJECTIVE_FADE_SEC)
 
 
+## 關卡加的第二行操作提示（翻譯 key；空的＝拿掉）：任務階段的提示寫不到的——劇情演到某一拍才開放的操作（向席菈要藥）。
+func set_extra_hint(key: String) -> void:
+	if key == _extra_hint_key:
+		return
+	_extra_hint_key = key
+	_refresh_hint()
+
+
 ## 操作提示：翻譯好的字裡 {attack}、{dodge} 這類動作名換成現在裝置的按鍵；{move}、{look} 是移動與轉視角。
 func _refresh_hint() -> void:
 	_hint_device = App.last_device
-	_hint.visible = _hint_key != ""
-	if _hint_key == "":
+	_hint.visible = _hint_key != "" or _extra_hint_key != ""
+	if not _hint.visible:
 		return
 	var pad: bool = _hint_device == InputGlyphs.Device.PAD
 	var keys: Dictionary = {"move": "[%s]" % tr("HUD_MOVE_PAD"), "look": "[%s]" % tr("HUD_LOOK_PAD" if pad else "HUD_LOOK_KBM")}
@@ -454,7 +463,11 @@ func _refresh_hint() -> void:
 		keys["move"] = "[%s]" % wasd
 	for action: String in InputSetup.ACTION_KEYS:
 		keys[action] = InputGlyphs.label_for_action(action, _hint_device)
-	_hint.text = tr(_hint_key).format(keys)
+	var lines: PackedStringArray = []
+	for key: String in [_hint_key, _extra_hint_key]:
+		if key != "":
+			lines.append(tr(key).format(keys))
+	_hint.text = "\n".join(lines)
 
 
 func _on_stage_changed(quest_id: String, _from: String, _to: String) -> void:
