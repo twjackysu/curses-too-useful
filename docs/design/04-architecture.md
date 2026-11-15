@@ -41,7 +41,7 @@
 - 會走路的角色要腳步聲：接 `Puppet.footfall`（腳落地的那一刻）呼叫 `Footsteps.stomp()`，不要照距離算（看 `PlayerController`）。
 - 新敵人：繼承 `EnemyActor`，覆寫 `tuning_id()`、`_build_body()`、`_on_strike()`，數值加在 `tuning.json`（看 `Slime`）。
 - 新角色模型：`scripts/gen_art.sh` 的 `SRC`／`ARGS` 加一行、`scripts/import_characters.py` 的 `KNOWN` 加 id，場景裡 `Puppet.character_id = "<id>"`。
-- 出手的動作：`tools/blender/common.py` 的 `standard_actions` 裡三段 `swing(拉開, 砍到, 帶過去, 踏幾步)`（`light_attack_01～03`）。遊戲的命中判定在出手後 0.19 秒，劍要在 `T_HIT` 之前砍到位；改完用 `--burst-on=combo` 連拍看。`Puppet.attack_variant` 選第幾段，模型沒有那一段就播第一段。
+- 出手的動作：`tools/blender/common.py` 的 `standard_actions` 裡三段 `swing(拉開, 砍到, 帶過去, 踏幾步)`（`light_attack_01～03`；右手是 `(hang, swing, elbow[, turn])`，橫掃要手臂抬到肩膀高再 `turn`）。遊戲的命中判定在出手後 0.19 秒，劍要在 `T_HIT` 之前砍到位。**劍要在身體右邊或頭上揮、劍身橫對著鏡頭**（D-284）。改的流程：先量再拍——寫一個暫時的測試（照 `test_slash_trail.gd` 最後一個的寫法取每一幀的手與劍尖），投到假的過肩鏡頭（身體座標：後 3.4、高 2.1、右 0.5 m，看前面 2 m）算劍光帶子在畫面上的面積，`ART_ONLY=noen scripts/gen_art.sh && python3 -P scripts/import_characters.py`、import、跑那個測試，一輪 11 秒；數字過了才用 `--joined --at=0,-5 --burst-on=combo`（`BURST_EVERY=4 BURST_COUNT=24`）連拍，從 `build/burst/.burst-<名字>/f-N.png` 原尺寸裁出諾恩看（240 px 的小圖看不出好壞）。`Puppet.attack_variant` 選第幾段，模型沒有那一段就播第一段。
 - 新的人物動作：`tools/blender/common.py` 的 `standard_actions` 加一段（每個角色都會有）、`CharacterModels.ANIM_MAP` 與 `Puppet.ACTION_TIME`／`STATES` 加名字、程式人偶補一個最簡單的姿勢（看 `shoot`）。
 - 新物件／武器模型：`scripts/gen_props.sh` 的 `ARGS` 加一行 → `PropModels.instance("tripo/<名字>")`（記得寫檔案不在時的替身）。模型自帶一圈亮色草皮底座的（樹）加 `--moss-below <高度> --sink <公尺>`：草皮改塗成地面的苔色、底座邊緣埋進地面；苔色在 `tripo_prop.py` 的 `MOSS` 與 `forest_ground.gdshader` 的 `moss`，兩邊要一樣。
 - 存檔格式要改：`SaveCodec.CURRENT_VERSION` +1、加遷移、加一個從舊 JSON 讀起的測試（現在 v4；看 `test_save.gd` 的 v3 → v4）。
@@ -51,7 +51,7 @@
 - 新的敵人不是人的體型時要改命中點：`EnemyActor._hit_height()`／`_hit_radius()`（預設是人的胸口 1.05 m；`Slime` 改成身體中間）——命中的閃光、碎屑、刀痕都生在那裡。
 - 要貼著「這一幀的姿勢」的特效（劍光）：用 `Puppet.joint_now("hand_R")` 從骨架現算，並把自己的 `process_priority` 排在動畫後面；直接讀掛點節點的位置會慢一幀。
 - 武器打中人時給自己的狀態：`PlayerController.on_hit_source` 填資料表的來源（現在是鏽劍的 `rusty_sword_cut`）；換武器就換這個。
-- 關卡裡要有人喊一句（不停下遊戲）：`Hud.show_bark(講的人, 翻譯 key)`；要玩家選擇的才用對話（`Game.start_dialogue`），對話要改旗標寫在對話資料的 `do`。
+- 關卡裡要有人喊一句（不停下遊戲）：`Hud.show_bark(講的人, 翻譯 key, 秒數, 名字的翻譯 key)`（給了名字，講的人不在畫面裡時會改放畫面下方「名字：台詞」）；要玩家選擇的才用對話（`Game.start_dialogue`），對話要改旗標寫在對話資料的 `do`。
 - 量戰鬥的手感有沒有變：`test_chapter1.gd` 的 `_mash_until_clear`（像玩家那樣一直按出手，回傳清場要幾幀、`_mash_swings` 是出了幾刀；測試會印數字）。
 
 ## 還沒整理的舊東西（改到那個檔的時候順手清）
