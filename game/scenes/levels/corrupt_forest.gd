@@ -91,6 +91,9 @@ func _ready() -> void:
 	var at: PackedStringArray = str(args.get("at", "")).split(",")
 	if at.size() == 2:
 		_player.global_position = Vector3(float(at[0]), spawn.global_position.y, float(at[1]))
+	# 截圖用：`--weapon=split_blade` 直接拿另一把武器（PlayerController.WEAPONS 的 id）
+	if args.has("weapon"):
+		_player.equip(str(args["weapon"]))
 	_player.snap_camera()
 	_spawn_sera()
 	explore = ForestExplore.create(self, _player, _hud, sera)
