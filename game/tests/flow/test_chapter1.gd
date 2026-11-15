@@ -1111,3 +1111,240 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
 	assert_eq(again.state.get_flag(ForestExplore.pack_flag("wolves")), true, "存檔裡記著")
+
+
+## 探索開放之後的關卡（教學戰與戰後那段話都過了）：後面幾個測試從這裡開始
+func _load_exploring() -> CorruptForest:
+	_new_game_joined()
+	for flag: String in [CorruptForest.FLAG_REVERSAL, CorruptForest.FLAG_GATE_TALK, CorruptForest.FLAG_MISFIRE, CorruptForest.FLAG_SLIMES, CorruptForest.FLAG_AFTER_TALK]:
+		_session().set_flag(flag, true)
+	return _load_level()
+
+
+## 營火（劇本的營火休息事件）：休息補滿血、之後從營火重來；第一次席菈講她被工坊趕出來的事，兩個回答；
+## 講完解鎖連攜——向她要的煙霧彈多一份麻痺（鷹眼＋出手加速）。右上角可選的那一項打勾。
+func test_campfire_rest_tells_seras_past_and_unlocks_the_double_brew() -> void:
+	var level: CorruptForest = _load_exploring()
+	await tree.physics_frame
+	var s: GameSession = _session()
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	var explore: ForestExplore = level.explore
+	var sera: Sera = level.sera
+	for pack_id: String in explore.packs:
+		for e: EnemyActor in (explore.packs[pack_id] as Array):
+			e.set_physics_process(false)
+	assert_true(explore.campfire.global_position.distance_to(ForestMap.at(ForestMap.CAMP)) < 0.1, "營火在營地中間")
+	assert_eq(sera.ask_source, Sera.ASK_SOURCE, "還沒講過：要的是平常的煙霧彈")
+	player.health.hp = 35.0
+	player.global_position = explore.campfire.global_position + Vector3(1.6, 0.05, 0.6)
+	sera.global_position = player.global_position + Vector3(2.0, 0, 1.0)
+	await tree.physics_frame
+	assert_false(explore.campfire.interact_hint().is_empty(), "走近營火有提示")
+	explore.campfire.use(player)
+	assert_eq(player.health.hp, player.health.max_hp, "休息補滿血")
+	assert_eq(s.state.get_flag(ForestExplore.FLAG_RESPAWN), "camp")
+	assert_true(ForestExplore.spawn_point(s.state).distance_to(explore.campfire.global_position) < 5.0, "之後從營火重來")
+	assert_true(bool(_game().call("is_in_dialogue")), "第一次休息：席菈開口")
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_eq(runner.current_text(), "DLG_CH1_CAMP_001")
+	await tree.physics_frame
+	assert_true(explore.campfire.interact_hint().is_empty(), "講話中沒有提示")
+	for i: int in 4:
+		runner.advance()
+	assert_eq(runner.current_text(), "DLG_CH1_CAMP_005")
+	assert_eq(runner.visible_choices.size(), 2, "安慰或鼓勵")
+	assert_true(runner.choose(1))
+	assert_eq(runner.current_text(), "DLG_CH1_CAMP_B")
+	runner.advance()
+	assert_eq(runner.current_text(), "DLG_CH1_CAMP_END")
+	runner.advance()
+	assert_false(bool(_game().call("is_in_dialogue")))
+	assert_eq(s.state.get_flag(ForestExplore.FLAG_CAMP_TALK), true)
+	assert_eq(s.state.get_flag("ch1.campfire_answer"), "encourage")
+	assert_eq(int(s.state.get_flag("sera.affinity", 0)), 10, "好感度加了")
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_DUO_LINE1", "CH1_DUO_LINE2"]), "解鎖連攜")
+	for i: int in 3:
+		await tree.physics_frame
+	assert_true(hud.checklist_lines()[1].begins_with(tr("HUD_LIST_DONE").get_slice(" ", 0)), "清單上營火那一項完成：%s" % hud.checklist_lines()[1])
+	assert_eq(sera.ask_source, ForestExplore.DUO_SOURCE, "向她要的煙霧彈換成連攜的")
+	assert_true(sera.ask())
+	var frames: int = 0
+	while sera.vials_fired == 0 and frames < 120:
+		await tree.physics_frame
+		frames += 1
+	var vial: SeraVial = sera.last_vial
+	assert_eq(vial.source, ForestExplore.DUO_SOURCE)
+	for i: int in int(CombatTuning.num("sera.vial_flight") * 60.0) + 6:
+		await tree.physics_frame
+	assert_true(player.status_effects.strikes_weakpoint() and player.status_effects.attack_speed() > 1.5,
+		"連攜：刀刀砍中要害＋出手加速（×%.2f）" % player.status_effects.attack_speed())
+	# 再休息一次：不再講，只是休息
+	explore.campfire.use(player)
+	assert_false(bool(_game().call("is_in_dialogue")), "只講一次")
+	assert_eq(hud.banner_text(), "CH1_RESTED")
+	var again := GameSession.new(QuestDB.load_default(), _dir)
+	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	assert_eq(again.state.get_flag(ForestExplore.FLAG_DUO), true, "存檔裡記著連攜")
+
+
+## 毒沼最深處的詛咒寶箱（劇本）：打開中【衰弱詛咒】（三層衰弱 → 砍得更重）、拿到【不祥的裂刃】（每砍中一刀流血＋衰弱）。
+## 讀檔之後手上還是裂刃、寶箱不能再開。席菈在探索時輪流射兩種藥。
+func test_cursed_chest_in_the_bog_curses_norn_and_hands_him_the_split_blade() -> void:
+	var level: CorruptForest = _load_exploring()
+	await tree.physics_frame
+	var s: GameSession = _session()
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	var explore: ForestExplore = level.explore
+	var sera: Sera = level.sera
+	for pack_id: String in explore.packs:
+		for e: EnemyActor in (explore.packs[pack_id] as Array):
+			e.set_physics_process(false)
+	await tree.physics_frame
+	# 席菈：探索的時候輪流射兩種
+	assert_eq(sera.vial_cycle, ForestExplore.SERA_VIALS, "探索開放之後她有兩種藥輪流射")
+	var first: SeraVial = sera.fire()
+	var second: SeraVial = sera.fire()
+	assert_eq(first.source, ForestExplore.SERA_VIALS[0])
+	assert_eq(second.source, ForestExplore.SERA_VIALS[1], "第二瓶是劇毒大紅水")
+	assert_true(second.liquid != first.liquid, "顏色不一樣")
+	assert_true(hud.bark_keys().has("BARK_SERA_RED"), "第一次射紅的喊一句")
+	for i: int in 50:
+		await tree.physics_frame
+	player.status_effects.clear("weakness")
+	# 毒沼
+	assert_eq(player.weapon_id, PlayerController.DEFAULT_WEAPON, "一開始拿的是生鏽鐵劍")
+	assert_true(ForestMap.in_swamp(ForestMap.flat(explore.chest.global_position)), "寶箱在毒沼裡")
+	player.status_effects.clear("poison")
+	player.global_position = ForestMap.at(ForestMap.SWAMP) + Vector3(1.0, 0.05, 0.0)
+	for i: int in 30:
+		await tree.physics_frame
+	assert_eq(player.status_effects.source_of("poison"), "swamp_miasma", "毒沼上面是瘴氣")
+	# 寶箱
+	player.global_position = explore.chest.global_position + Vector3(-1.2, 0.05, 1.0)
+	await tree.physics_frame
+	assert_false(explore.chest.interact_hint().is_empty(), "走近寶箱有提示")
+	var old_weapon: Node3D = player.weapon()
+	explore.chest.use(player)
+	assert_eq(player.status_effects.source_of("weakness"), ForestExplore.CHEST_SOURCE, "中了衰弱詛咒")
+	assert_true(absf(player.status_effects.rate("weakness") - 3.0) < 0.01, "一次三層")
+	assert_true(player.status_effects.damage_dealt_scale() > 1.3, "對諾恩是砍得更重（×%.2f）" % player.status_effects.damage_dealt_scale())
+	assert_true(player.reversal_cue.is_playing(), "反轉的回饋自己播了")
+	assert_eq(player.weapon_id, ForestExplore.CHEST_WEAPON, "拿到不祥的裂刃")
+	assert_eq(player.on_hit_source, "split_blade_cut")
+	assert_true(player.weapon() != null and player.weapon() != old_weapon and player.puppet().hand("R").has_node("Weapon"), "手上換了一把")
+	assert_true(player.weapon_damage_mult() > 1.0, "裂刃比較痛（×%.2f）" % player.weapon_damage_mult())
+	assert_eq(s.state.get_flag(ForestExplore.FLAG_CHEST), true)
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_CHEST_LINE1", "CH1_CHEST_LINE2"]))
+	assert_true(hud.bark_keys().has("BARK_SERA_CHEST"))
+	await tree.physics_frame
+	assert_true(hud.checklist_lines()[2].begins_with(tr("HUD_LIST_DONE").get_slice(" ", 0)), "清單上「異常波動」完成：%s" % hud.checklist_lines()[2])
+	assert_false(explore.chest.enabled, "開過了")
+	explore.chest.use(player)
+	assert_true(absf(player.status_effects.rate("weakness") - 3.0) < 0.01, "不能再開一次")
+	# 用裂刃砍中東西：流血＋衰弱各多一層
+	var mold: EnemyActor = (explore.packs["swamp"] as Array)[0] as EnemyActor
+	player.global_position = mold.global_position + Vector3(0, 0.05, 1.3)
+	player.yaw = 0.0
+	await tree.physics_frame
+	var hp0: float = mold.health.hp
+	player.start_attack()
+	for i: int in 30:
+		await tree.physics_frame
+	assert_true(mold.health.hp < hp0, "砍中了")
+	assert_true(player.status_effects.has("bleed") and absf(player.status_effects.rate("weakness") - 4.0) < 0.01,
+		"裂刃每砍中一刀：流血＋一層衰弱（衰弱 %.0f 層）" % player.status_effects.rate("weakness"))
+	# 讀檔：手上還是裂刃，寶箱開過了
+	level.free()
+	_level = null
+	_game().set("session", GameSession.new(QuestDB.load_default(), _dir))
+	assert_eq(_session().load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	var level2: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player2: PlayerController = level2.get_node("Player") as PlayerController
+	assert_eq(player2.weapon_id, ForestExplore.CHEST_WEAPON, "讀檔之後還拿著裂刃")
+	assert_eq(player2.on_hit_source, "split_blade_cut")
+	assert_false(level2.explore.chest.enabled, "寶箱不能再開")
+
+
+## 從頭走一遍（不直接設旗標，只搬動諾恩、按掉對話、把敵人打倒）：新遊戲 → 遇到席菈結伴 → 瘴氣反轉 → 兩人講話 → 三隻史萊姆 →
+## 戰後對話 → 探索解鎖 → 採五朵夜光毒蕈 → 慘叫 → 走到祭壇路口 →「未完待續」。每一段接得起來、中間不會卡住。
+func test_walkthrough_from_new_game_to_the_altar_road() -> void:
+	_game().call("new_game", false)
+	var s: GameSession = _session()
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera")
+	# 相遇、結伴
+	player.global_position = CorruptForest.SERA_WAIT_POS + Vector3(0.6, 0.05, 2.5)
+	await _until_dialogue(60)
+	_finish_dialogue(0)
+	assert_eq(s.quests.stage_of("ch1_main"), "enter_miasma", "結伴了")
+	# 走進瘴氣：反轉 → 兩人講幾句
+	player.global_position = CorruptForest.MIASMA_POS + Vector3(0, 0.05, 0)
+	await _until_dialogue(240)
+	assert_eq(s.quests.stage_of("ch1_main"), "slimes", "第一次反轉")
+	_finish_dialogue(0)
+	# 三隻史萊姆
+	player.global_position = CorruptForest.GLADE_POS + Vector3(0, 0.05, 4.0)
+	for i: int in 5:
+		await tree.physics_frame
+	for slime: Slime in level.slimes:
+		slime.health.apply_damage(9999.0, {"source": player})
+	await _until_dialogue(240)
+	assert_eq(s.quests.stage_of("ch1_main"), "after_fight")
+	_finish_dialogue(0)
+	assert_eq(s.quests.stage_of("ch1_main"), "gather", "探索解鎖")
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_EXPLORE_LINE1", "CH1_EXPLORE_LINE2"]))
+	# 採五朵（走到每一朵旁邊按互動；路上的敵人先不動）
+	for pack_id: String in level.explore.packs:
+		for e: EnemyActor in (level.explore.packs[pack_id] as Array):
+			e.set_physics_process(false)
+	var picked: int = 0
+	for i: int in [0, 1, 2, 3, 6]:
+		var m: Interactable = level.explore.mushrooms[i]
+		player.global_position = m.global_position + Vector3(0.9, 0.05, 0.4)
+		await tree.physics_frame
+		Input.action_press(Interactable.ACTION)
+		await tree.physics_frame
+		Input.action_release(Interactable.ACTION)
+		await tree.physics_frame
+		picked += 1
+		assert_eq(int(s.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), picked, "第 %d 朵" % picked)
+	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "採滿：慘叫聲")
+	# 往祭壇
+	player.global_position = ForestMap.at(ForestMap.ALTAR_GATE) + Vector3(0, 0.05, 1.5)
+	for i: int in 4:
+		await tree.physics_frame
+	assert_true(s.story_finished(), "走到祭壇路口：目前的內容到底")
+	assert_eq(hud.objective_text_key(), Hud.STORY_END_KEY)
+	assert_false(player.health.is_dead())
+	# 標題的「繼續」讀得回來
+	var again := GameSession.new(QuestDB.load_default(), _dir)
+	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	assert_true(again.story_finished(), "存檔停在這一段的結尾")
+
+
+## 等到有對話開始（最多 max_frames 幀）
+func _until_dialogue(max_frames: int) -> void:
+	var frames: int = 0
+	while not bool(_game().call("is_in_dialogue")) and frames < max_frames:
+		await tree.physics_frame
+		frames += 1
+	assert_true(bool(_game().call("is_in_dialogue")), "等了 %d 幀對話沒有開始" % frames)
+
+
+## 把現在這段對話按到完（遇到選項選第 pick 個）
+func _finish_dialogue(pick: int) -> void:
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	var guard: int = 0
+	while runner != null and runner.is_running() and guard < 40:
+		guard += 1
+		if not runner.visible_choices.is_empty():
+			runner.choose(pick)
+		else:
+			runner.advance()
+	assert_false(bool(_game().call("is_in_dialogue")), "對話按得完")

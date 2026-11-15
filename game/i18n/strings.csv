@@ -155,6 +155,26 @@ HINT_EAT_FRUIT,{key} Eat a rotten wild fruit,{key} 吃一顆腐敗野果
 BARK_SERA_VENT,"That is a poison vent! Go arou— w-why are you standing IN it!?",那是毒氣噴發口！繞過——你、你怎麼站進去了！？
 BARK_SERA_WEB,"That web is coated in paralytic venom... you did that on purpose, did you not!",那張網有麻痺毒……你是故意撞上去的對不對！
 BARK_SERA_FRUIT,"Do not eat that, it is rott— ...never mind. Enjoy.",那個爛掉了不能吃——……算了，你吃吧。
+HINT_CAMPFIRE,{key} Rest by the campfire,{key} 在營火旁休息
+HINT_OPEN_CHEST,{key} Open the cursed chest,{key} 打開被詛咒的寶箱
+CH1_RESTED,You rest by the fire. Progress saved.,在營火旁休息了一下。進度已存檔。
+CH1_DUO_LINE1,Team-up unlocked: Double Brew,解鎖連攜：雙重調合
+CH1_DUO_LINE2,"The smoke vial Sera fires when you ask now carries a paralytic too: every cut finds a weak spot, and you attack faster.",向席菈要的煙霧彈多調了一份麻痺：刀刀砍中要害，出手也變快。
+CH1_CHEST_LINE1,Curse of Weakness → Every cut hits harder,衰弱詛咒 → 砍得更重
+CH1_CHEST_LINE2,"You got the Ominous Split Blade. Every cut that lands gives you a stack of bleeding and a stack of weakness: faster and heavier with every hit.",獲得【不祥的裂刃】：每砍中一刀，給自己一層流血＋一層衰弱——越砍越快、越砍越重。
+BARK_SERA_CHEST,"Th-that chest is cursed! ...and you opened it anyway. Of course you did.",那、那個寶箱有詛咒！……你還是直接開了。我就知道。
+BARK_SERA_RED,"This one is my Deadly Red... it should be fine. For you.",這瓶是【劇毒大紅水】……給你的話，應該沒問題！
+BARK_SERA_SWAMP,"The air over the bog is thick... my mask can take it. Probably.",沼澤上面的瘴氣好濃……面具應該撐得住。應該。
+DLG_CH1_CAMP_001,"...C-can we sit for a bit? There is something I want to tell you.",……可以坐一下嗎？我、我有件事想跟你說。
+DLG_CH1_CAMP_002,Go ahead. The fire is just right.,說吧。火剛好。
+DLG_CH1_CAMP_003,"I used to be an apprentice at an alchemy workshop in the capital. One day an adventurer came in with a wound nothing could close, so I secretly used a potion I had mixed myself.",我以前在王都的鍊金工坊當學徒。有一次，一個冒險者的傷怎麼都治不好，我就偷偷用了自己調的藥。
+DLG_CH1_CAMP_004,"The wound closed. And then he was out cold for three whole days. ...They threw me out the next morning. My master said what I make is not medicine. It is a disaster.",傷是好了。可是他整整昏迷了三天。……隔天我就被趕出來了。師傅說，我做的東西不是藥，是災難。
+DLG_CH1_CAMP_005,"So today, when you took my potion and just... laughed, I honestly did not know what to do.",所以今天你挨了我的藥還笑得出來，我真的不知道該怎麼辦才好。
+DLG_CH1_CAMP_CHOICE_A,That was not your fault. You were trying to save him.,那不是妳的錯。妳是想救他。
+DLG_CH1_CAMP_CHOICE_B,A disaster? Then brew the biggest one you can and shoot it all at me.,災難？那就調出最大的災難，全部射給我。
+DLG_CH1_CAMP_A,...Mm. Thank you. Nobody has ever told me that.,……嗯。謝謝你。從來沒有人這樣跟我說過。
+DLG_CH1_CAMP_B,"Eh!? ...O-okay! I will! The biggest one ever!",咦！？……好、好！我會調的！最大的那種！
+DLG_CH1_CAMP_END,"Um... next time you ask for the smoke vial, I will mix a paralytic into it too. Two at once should be... even better. For you, I mean.",那個……下次你要煙霧彈的時候，我會多調一份麻痺進去。兩種一起，對你來說應該……更厲害吧？
 BARK_SERA_SCREAM,"Th-that was a person! Over by the altar...!",那、那是人的聲音！在祭壇那邊……！
 BARK_SERA_NOT_YET,"W-wait! We have not dealt with the slimes here yet...!",等、等一下！這邊的史萊姆還沒解決……！
 CH1_SLIMES_CLEARED,The glade is clear.,空地清乾淨了。

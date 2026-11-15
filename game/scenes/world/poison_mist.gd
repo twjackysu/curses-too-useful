@@ -22,6 +22,8 @@ var zone: MistZone
 var radius: float = 3.0
 var source_id: String = "miasma"
 var life: float = -1.0
+## 霧有多濃（1＝森林口那一團）。範圍大的霧（毒沼）要調淡：人站在裡面，鏡頭到人之間隔著好幾公尺的霧，照 1 畫整個畫面是一片紫
+var thickness: float = 1.0
 var _mats: Array[ShaderMaterial] = []
 var _volume_mat: ShaderMaterial
 
@@ -54,7 +56,7 @@ func _ready() -> void:
 		add_child(mi)
 	_volume_mat = ShaderMaterial.new()
 	_volume_mat.shader = VOLUME_SHADER
-	_volume_mat.set_shader_parameter("density", VOLUME_DENSITY)
+	_volume_mat.set_shader_parameter("density", VOLUME_DENSITY * thickness)
 	_volume_mat.set_shader_parameter("albedo", VOLUME_ALBEDO)
 	_volume_mat.set_shader_parameter("emission", VOLUME_EMISSION)
 	_volume_mat.set_shader_parameter("fade", 1.0)
@@ -73,7 +75,7 @@ func _physics_process(delta: float) -> void:
 	zone.tick(delta)
 	var f: float = 1.0 if zone.life < 0.0 else clampf(zone.life / 0.6, 0.0, 1.0)
 	for m: ShaderMaterial in _mats:
-		m.set_shader_parameter("fade", f)
+		m.set_shader_parameter("fade", f * minf(thickness * 1.6, 1.0))
 	_volume_mat.set_shader_parameter("fade", f)
 	if zone.expired():
 		queue_free()

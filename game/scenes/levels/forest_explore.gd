@@ -1,8 +1,9 @@
 class_name ForestExplore
 extends Node
-## 腐敗之森的自由探索（docs/story/chapter-1.md 時段 B）：採夜光毒蕈、三種陷阱、野外的敵人、通往祭壇的路。
+## 腐敗之森的自由探索（docs/story/chapter-1.md 時段 B）：採夜光毒蕈、三種陷阱、野外的敵人、營火、毒沼與詛咒寶箱、通往祭壇的路。
 ## CorruptForest 生出它、給它諾恩、HUD 與席菈；它把東西放進關卡（目標指引要從關卡底下找節點）。位置照 ForestMap。
 ## 劇情旗標：ch1.mushrooms（採了幾朵）、ch1.mushroom_<n>（第 n 朵採過了）、ch1.altar_gate_reached（走到祭壇路口）、
+## ch1.campfire_talked（營火那段話講過了）、sera.duo_unlocked（連攜解鎖）、ch1.chest_opened（詛咒寶箱開了）、noen.weapon（手上是哪一把）、
 ## ch1.pack.<名字>（那一群敵人打倒了）、ch1.respawn（讀檔、倒下重來從哪裡開始："glade"／"camp"）。任務 data/quests/ch1_main.json 的 gather、to_altar 兩個階段看前兩個。
 
 const QUEST: String = "ch1_main"
@@ -36,6 +37,26 @@ const PACKS: Dictionary = {
 	"swamp": [["mold", 36.5, -61.0], ["mold", 43.5, -62.5], ["slime", 40.5, -68.0]],
 	"hollow": [["treant", 0.0, -63.0], ["slime", -4.5, -58.5], ["slime", 4.5, -60.0]],
 }
+## 營火（劇本的營火休息事件）：休息＝補滿血、存檔、之後從這裡重來；第一次休息席菈講她的過去（對話 ch1_campfire），
+## 講完解鎖連攜（旗標 sera.duo_unlocked）：向她要的煙霧彈換成多調一份麻痺的 DUO_SOURCE
+const CAMPFIRE_MODEL: String = "tripo/prop_campfire_v2"
+const CAMPFIRE_SCALE: float = 1.3
+const FIRE_ENERGY: float = 4.5
+const CAMP_DIALOGUE: String = "ch1_campfire"
+const FLAG_CAMP_TALK: String = "ch1.campfire_talked"
+const FLAG_DUO: String = "sera.duo_unlocked"
+const DUO_SOURCE: String = "sera_duo_smoke"
+## 探索的時候席菈自己輪流射這幾種（第二種是【劇毒大紅水】：衰弱＋中毒）
+const SERA_VIALS: PackedStringArray = ["sera_paralysis_vial", "sera_weak_vial"]
+## 毒沼：一大片比森林口濃的瘴氣；最深處的詛咒寶箱打開中【衰弱詛咒】、拿到【不祥的裂刃】
+const SWAMP_MIASMA_RADIUS: float = 8.5
+## 範圍大，霧調淡（PoisonMist.thickness）：站在裡面還看得到人、怪與地上的泥
+const SWAMP_MIASMA_THICKNESS: float = 0.22
+const CHEST_POS: Vector3 = Vector3(45.5, 0, -69.5)
+const CHEST_MODEL: String = "tripo/prop_cursed_chest"
+const CHEST_SOURCE: String = "curse_weakness"
+const CHEST_WEAPON: String = "split_blade"
+const FLAG_CHEST: String = "ch1.chest_opened"
 ## 教學戰打完、講完話之前，往北走到這條線就過不去（不然可以拖著史萊姆跑進後面的森林）
 const NORTH_GATE_Z: float = -24.5
 const GATE_BARK_EVERY: float = 6.0
@@ -52,6 +73,13 @@ var mushrooms: Array[Interactable] = []
 var vents: Array[PoisonMist] = []
 var webs: Array[WebTrap] = []
 var bushes: Array[Interactable] = []
+var campfire: Interactable
+var chest: Interactable
+var swamp_miasma: PoisonMist
+var _fire_light: OmniLight3D
+var _fire_t: float = 0.0
+## 等營火那段話講完要跳「解鎖連攜」
+var _duo_pending: bool = false
 ## 還沒打倒的每一群：名字 → 那一群的敵人
 var packs: Dictionary = {}
 ## 每一叢野果還要幾秒才再長出來（0＝可以吃）
@@ -84,9 +112,23 @@ func _ready() -> void:
 	gate.name = "AltarGate"
 	gate.position = ForestMap.at(ForestMap.ALTAR_GATE)
 	level.add_child(gate)
+	# 祭壇在更北邊（下一段）：路的盡頭透過來一片不祥的紅光，遠遠看得出那邊有東西
+	var omen := OmniLight3D.new()
+	omen.name = "Omen"
+	omen.light_color = Color(1.0, 0.25, 0.3)
+	omen.light_energy = 5.0
+	omen.omni_range = 16.0
+	omen.shadow_enabled = false
+	omen.light_volumetric_fog_energy = 4.0
+	omen.position = Vector3(0, 3.0, -7.0)
+	gate.add_child(omen)
 	_spawn_mushrooms()
 	_spawn_traps()
 	_spawn_packs()
+	_build_campfire()
+	_build_swamp()
+	sera.fired.connect(_on_sera_fired)
+	Game.dialogue_ended.connect(_on_dialogue_ended)
 	Game.session.stage_changed.connect(_on_stage_changed)
 
 
@@ -100,6 +142,11 @@ func _physics_process(delta: float) -> void:
 			m.enabled = open
 	_tick_traps(delta)
 	_tick_packs()
+	_tick_sera(st, open)
+	_fire_t += delta
+	_fire_light.light_energy = FIRE_ENERGY + 0.6 * sin(_fire_t * 9.0) + 0.35 * sin(_fire_t * 23.0)
+	if swamp_miasma.contains(sera.global_position) and sera.joined and st.grant_once("ch1.swamp_bark"):
+		hud.show_bark(sera, "BARK_SERA_SWAMP", 3.2, Sera.NAME_KEY)
 	_gate_bark_in = maxf(_gate_bark_in - delta, 0.0)
 	if not open and player.global_position.z < NORTH_GATE_Z:
 		player.global_position.z = NORTH_GATE_Z
@@ -187,6 +234,203 @@ func _on_mushroom_used(_by: PlayerController, i: int) -> void:
 	var t: Tween = m.create_tween()
 	t.tween_property(m, "scale", Vector3.ONE * 0.05, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	t.tween_callback(m.queue_free)
+
+
+# ---------------------------------------------------------------- 席菈
+
+## 探索開放之後她自己輪流射兩種藥；營火那段話講過，向她要的那一瓶換成連攜的
+func _tick_sera(st: GameState, open: bool) -> void:
+	if open and sera.vial_cycle.is_empty() and sera.vial_source == Sera.VIAL_SOURCE:
+		sera.vial_cycle = SERA_VIALS
+	if bool(st.get_flag(FLAG_DUO, false)):
+		sera.ask_source = DUO_SOURCE
+
+
+func _on_sera_fired(vial: SeraVial) -> void:
+	if vial.source == SERA_VIALS[1] and Game.session.state.grant_once("ch1.red_vial_bark"):
+		hud.show_bark(sera, "BARK_SERA_RED", 3.0, Sera.NAME_KEY)
+
+
+# ---------------------------------------------------------------- 營火
+
+func _build_campfire() -> void:
+	campfire = Interactable.create("Campfire", ForestMap.at(ForestMap.CAMP), "HINT_CAMPFIRE", 3.0)
+	var look: Node3D = PropModels.instance(CAMPFIRE_MODEL)
+	if look == null:
+		look = _stand_in_campfire()
+	look.name = "Look"
+	look.scale = Vector3.ONE * CAMPFIRE_SCALE
+	campfire.add_child(look)
+	campfire.add_child(_blocker(0.7, 1.0))
+	_fire_light = OmniLight3D.new()
+	_fire_light.name = "FireLight"
+	_fire_light.light_color = Color(1.0, 0.62, 0.3)
+	_fire_light.light_energy = FIRE_ENERGY
+	_fire_light.omni_range = 13.0
+	_fire_light.omni_attenuation = 1.2
+	_fire_light.shadow_enabled = true
+	_fire_light.position = Vector3(0, 0.9, 0)
+	campfire.add_child(_fire_light)
+	campfire.add_child(_embers())
+	campfire.used.connect(_on_campfire_used)
+	level.add_child(campfire)
+
+
+## 在營火旁休息：補滿血、之後從這裡重來、存檔。第一次：席菈講她的過去。
+func _on_campfire_used(by: PlayerController) -> void:
+	by.health.heal(by.health.max_hp, {"source": "campfire"})
+	Game.session.set_flag(FLAG_RESPAWN, "camp")
+	if not bool(Game.session.state.get_flag(FLAG_CAMP_TALK, false)) and sera.joined and Game.start_dialogue(CAMP_DIALOGUE):
+		_duo_pending = true
+	else:
+		hud.show_banner("CH1_RESTED", 3.0)
+	Game.session.autosave()
+
+
+func _on_dialogue_ended(dialogue_id: String) -> void:
+	if dialogue_id != CAMP_DIALOGUE or not _duo_pending:
+		return
+	_duo_pending = false
+	# 劇本：「解鎖雙人合體技雛形」
+	hud.show_center_lines("CH1_DUO_LINE1", "CH1_DUO_LINE2", 7.0, Hud.CENTER_LINE2_COLOR)
+	Game.session.autosave()
+
+
+## 擋路的圓柱（營火、寶箱：人不會穿過去）
+static func _blocker(radius: float, height: float) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = "Blocker"
+	var shape := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = radius
+	cyl.height = height
+	shape.shape = cyl
+	shape.position = Vector3(0, height * 0.5, 0)
+	body.add_child(shape)
+	return body
+
+
+## 火堆上往上飄的火星
+static func _embers() -> CPUParticles3D:
+	var ps := CPUParticles3D.new()
+	ps.name = "Embers"
+	ps.amount = 14
+	ps.lifetime = 1.6
+	ps.preprocess = 1.6
+	ps.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	ps.emission_sphere_radius = 0.25
+	ps.position = Vector3(0, 0.5, 0)
+	ps.direction = Vector3.UP
+	ps.spread = 18.0
+	ps.gravity = Vector3(0, 0.8, 0)
+	ps.initial_velocity_min = 0.6
+	ps.initial_velocity_max = 1.4
+	var fade := Gradient.new()
+	fade.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
+	fade.colors = PackedColorArray([Color(1, 1, 1, 0), Color.WHITE, Color(1, 1, 1, 0)])
+	ps.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.06, 0.06)
+	quad.material = ParticleLook.material(Color(1.0, 0.7, 0.3), true)
+	ps.mesh = quad
+	ps.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return ps
+
+
+static func _stand_in_campfire() -> Node3D:
+	var root := Node3D.new()
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.35, 0.22, 0.14)
+	for i: int in 3:
+		var log_mesh := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.07
+		cyl.bottom_radius = 0.07
+		cyl.height = 0.9
+		cyl.material = wood
+		log_mesh.mesh = cyl
+		log_mesh.position = Vector3(0, 0.12, 0)
+		log_mesh.rotation = Vector3(PI * 0.5, float(i) * PI / 3.0, 0)
+		root.add_child(log_mesh)
+	var flame := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 0.22
+	cone.height = 0.6
+	var fire := StandardMaterial3D.new()
+	fire.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fire.albedo_color = Color(1.0, 0.6, 0.2)
+	cone.material = fire
+	flame.mesh = cone
+	flame.position = Vector3(0, 0.45, 0)
+	root.add_child(flame)
+	return root
+
+
+# ---------------------------------------------------------------- 毒沼與詛咒寶箱
+
+func _build_swamp() -> void:
+	swamp_miasma = PoisonMist.create(SWAMP_MIASMA_RADIUS, "swamp_miasma")
+	swamp_miasma.name = "SwampMiasma"
+	swamp_miasma.thickness = SWAMP_MIASMA_THICKNESS
+	swamp_miasma.position = ForestMap.at(ForestMap.SWAMP)
+	level.add_child(swamp_miasma)
+	chest = Interactable.create("CursedChest", CHEST_POS, "HINT_OPEN_CHEST", 2.4)
+	var look: Node3D = PropModels.instance(CHEST_MODEL)
+	if look == null:
+		look = _stand_in_chest()
+	look.name = "Look"
+	# 正面朝著沼澤中間（玩家來的方向）
+	look.rotation.y = atan2(ForestMap.SWAMP.x - CHEST_POS.x, ForestMap.SWAMP.y - CHEST_POS.z) + PI
+	chest.add_child(look)
+	chest.add_child(_blocker(0.6, 0.8))
+	var glow := OmniLight3D.new()
+	glow.name = "Glow"
+	glow.light_color = Color(0.75, 0.35, 1.0)
+	glow.light_energy = 2.2
+	glow.omni_range = 5.0
+	glow.shadow_enabled = false
+	glow.position = Vector3(0, 1.0, 0)
+	chest.add_child(glow)
+	chest.add_child(_sparkles(Color(0.85, 0.5, 1.0)))
+	chest.used.connect(_on_chest_opened)
+	chest.enabled = not bool(Game.session.state.get_flag(FLAG_CHEST, false))
+	_show_chest_opened(not chest.enabled)
+	level.add_child(chest)
+
+
+## 打開詛咒寶箱（劇本）：中【衰弱詛咒】（對諾恩是砍得更重）、拿到【不祥的裂刃】、右上角可選的那一項完成、存檔。
+func _on_chest_opened(by: PlayerController) -> void:
+	if not chest.enabled:
+		return
+	chest.enabled = false
+	_show_chest_opened(true)
+	by.status_effects.apply_source(CHEST_SOURCE)
+	by.equip(CHEST_WEAPON)
+	Game.session.set_flag(FLAG_CHEST, true)
+	hud.show_center_lines("CH1_CHEST_LINE1", "CH1_CHEST_LINE2", 8.0)
+	if sera.joined:
+		hud.show_bark(sera, "BARK_SERA_CHEST", 3.4, Sera.NAME_KEY)
+	Sfx.play_at(level, "curse_sting", chest.global_position + Vector3.UP * 0.5, -4.0)
+	Game.session.autosave()
+
+
+## 開過的寶箱：紫光與光點收掉（模型是一整塊，蓋子掀不開）
+func _show_chest_opened(opened: bool) -> void:
+	(chest.get_node("Glow") as OmniLight3D).visible = not opened
+	(chest.get_node("Sparkles") as CPUParticles3D).emitting = not opened
+
+
+static func _stand_in_chest() -> Node3D:
+	var mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(1.0, 0.7, 0.7)
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.4, 0.26, 0.2)
+	box.material = wood
+	mesh.mesh = box
+	mesh.position = Vector3(0, 0.35, 0)
+	return mesh
 
 
 # ---------------------------------------------------------------- 野外的敵人

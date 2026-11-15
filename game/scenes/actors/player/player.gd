@@ -82,6 +82,15 @@ var _dodge_dir: Vector3 = Vector3.ZERO
 ## 諾恩的武器【瘴氣生鏽鐵劍】（docs/story/chapter-1.md）：Tripo 的模型，建置時由 scripts/gen_props.sh 擺成
 ## 跟 KayKit 雙手劍一樣的大小與原點；Tripo 的檔不在就退回 KayKit 那把（在 git 裡）。握在右手、劍尖朝下垂在身邊。
 const SWORD_MODELS: Array[String] = ["tripo/weapon_rusty_miasma_sword", "tripo/weapon_longsword", "kaykit/sword_2handed"]
+## 可以拿的武器：模型（照順序找第一個有的）、砍中時給自己的狀態（statuses.json 的來源）、傷害倍率（tuning.json 的 key，沒寫＝1）。
+## 拿哪一把記在劇情旗標 WEAPON_FLAG（存檔跟著走）；換武器叫 equip()。
+const WEAPONS: Dictionary = {
+	"rusty_sword": {"models": SWORD_MODELS, "on_hit": "rusty_sword_cut"},
+	"split_blade": {"models": ["tripo/weapon_ominous_split_blade", "tripo/weapon_longsword", "kaykit/sword_2handed"], "on_hit": "split_blade_cut", "damage": "noen.split_blade_damage_mult"},
+}
+const DEFAULT_WEAPON: String = "rusty_sword"
+const WEAPON_FLAG: String = "noen.weapon"
+var weapon_id: String = DEFAULT_WEAPON
 const SWORD_SCALE: float = 0.42
 const SWORD_GRIP: Vector3 = Vector3(0.0, 0.1, 0.0)
 
@@ -168,6 +177,11 @@ func _ready() -> void:
 	_body.add_child(_puppet)
 	_puppet.footfall.connect(func() -> void: footfall(is_on_floor() and _dodge_left <= 0.0 and hurt_left <= 0.0))
 	ContactShadow.attach(self, 0.55, 0.5)
+	if Game.session.in_story():
+		weapon_id = str(Game.session.state.get_flag(WEAPON_FLAG, DEFAULT_WEAPON))
+	if not WEAPONS.has(weapon_id):
+		weapon_id = DEFAULT_WEAPON
+	on_hit_source = str((WEAPONS[weapon_id] as Dictionary)["on_hit"])
 	_build_weapon()
 	_arm.add_excluded_object(get_rid())
 	_arm.collision_mask |= CAMERA_WALL_LAYER
@@ -827,8 +841,8 @@ func strike() -> int:
 	# 出手越快砍得越重：出手加速了多少，傷害就多那麼多的 `noen.haste_damage` 成（1＝一樣多）。
 	# 吃了拿錯的那一瓶（出手 ×2.5）一刀就是 2.5 倍——劇本的「超頻一刀秒殺史萊姆」靠這個，不是把史萊姆的血調低
 	damage *= 1.0 + (status_effects.attack_speed() - 1.0) * CombatTuning.num("noen.haste_damage", 0.0)
-	# 衰弱被反轉＝每一刀更重（每一層多 per_rate）
-	damage *= status_effects.damage_dealt_scale()
+	# 衰弱被反轉＝每一刀更重（每一層多 per_rate）；手上的武器也有自己的倍率
+	damage *= status_effects.damage_dealt_scale() * weapon_damage_mult()
 	var stagger: float = CombatTuning.num("noen.blunt_stagger", 20.0)
 	var weak_damage: float = CombatTuning.num("noen.weak_damage_mult", 2.0)
 	var weak_stagger: float = CombatTuning.num("noen.weak_stagger_mult", 2.0)
@@ -933,7 +947,9 @@ func _build_weapon() -> void:
 	var hand: Node3D = _puppet.hand("R")
 	if hand == null:
 		return
-	var model: Node3D = PropModels.instance_first(SWORD_MODELS)
+	var names: Array[String] = []
+	names.assign((WEAPONS[weapon_id] as Dictionary)["models"] as Array)
+	var model: Node3D = PropModels.instance_first(names)
 	if model == null:
 		return
 	_weapon = Node3D.new()
@@ -952,8 +968,30 @@ func _build_weapon() -> void:
 	for n: Node in model.find_children("*", "GeometryInstance3D", true, false):
 		(n as GeometryInstance3D).material_overlay = _sword_glow_mat
 	_blade_tip = blade_tip(_weapon)
-	for i: int in 2:
-		_trails.append(SlashTrail.attach(_body, _blade_now))
+	if _trails.is_empty():
+		for i: int in 2:
+			_trails.append(SlashTrail.attach(_body, _blade_now))
+
+
+## 換一把武器（WEAPONS 的 id）：手上的模型、砍中時給自己的狀態、傷害倍率一起換，並記進劇情旗標（存檔、讀檔跟著走）。
+func equip(new_weapon: String) -> void:
+	if not WEAPONS.has(new_weapon):
+		return
+	weapon_id = new_weapon
+	on_hit_source = str((WEAPONS[weapon_id] as Dictionary)["on_hit"])
+	if Game.session.in_story():
+		Game.session.set_flag(WEAPON_FLAG, weapon_id)
+	if _weapon != null:
+		_weapon.get_parent().remove_child(_weapon)
+		_weapon.queue_free()
+		_weapon = null
+	_build_weapon()
+
+
+## 手上這把武器的傷害倍率
+func weapon_damage_mult() -> float:
+	var key: String = str((WEAPONS[weapon_id] as Dictionary).get("damage", ""))
+	return CombatTuning.num(key, 1.0) if key != "" else 1.0
 
 
 ## 劍尖在武器節點座標裡的位置：所有網格的外框最長的那一軸上、離手（原點）比較遠的那一頭。純函式。

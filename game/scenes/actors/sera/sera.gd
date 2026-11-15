@@ -38,10 +38,17 @@ signal mask_changed(on: bool)
 signal asked(ok: bool)
 ## 要過一瓶之後，她把下一瓶裝好、又可以要了的那一刻
 signal reloaded
+## 射出一瓶的那一刻（關卡接這個：第一次射某一種的時候讓她喊一句）
+signal fired(vial: SeraVial)
 
 var brain: SeraBrain = SeraBrain.new()
 ## 下一瓶射什麼（statuses.json 的來源）；關卡可以換（教學戰的第一瓶是她慌了拿錯的那一瓶）
 var vial_source: String = VIAL_SOURCE
+## 她自己射的藥照這個順序輪流（空的＝一直射 vial_source）。自由探索的時候關卡給兩種以上：每一瓶反轉成不一樣的增益
+var vial_cycle: PackedStringArray = []
+var _cycle_i: int = 0
+## 玩家按鍵向她要的是哪一瓶（營火那段話之後關卡換成多調一份麻痺的那一瓶）
+var ask_source: String = ASK_SOURCE
 ## 玩家可不可以按鍵向她要藥（關卡照劇情開：教學戰那一瓶拿錯的演完才開）
 var ask_enabled: bool = false
 var _asked: bool = false
@@ -153,7 +160,7 @@ func threat_near() -> bool:
 	return false
 
 
-## 玩家向她要一瓶（按鍵，或測試直接叫）：她馬上舉弩，這一瓶射的是 ASK_SOURCE。還沒開放（ask_enabled）就當沒聽到；
+## 玩家向她要一瓶（按鍵，或測試直接叫）：她馬上舉弩，這一瓶射的是 ask_source。還沒開放（ask_enabled）就當沒聽到；
 ## 開放了但她還在裝上一瓶＝不射、回傳 false。
 func ask() -> bool:
 	if not ask_enabled:
@@ -164,13 +171,17 @@ func ask() -> bool:
 	return ok
 
 
-## 擊發：從弩口生一瓶藥飛向諾恩。玩家要的那一瓶射 ASK_SOURCE，她自己射的是 vial_source。
+## 擊發：從弩口生一瓶藥飛向諾恩。玩家要的那一瓶射 ask_source，她自己射的是 vial_source（有 vial_cycle 就輪到下一種）。
 func fire() -> SeraVial:
 	vials_fired += 1
 	var from: Vector3 = _crossbow.global_position if _crossbow != null else global_position + Vector3.UP * 1.2
-	last_vial = SeraVial.launch(get_parent(), from, target, ASK_SOURCE if _asked else vial_source)
+	last_vial = SeraVial.launch(get_parent(), from, target, ask_source if _asked else vial_source)
+	if not _asked and not vial_cycle.is_empty():
+		_cycle_i = (_cycle_i + 1) % vial_cycle.size()
+		vial_source = vial_cycle[_cycle_i]
 	_asked = false
 	Sfx.play_at(self, "whoosh", from, -6.0)
+	fired.emit(last_vial)
 	return last_vial
 
 
