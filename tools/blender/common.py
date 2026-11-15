@@ -741,7 +741,8 @@ def standard_actions(a):
     T_WIND, T_HIT, T_END = 0.13, 0.29, 0.5
 
     def swing(wind, hit, end, step_len):
-        """wind／hit／end：三個時間點的姿勢 {twist 上身轉（正＝右肩往前）, lean 往前傾, r 右手 (hang, swing, elbow), l 左手}；
+        """wind／hit／end：三個時間點的姿勢 {twist 上身轉（正＝右肩往前）, lean 往前傾, r 右手 (hang, swing, elbow[, turn]), l 左手}；
+        turn＝整條手臂繞垂直軸轉（正＝往左前帶）：手臂抬到肩膀高（hang 約 90）再 turn，手肘才是在水平面上彎——橫掃靠這個。
         step_len：左腳踏出去多少（1＝一般的一步）。"""
         rest = {"twist": 0, "lean": 0, "r": (13, 12, 38), "l": (9, -3, 14)}
 
@@ -755,22 +756,26 @@ def standard_actions(a):
             a.rot("Spine", f, (X, -lean * 0.5), (Z, twist * 0.35 + 4))
             a.rot("Chest", f, (X, -lean * 0.5), (Z, twist * 0.3 + 6))
             a.rot("Head", f, (X, 3), (Z, -twist * 0.6 - 4))
-            a.arm_pose("Right", f, hang=v(lambda p: p["r"][0]), swing=v(lambda p: p["r"][1]), elbow=v(lambda p: p["r"][2]))
+            a.arm_pose("Right", f, hang=v(lambda p: p["r"][0]), swing=v(lambda p: p["r"][1]), elbow=v(lambda p: p["r"][2]),
+                       twist=v(lambda p: p["r"][3] if len(p["r"]) > 3 else 0))
             a.arm_pose("Left", f, hang=v(lambda p: p["l"][0]), swing=v(lambda p: p["l"][1]), elbow=v(lambda p: p["l"][2]))
             a.leg_pose("Left", f, thigh=9 + 23 * step, knee=10 + 28 * step, foot=-2)
             a.leg_pose("Right", f, thigh=-5 - 13 * step, knee=6 + 8 * step, foot=4 + 2 * step)
         return fn
 
-    # 第一下：舉過頭往下劈
+    # 這三下是給「從背後看」的鏡頭設計的：劍要在身體的右邊或頭上揮，劍身橫對著鏡頭，劍光才是寬寬的一片。
+    # 2026-11-15 試過把第一下改成從右上斜劈到左下、第三下劈到正前方：手和劍整段被諾恩自己的背擋住，
+    # 劍身又朝著鏡頭的反方向，劍光只剩一條線（畫面上的面積 0.67 → 0.36 m²），退回來了。要改先量再拍。
+    # 第一下：舉過頭往下劈（落在右前方）
     attack_1 = swing(
         {"twist": 28, "lean": -4, "r": (55, 150, 85), "l": (25, 20, 14)},
         {"twist": -32, "lean": 14, "r": (30, 55, 8), "l": (30, -35, 45)},
         {"twist": -36, "lean": 16, "r": (26, 40, 10), "l": (30, -35, 45)}, 1.0)
-    # 第二下：劍收到左肩前面，往右橫掃出去
+    # 第二下：劍收到左肩上面（劍尖朝左後方），貼著頭的高度往右橫掃出去；掃過正前方時劍尖比手高，從背後才看得到一整道弧
     attack_2 = swing(
-        {"twist": 36, "lean": 4, "r": (-18, 78, 96), "l": (20, 24, 50)},
-        {"twist": -12, "lean": 10, "r": (42, 80, 14), "l": (32, -20, 36)},
-        {"twist": -44, "lean": 8, "r": (86, 62, 10), "l": (34, -30, 30)}, 0.8)
+        {"twist": 44, "lean": 4, "r": (100, 50, 110, 62), "l": (20, 24, 50)},
+        {"twist": -4, "lean": 10, "r": (68, 38, 35, 40), "l": (32, -20, 36)},
+        {"twist": -36, "lean": 6, "r": (74, 34, 12, 5), "l": (34, -30, 30)}, 0.8)
     # 第三下（收尾）：整個人往後拉滿，踏一大步重劈到底
     attack_3 = swing(
         {"twist": 34, "lean": -14, "r": (40, 172, 105), "l": (40, 60, 30)},

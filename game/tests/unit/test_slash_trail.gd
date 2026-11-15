@@ -122,3 +122,56 @@ func test_swing_draws_a_trail_rust_then_gold_and_bigger_on_the_finisher() -> voi
 	assert_true(absf(float((player.slash_trail().material_override as ShaderMaterial).get_shader_parameter("strength")) - SlashTrail.strength_for(true, true)) < 0.001, "第三刀用的是金色收尾的亮度")
 	root.queue_free()
 	await tree.process_frame
+
+
+## 三下連段從背後（玩家的鏡頭）看：第一、三下是劈在身體右邊的直劈；第二下拉開時劍收在左肩那一邊（以前直直豎在胸前，像敬禮），
+## 再從左到右橫掃一整道。量的是劍尖在身體座標裡的位置（x＝右、y＝上）。只有模型在的時候量——程式人偶三下是同一個姿勢。
+func test_second_swing_sweeps_from_the_left_shoulder_across_to_the_right() -> void:
+	var root := Node3D.new()
+	tree.root.add_child(root)
+	var player: PlayerController = (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as PlayerController
+	root.add_child(player)
+	await tree.physics_frame
+	var hand: Node3D = player.puppet().hand("R")
+	var weapon: Node3D = hand.get_node_or_null("Weapon") as Node3D if hand != null else null
+	if not player.puppet().uses_model() or weapon == null:
+		root.queue_free()
+		await tree.process_frame
+		return
+	var body: Node3D = player.get_node("Body") as Node3D
+	var tip_at: Vector3 = PlayerController.blade_tip(weapon)
+	var left: Array[float] = []      # 每一下揮的那一段，劍尖最左到哪裡
+	var right: Array[float] = []
+	var tall: Array[float] = []      # 劍尖上下走了多少
+	var wind_blade := Vector3.ZERO   # 第二下拉開到底（開始揮的那一刻）劍身的方向：手 → 劍尖
+	for swing: int in 3:
+		player.start_attack()
+		var lo := Vector3.INF
+		var hi := -Vector3.INF
+		for i: int in 120:
+			await tree.process_frame
+			if player.puppet().action != "attack":
+				break
+			var t: float = player.puppet().action_time / float(Puppet.ACTION_TIME["attack"])
+			if t < PlayerController.TRAIL_WINDOW.x or t >= PlayerController.TRAIL_WINDOW.y:
+				continue
+			var inv: Transform3D = body.global_transform.affine_inverse()
+			var xf: Transform3D = player.puppet().joint_now("hand_R") * weapon.transform
+			var tip: Vector3 = inv * (xf * tip_at)
+			if swing == 1 and lo == Vector3.INF:
+				wind_blade = (tip - inv * xf.origin).normalized()
+			lo = lo.min(tip)
+			hi = hi.max(tip)
+		left.append(lo.x)
+		right.append(hi.x)
+		tall.append(hi.y - lo.y)
+		for i: int in 10:
+			await tree.physics_frame
+	assert_true(wind_blade.x < -0.5 and wind_blade.z > -0.5, "第二下拉開：劍朝左（左肩那一邊），不是豎在胸前也不是指著前面（%s）" % wind_blade)
+	assert_true(left[1] < -0.4 and right[1] > 1.0, "第二下：劍尖從身體左邊掃到右邊（%.2f → %.2f m）" % [left[1], right[1]])
+	assert_true(right[1] - left[1] > tall[1] * 1.5, "第二下是橫的（寬 %.2f、高 %.2f m）" % [right[1] - left[1], tall[1]])
+	for i: int in [0, 2]:
+		assert_true(left[i] > 0.0, "第 %d 下整道劈在身體右邊：劈到正前方會被諾恩自己的背擋住（最左 %.2f m）" % [i + 1, left[i]])
+		assert_true(tall[i] > (right[i] - left[i]) * 1.4, "第 %d 下是直的（高 %.2f、寬 %.2f m）" % [i + 1, tall[i], right[i] - left[i]])
+	root.queue_free()
+	await tree.process_frame

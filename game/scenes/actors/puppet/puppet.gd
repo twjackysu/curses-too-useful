@@ -276,7 +276,13 @@ func _animate_model() -> void:
 		return
 	if model_animation != name_found:
 		model_animation = name_found
-		anim.play(name_found, 0.05 if state == "release" else 0.15)
+		# 接到下一個動作要花多久。出手的拉開只有 0.07 秒：照一般的 0.15 秒接，劍還沒舉到位就已經在砍了
+		var blend: float = 0.15
+		if state == "release":
+			blend = 0.05
+		elif state == "attack":
+			blend = 0.06 / maxf(attack_speed, 1.0)
+		anim.play(name_found, blend)
 	# 步頻跟速度走：腳踩在地上的那一段，腳往後的速度要跟人往前的速度差不多
 	match state:
 		"walk":
