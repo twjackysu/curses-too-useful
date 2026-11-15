@@ -76,6 +76,8 @@ const BARK_BLOCKER_GROUPS: PackedStringArray = ["player", "heartbeat", "enemies"
 const BARK_FONT_SIZE: int = 32
 const BARK_COLOR: Color = Color(0.97, 0.94, 0.84)
 var _bark_root: Control
+## 畫面下方「名字：台詞」那一行後面的暗底（頭上的話沒有：字小、跟著人動，加了底反而擋人）
+var _bark_back: StyleBoxFlat
 var _barks: Array[Dictionary] = []
 
 
@@ -277,7 +279,7 @@ func show_bark(speaker: Node3D, key: String, seconds: float = 2.4, who: String =
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.modulate.a = 0.0
 	_bark_root.add_child(l)
-	_barks.append({"speaker": speaker, "label": l, "key": key, "age": 0.0, "life": maxf(seconds, 0.2), "head": head, "who": who})
+	_barks.append({"speaker": speaker, "label": l, "key": key, "age": 0.0, "life": maxf(seconds, 0.2), "head": head, "who": who, "backed": false})
 	_update_barks(0.0)
 
 
@@ -326,6 +328,13 @@ func _update_barks(delta: float) -> void:
 		var words: String = str(b["key"]) if seen else tr(BARK_NAMED_KEY).format({"who": tr(who), "line": tr(str(b["key"]))})
 		if l.text != words:
 			l.text = words
+		# 放在畫面下方的那一行墊一塊暗底：地面是亮的苔與落葉時，光靠描邊看不清楚
+		if bool(b["backed"]) == seen:
+			b["backed"] = not seen
+			if seen:
+				l.remove_theme_stylebox_override("normal")
+			else:
+				l.add_theme_stylebox_override("normal", _named_bark_back())
 		var size: Vector2 = l.get_minimum_size()
 		var p: Vector2 = on - Vector2(size.x * 0.5, size.y + BARK_RISE_PX * age / life)
 		if not seen:
@@ -341,6 +350,26 @@ func _update_barks(delta: float) -> void:
 			tries += 1
 		l.position = rect.position
 		placed.append(rect)
+
+
+func _named_bark_back() -> StyleBoxFlat:
+	if _bark_back == null:
+		_bark_back = StyleBoxFlat.new()
+		_bark_back.bg_color = Color(0.02, 0.03, 0.04, 0.58)
+		_bark_back.set_corner_radius_all(16)
+		_bark_back.content_margin_left = 22.0
+		_bark_back.content_margin_right = 22.0
+		_bark_back.content_margin_top = 6.0
+		_bark_back.content_margin_bottom = 8.0
+	return _bark_back
+
+
+## 那一句現在有沒有墊暗底（測試用）
+func bark_backed(key: String) -> bool:
+	for b: Dictionary in _barks:
+		if str(b["key"]) == key:
+			return bool(b["backed"])
+	return false
 
 
 ## 講的人的臉在畫面上是不是被另一個比較靠近鏡頭的角色（諾恩、席菈、還站著的敵人）的身體蓋住。

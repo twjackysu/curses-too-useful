@@ -421,6 +421,7 @@ func test_sera_line_moves_to_the_bottom_with_her_name_when_she_is_off_screen() -
 		var rect: Rect2 = hud.bark_rects()[0]
 		assert_true(rect.position.y > view.y * 0.55 and rect.end.y < view.y - 100.0, "在畫面下方、生命條上面（y %.0f～%.0f，畫面高 %.0f）" % [rect.position.y, rect.end.y, view.y])
 		assert_true(absf(rect.get_center().x - view.x * 0.5) < 2.0, "左右置中")
+		assert_true(hud.bark_backed("BARK_SERA_PANIC"), "下方那一行後面墊了暗底")
 	# 沒給名字的照舊不顯示（貼在邊上的一句話看不出是誰講的）
 	hud.show_bark(sera, "BARK_SERA_PANIC", 30.0)
 	await tree.process_frame
@@ -433,6 +434,7 @@ func test_sera_line_moves_to_the_bottom_with_her_name_when_she_is_off_screen() -
 	await tree.process_frame
 	texts = hud.bark_texts()
 	assert_eq(texts, PackedStringArray(["BARK_SERA_PANIC"]), "看得到她：字在她頭上，不寫名字")
+	assert_false(hud.bark_backed("BARK_SERA_PANIC"), "頭上的話不墊底")
 	if texts.size() == 1:
 		var on: Vector2 = cam.unproject_position(sera.global_position + Vector3.UP * 2.1)
 		assert_true(hud.bark_rects()[0].get_center().distance_to(on) < 80.0, "貼著她的頭（差 %.0f px）" % hud.bark_rects()[0].get_center().distance_to(on))
