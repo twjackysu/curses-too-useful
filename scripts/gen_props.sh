@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Tripo 產的武器、物件與沒有骨架的怪物（art-inbox/tripo/<名字>/<名字>_model.glb）：用 tools/blender/tripo_prop.py 擺正、縮到實際大小，
+# 四足怪（<名字>_anim.glb，有骨架與走路的動作）用 tools/blender/tripo_quadruped.py 轉向、縮放，
 # 產物放 build/art/props/<名字>.glb，再複製到 game/assets/props/tripo/（不進 git）。scripts/gen-assets.sh 會呼叫。
 # 來源或腳本沒改就跳過；裝不了 bpy 或失敗：印出原因、回傳 0（遊戲退回程式拼的替身）。
 set -uo pipefail
@@ -34,6 +35,11 @@ declare -A ARGS=(
   [prop_guild_counter_v2]="--kind prop --height 1.15"
   [prop_aptitude_crystal]="--kind prop --height 0.60"
 )
+# 有骨架、會走路的四足怪（art-inbox/tripo/<名字>/<名字>_anim.glb）：名字 → 給 tripo_quadruped.py 的參數
+declare -A QUADS=(
+  [enemy_miasma_wolf]="--length 1.70"
+)
+QUAD_TOOL="$ROOT/tools/blender/tripo_quadruped.py"
 mkdir -p "$OUT" "$DEST"
 have_bpy=""
 for name in "${!ARGS[@]}"; do
@@ -48,6 +54,26 @@ for name in "${!ARGS[@]}"; do
     fi
     # shellcheck disable=SC2086
     if "$PY" -I "$TOOL" --src "$src" --out "$OUT/$name.new.glb" ${ARGS[$name]} > "$OUT/$name.log" 2>&1 && [[ -s "$OUT/$name.new.glb" ]]; then
+      mv -f "$OUT/$name.new.glb" "$OUT/$name.glb"
+      echo "$stamp" > "$OUT/$name.stamp"
+      grep "^\[$name" "$OUT/$name.log" | sed 's/^/[props] /'
+    else
+      echo "[props] $name 失敗，最後幾行："; tail -n 8 "$OUT/$name.log"
+      continue
+    fi
+  fi
+  cmp -s "$OUT/$name.glb" "$DEST/$name.glb" || cp -f "$OUT/$name.glb" "$DEST/$name.glb"
+done
+for name in "${!QUADS[@]}"; do
+  src="$ROOT/art-inbox/tripo/$name/${name}_anim.glb"
+  [[ -s "$src" ]] || continue
+  stamp="$(cat "$QUAD_TOOL" "$src" | sha256sum | cut -d' ' -f1) ${QUADS[$name]}"
+  if [[ "${ART_FORCE:-0}" == "1" || ! -s "$OUT/$name.glb" || "$(cat "$OUT/$name.stamp" 2>/dev/null)" != "$stamp" ]]; then
+    if [[ -z "$have_bpy" ]]; then
+      "$PY" -I -c "import bpy" 2>/dev/null && have_bpy=1 || { echo "[props] 沒有 bpy，這次不處理 Tripo 的四足怪"; break; }
+    fi
+    # shellcheck disable=SC2086
+    if "$PY" -I "$QUAD_TOOL" --src "$src" --out "$OUT/$name.new.glb" ${QUADS[$name]} > "$OUT/$name.log" 2>&1 && [[ -s "$OUT/$name.new.glb" ]]; then
       mv -f "$OUT/$name.new.glb" "$OUT/$name.glb"
       echo "$stamp" > "$OUT/$name.stamp"
       grep "^\[$name" "$OUT/$name.log" | sed 's/^/[props] /'

@@ -1,9 +1,9 @@
 class_name ForestExplore
 extends Node
-## 腐敗之森的自由探索（docs/story/chapter-1.md 時段 B）：採夜光毒蕈、三種陷阱、通往祭壇的路。
+## 腐敗之森的自由探索（docs/story/chapter-1.md 時段 B）：採夜光毒蕈、三種陷阱、野外的敵人、通往祭壇的路。
 ## CorruptForest 生出它、給它諾恩、HUD 與席菈；它把東西放進關卡（目標指引要從關卡底下找節點）。位置照 ForestMap。
 ## 劇情旗標：ch1.mushrooms（採了幾朵）、ch1.mushroom_<n>（第 n 朵採過了）、ch1.altar_gate_reached（走到祭壇路口）、
-## ch1.respawn（讀檔、倒下重來從哪裡開始："glade"／"camp"）。任務 data/quests/ch1_main.json 的 gather、to_altar 兩個階段看前兩個。
+## ch1.pack.<名字>（那一群敵人打倒了）、ch1.respawn（讀檔、倒下重來從哪裡開始："glade"／"camp"）。任務 data/quests/ch1_main.json 的 gather、to_altar 兩個階段看前兩個。
 
 const QUEST: String = "ch1_main"
 const STAGE_GATHER: String = "gather"
@@ -28,6 +28,14 @@ const WEB_SPOTS: Array[Vector3] = [Vector3(-0.9, -28.5, 90.0), Vector3(11.5, -39
 const BUSH_SPOTS: Array[Vector3] = [Vector3(5.6, 0, -33.0), Vector3(-20.0, 0, -50.0), Vector3(27.0, 0, -37.5), Vector3(-4.5, 0, -55.0)]
 const FRUIT_SOURCE: String = "rotten_fruit"
 const FRUIT_REGROW_SEC: float = 8.0
+## 野外的敵人，一群一群放（每一隻：種類、x、z）。整群打倒就記一個旗標（ch1.pack.<名字>）並存檔，讀檔不會再生。
+## 種類：slime＝劇毒史萊姆、mold＝黴菌史萊姆、wolf＝瘴氣狼、treant＝孢子樹人
+const PACKS: Dictionary = {
+	"traps": [["mold", -2.6, -41.5], ["mold", 3.2, -42.5]],
+	"wolves": [["wolf", 21.0, -45.0], ["wolf", 27.0, -41.5], ["wolf", 25.5, -48.0]],
+	"swamp": [["mold", 36.5, -61.0], ["mold", 43.5, -62.5], ["slime", 40.5, -68.0]],
+	"hollow": [["treant", 0.0, -63.0], ["slime", -4.5, -58.5], ["slime", 4.5, -60.0]],
+}
 ## 教學戰打完、講完話之前，往北走到這條線就過不去（不然可以拖著史萊姆跑進後面的森林）
 const NORTH_GATE_Z: float = -24.5
 const GATE_BARK_EVERY: float = 6.0
@@ -44,6 +52,8 @@ var mushrooms: Array[Interactable] = []
 var vents: Array[PoisonMist] = []
 var webs: Array[WebTrap] = []
 var bushes: Array[Interactable] = []
+## 還沒打倒的每一群：名字 → 那一群的敵人
+var packs: Dictionary = {}
 ## 每一叢野果還要幾秒才再長出來（0＝可以吃）
 var _regrow: PackedFloat32Array = []
 var _gate_bark_in: float = 0.0
@@ -76,6 +86,7 @@ func _ready() -> void:
 	level.add_child(gate)
 	_spawn_mushrooms()
 	_spawn_traps()
+	_spawn_packs()
 	Game.session.stage_changed.connect(_on_stage_changed)
 
 
@@ -85,9 +96,10 @@ func _physics_process(delta: float) -> void:
 	var st: GameState = Game.session.state
 	var open: bool = unlocked(st)
 	for m: Interactable in mushrooms:
-		if is_instance_valid(m) and not m.is_queued_for_deletion():
-			m.enabled = open and not bool(st.get_flag(_mushroom_flag(mushrooms.find(m)), false))
+		if m != null:
+			m.enabled = open
 	_tick_traps(delta)
+	_tick_packs()
 	_gate_bark_in = maxf(_gate_bark_in - delta, 0.0)
 	if not open and player.global_position.z < NORTH_GATE_Z:
 		player.global_position.z = NORTH_GATE_Z
@@ -106,7 +118,7 @@ func stage() -> String:
 func mushrooms_left() -> int:
 	var n: int = 0
 	for m: Interactable in mushrooms:
-		if is_instance_valid(m) and not m.is_queued_for_deletion():
+		if m != null:
 			n += 1
 	return n
 
@@ -163,6 +175,8 @@ func _on_mushroom_used(_by: PlayerController, i: int) -> void:
 	var m: Interactable = mushrooms[i]
 	if m == null or not m.enabled:
 		return
+	# 採過的從清單拿掉（節點自己縮小、釋放）
+	mushrooms[i] = null
 	m.enabled = false
 	Game.session.state.set_flag(_mushroom_flag(i), true)
 	Game.session.add_flag(FLAG_MUSHROOMS, 1)
@@ -173,6 +187,58 @@ func _on_mushroom_used(_by: PlayerController, i: int) -> void:
 	var t: Tween = m.create_tween()
 	t.tween_property(m, "scale", Vector3.ONE * 0.05, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	t.tween_callback(m.queue_free)
+
+
+# ---------------------------------------------------------------- 野外的敵人
+
+static func pack_flag(pack_id: String) -> String:
+	return "ch1.pack." + pack_id
+
+
+static func _new_enemy(kind: String) -> EnemyActor:
+	match kind:
+		"mold":
+			return MoldSlime.new()
+		"wolf":
+			return MiasmaWolf.new()
+		"treant":
+			return SporeTreant.new()
+	return Slime.new()
+
+
+func _spawn_packs() -> void:
+	for pack_id: String in PACKS:
+		if bool(Game.session.state.get_flag(pack_flag(pack_id), false)):
+			continue
+		var members: Array[EnemyActor] = []
+		for spec: Array in (PACKS[pack_id] as Array):
+			var e: EnemyActor = _new_enemy(str(spec[0]))
+			e.name = "%s_%s%d" % [pack_id, str(spec[0]), members.size() + 1]
+			e.position = Vector3(float(spec[1]), 0.0, float(spec[2]))
+			e.focus_player = true
+			level.add_child(e)
+			# 一開始面向南邊（玩家來的方向）
+			e.set_facing(PI)
+			members.append(e)
+		packs[pack_id] = members
+
+
+## 這一群還活著幾隻（打倒了、或讀檔時已經清掉的＝0）
+func pack_alive(pack_id: String) -> int:
+	var n: int = 0
+	# 倒下的敵人過幾秒會被釋放：先確認還在，再當成 EnemyActor 用
+	for v: Variant in (packs.get(pack_id, []) as Array):
+		if is_instance_valid(v) and not (v as EnemyActor).health.is_dead():
+			n += 1
+	return n
+
+
+func _tick_packs() -> void:
+	for pack_id: String in packs.keys():
+		if pack_alive(pack_id) == 0:
+			packs.erase(pack_id)
+			Game.session.set_flag(pack_flag(pack_id), true)
+			Game.session.autosave()
 
 
 # ---------------------------------------------------------------- 陷阱

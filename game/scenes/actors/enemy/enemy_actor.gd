@@ -293,6 +293,100 @@ func _on_damaged(_amount: float, info: Dictionary) -> void:
 		brain.flinch()
 
 
+# ---------------------------------------------------------------- 毒的螢光綠
+## 森林是紫的、怪也多半是深色的：有毒、會動的東西身上都多一圈螢光綠的邊、腳下一盞綠的小燈（D-288），
+## 從紫霧裡看得出牠在哪。子類別建好外型之後叫 add_toxic_glow(外型)，蓄力時自己用 _set_glow() 調亮；倒下自動熄掉。
+## 邊：借「硬撐的紅光」那個 shader（邊緣最亮的一層加法光），掛在材質的 next_pass——material_overlay 留給硬撐的紅光，兩樣可以同時亮。
+const RIM_COLOR: Color = Color(0.35, 1.0, 0.2)
+## 只留細細的一圈：邊太寬的話綠光疊在身體的顏色上，整隻變成一顆白的泡泡
+const RIM_FILL: float = 0.0
+const RIM_EDGE: float = 1.3
+const RIM_POWER: float = 4.5
+## 腳下的綠光（照地面與旁邊的人，不照牠自己：燈在身體裡面）。放低、範圍小：染綠的是地面，不是站在旁邊的人的臉
+const GLOW_ENERGY: float = 1.1
+const GLOW_RANGE: float = 2.2
+const GLOW_Y: float = 0.15
+## 蓄力蓄滿時亮到平常的幾倍
+const GLOW_WINDUP: float = 2.0
+const GLOW_OUT_SEC: float = 0.35
+
+var _rim: ShaderMaterial
+var _glow: OmniLight3D
+var _glow_level: float = 1.0
+var _glow_look: Node3D
+
+
+## 身上的綠邊現在多亮（平常 1、蓄滿 GLOW_WINDUP、倒下後 0）、腳下的燈、蓋了幾塊（測試用）。
+func glow_level() -> float:
+	return _glow_level
+
+
+func glow_light() -> OmniLight3D:
+	return _glow
+
+
+func rim_surface_count() -> int:
+	var n: int = 0
+	for mi: MeshInstance3D in _glow_meshes():
+		for surface: int in mi.mesh.get_surface_count():
+			var mat: Material = mi.get_surface_override_material(surface)
+			if mat != null and mat.next_pass == _rim:
+				n += 1
+	return n
+
+
+func _glow_meshes() -> Array[MeshInstance3D]:
+	var out: Array[MeshInstance3D] = []
+	if _glow_look == null:
+		return out
+	if _glow_look is MeshInstance3D:
+		out.append(_glow_look as MeshInstance3D)
+	for n: Node in _glow_look.find_children("*", "MeshInstance3D", true, false):
+		out.append(n as MeshInstance3D)
+	return out
+
+
+func add_toxic_glow(look: Node3D, lamp_range: float = GLOW_RANGE) -> void:
+	_glow_look = look
+	_rim = ShaderMaterial.new()
+	_rim.shader = BRACE_SHADER
+	_rim.set_shader_parameter("glow_color", RIM_COLOR)
+	_rim.set_shader_parameter("fill", RIM_FILL)
+	_rim.set_shader_parameter("rim", RIM_EDGE)
+	_rim.set_shader_parameter("rim_power", RIM_POWER)
+	for mi: MeshInstance3D in _glow_meshes():
+		for surface: int in mi.mesh.get_surface_count():
+			var src: Material = mi.get_active_material(surface)
+			if src == null:
+				continue
+			var mat: Material = src.duplicate()
+			mat.next_pass = _rim
+			mi.set_surface_override_material(surface, mat)
+	_glow = OmniLight3D.new()
+	_glow.name = "Glow"
+	_glow.light_color = RIM_COLOR
+	_glow.light_energy = GLOW_ENERGY
+	_glow.omni_range = lamp_range
+	_glow.omni_attenuation = 1.3
+	_glow.shadow_enabled = false
+	_glow.position = Vector3(0, GLOW_Y, 0)
+	add_child(_glow)
+	health.died.connect(_glow_out)
+
+
+func _set_glow(level: float) -> void:
+	if _rim == null:
+		return
+	_glow_level = level
+	_rim.set_shader_parameter("strength", level)
+	_glow.light_energy = GLOW_ENERGY * level
+
+
+## 倒下：綠光跟著熄掉（身體還要躺一下才沉下去）
+func _glow_out() -> void:
+	create_tween().tween_method(_set_glow, _glow_level, 0.0, GLOW_OUT_SEC)
+
+
 # ---------------------------------------------------------------- 硬撐的訊號
 ## 硬撐（後仰過幾次之後打不斷、下一招一定打得出來）是這個戰鬥唯一的「該閃了」訊號。
 ## 第 92 輪只有棍頭的兩圈箍變紅——縮小的連拍圖上是一個小橘點，看不出來。現在三樣一起：

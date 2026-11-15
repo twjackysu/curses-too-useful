@@ -694,8 +694,8 @@ func test_slimes_glow_green_in_the_purple_fog_and_mushrooms_have_colour() -> voi
 		peak = maxf(peak, slime.glow_level())
 		if slime.brain.state == EnemyBrain.State.STRIKE:
 			break
-	assert_true(peak > Slime.GLOW_WINDUP * 0.8, "蓄力要撲的時候越來越亮（最亮 %.2f 倍）" % peak)
-	assert_true(absf(glow.light_energy - Slime.GLOW_ENERGY * slime.glow_level()) < 0.001, "腳下的燈跟身上的邊一起亮")
+	assert_true(peak > EnemyActor.GLOW_WINDUP * 0.8, "蓄力要撲的時候越來越亮（最亮 %.2f 倍）" % peak)
+	assert_true(absf(glow.light_energy - EnemyActor.GLOW_ENERGY * slime.glow_level()) < 0.001, "腳下的燈跟身上的邊一起亮")
 	slime.health.apply_damage(9999.0, {"source": player})
 	for i: int in 90:
 		await tree.process_frame
@@ -908,8 +908,9 @@ func test_gathering_five_mushrooms_brings_the_scream_and_the_road_to_the_altar()
 	for i: int in [1, 2, 3]:
 		explore.mushrooms[i].use(player)
 	assert_eq(s.quests.stage_of("ch1_main"), "gather", "四朵還不夠")
-	explore.mushrooms[6].use(player)
-	explore.mushrooms[6].use(player)
+	var last: Interactable = explore.mushrooms[6]
+	last.use(player)
+	last.use(player)
 	assert_eq(int(s.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), 5, "同一朵按兩次只算一次")
 	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "採滿五朵")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_SCREAM_LINE1", "CH1_SCREAM_LINE2"]), "慘叫聲")
@@ -1026,3 +1027,87 @@ func test_traps_are_supplies_vent_web_and_rotten_fruit() -> void:
 		await tree.physics_frame
 	assert_true(bush.enabled, "過一下子再長出來")
 	assert_eq(hud.status.rows.size(), 4, "狀態列四格：中毒、麻痺、緩速、衰弱")
+
+
+## 野外的三種新敵人，各餵諾恩一種不同的增益：黴菌史萊姆（衰弱 → 砍得更重）、瘴氣狼（流血 → 出手加速）、
+## 孢子樹人（緩速＋致盲 → 跑得更快＋刀刀砍中要害）。一群打倒就記下來、存檔，讀檔不會再生。
+func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
+	_new_game_joined()
+	var s: GameSession = _session()
+	for flag: String in [CorruptForest.FLAG_REVERSAL, CorruptForest.FLAG_GATE_TALK, CorruptForest.FLAG_MISFIRE, CorruptForest.FLAG_SLIMES, CorruptForest.FLAG_AFTER_TALK]:
+		s.set_flag(flag, true)
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var explore: ForestExplore = level.explore
+	level.sera.set_physics_process(false)
+	assert_eq(explore.packs.size(), ForestExplore.PACKS.size(), "四群都在")
+	var everyone: Array[EnemyActor] = []
+	for pack_id: String in explore.packs:
+		for e: EnemyActor in (explore.packs[pack_id] as Array):
+			everyone.append(e)
+			e.set_physics_process(false)
+			assert_true(e.rim_surface_count() > 0 and e.glow_light() != null, "%s 身上有毒的螢光綠" % e.name)
+			assert_true(e.health.max_hp == CombatTuning.num(e.tuning_id() + ".max_hp"), "%s 的數值在資料表裡" % e.name)
+			assert_true(ForestMap.clearing_distance(ForestMap.flat(e.global_position)) < 0.0, "%s 站在空地上" % e.name)
+	# 黴菌史萊姆：撞到衰弱
+	var mold: MoldSlime = (explore.packs["traps"] as Array)[0] as MoldSlime
+	mold.set_physics_process(true)
+	player.global_position = mold.global_position + Vector3(0, 0.05, 1.2)
+	for i: int in 300:
+		await tree.physics_frame
+		if player.status_effects.has("weakness"):
+			break
+	assert_eq(player.status_effects.source_of("weakness"), "mold_touch", "被黴菌史萊姆撞到：衰弱")
+	assert_true(player.status_effects.damage_dealt_scale() > 1.0, "對諾恩是砍得更重")
+	# 打倒牠再試下一種（停在出招那一格的敵人會一直佔著「同時只有一個人出手」的名額）
+	mold.health.apply_damage(9999.0, {"source": player})
+	# 瘴氣狼：從遠處追上來（比諾恩小跑快），咬到流血
+	var wolf: MiasmaWolf = (explore.packs["wolves"] as Array)[0] as MiasmaWolf
+	wolf.set_physics_process(true)
+	player.global_position = wolf.global_position + Vector3(0, 0.05, 9.0)
+	var start: float = wolf.global_position.distance_to(player.global_position)
+	var trotted: bool = false
+	for i: int in 60:
+		await tree.physics_frame
+		trotted = trotted or wolf.is_trotting()
+	var closed: float = start - wolf.global_position.distance_to(player.global_position)
+	assert_true(closed > PlayerController.WALK_SPEED * 1.05, "一秒追近 %.1f m，比諾恩小跑快" % closed)
+	if PropModels.scene_for(MiasmaWolf.MODEL) != null:
+		assert_true(trotted, "跑的時候在播走路的動作")
+	for i: int in 300:
+		await tree.physics_frame
+		if player.status_effects.has("bleed"):
+			break
+	assert_eq(player.status_effects.source_of("bleed"), "wolf_bite", "被狼咬到：流血")
+	assert_true(player.status_effects.attack_speed() > 1.0, "對諾恩是出手加速")
+	wolf.health.apply_damage(9999.0, {"source": player})
+	# 孢子樹人：前兆很長、打不斷，砸到緩速＋致盲
+	var treant: SporeTreant = (explore.packs["hollow"] as Array)[0] as SporeTreant
+	assert_true(treant.brain.telegraph_sec >= 1.0 and treant.brain.flinch_sec <= 0.0, "樹人前兆長、不會後仰")
+	treant.set_physics_process(true)
+	player.status_effects.clear("slow")
+	player.global_position = treant.global_position + Vector3(0, 0.05, 2.0)
+	var swung: bool = false
+	var leaned: float = 0.0
+	for i: int in 400:
+		await tree.physics_frame
+		swung = swung or treant.puppet().current_state() == "attack"
+		leaned = maxf(leaned, treant.puppet().rotation.x)
+		if player.status_effects.has("blind"):
+			break
+	assert_true(player.status_effects.has("slow") and player.status_effects.has("blind"), "被樹人砸到：緩速＋致盲")
+	assert_true(player.status_effects.strikes_weakpoint() and player.status_effects.move_speed_scale() > 1.0, "對諾恩是刀刀砍中要害＋跑得更快")
+	assert_true(swung and leaned > SporeTreant.LEAN_BACK * 0.6, "砸之前先往後仰、再揮下來（最多仰 %.2f）" % leaned)
+	treant.set_physics_process(false)
+	# 整群打倒：記旗標、存檔；讀回來那一群不在
+	for e: EnemyActor in (explore.packs["wolves"] as Array):
+		e.health.apply_damage(9999.0, {"source": player})
+	await tree.physics_frame
+	await tree.physics_frame
+	assert_eq(s.state.get_flag(ForestExplore.pack_flag("wolves")), true, "狼群清掉了")
+	assert_false(explore.packs.has("wolves"))
+	assert_eq(s.state.get_flag(ForestExplore.pack_flag("hollow"), false), false, "別群不受影響")
+	var again := GameSession.new(QuestDB.load_default(), _dir)
+	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	assert_eq(again.state.get_flag(ForestExplore.pack_flag("wolves")), true, "存檔裡記著")

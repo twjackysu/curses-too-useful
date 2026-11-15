@@ -18,11 +18,13 @@ BPY_VERSION="5.3.0"
 declare -A SRC=(
   [noen]="art-inbox/tripo/noen_rank_f_v2/noen_rank_f_v2_rig.glb"
   [sheila]="art-inbox/tripo/sheila_rank_f/sheila_rank_f_rig.glb"
+  [spore_treant]="art-inbox/tripo/enemy_spore_treant/enemy_spore_treant_rig.glb"
 )
 # 給 tripo_character.py 的參數：--height 身高（m）
 declare -A ARGS=(
   [noen]="--height 1.74"
   [sheila]="--height 1.65"
+  [spore_treant]="--height 2.60"
 )
 
 todo=()

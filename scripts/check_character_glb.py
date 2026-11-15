@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import struct
 
-BUDGETS = {'noen': (15000, 40000), 'sheila': (15000, 40000)}
+BUDGETS = {'noen': (15000, 40000), 'sheila': (15000, 40000), 'spore_treant': (15000, 40000)}
 
 
 def inspect(path, character):
