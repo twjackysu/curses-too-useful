@@ -35,4 +35,4 @@
 
 ## AI 生成素材
 
-- Tripo（VAST AI）產的 3D 模型：`art-inbox/tripo/<id>/`，每個資料夾的 `SOURCE.json` 記提示、task id 與日期。2026-11-14 兩批共約 40 個（人物、怪物、武器、場景物件；清單在 `docs/ART_REQUESTS.md`）。Jacky 付費 API 帳號產出，商用權依 Tripo 條款歸帳號持有人；不是 CC0，不得當素材再散布。**上架時要在 Steamworks 申報 Pre-Generated AI content。**
+- Tripo（VAST AI）產的 3D 模型：`art-inbox/tripo/<id>/`，每個資料夾的 `SOURCE.json` 記提示、task id 與日期。2026-11-14 兩批共約 40 個（人物、怪物、武器、場景物件；清單在 `docs/ART_REQUESTS.md`）。Jacky 付費 API 帳號產出，商用權依 Tripo 條款歸帳號持有人；不是 CC0，不得當素材再散布。**上架時要在 Steamworks 申報 Pre-Generated AI content。** 瘴氣狼走路的那一段動作是 Tripo 綁骨時附的預設四足動作（`preset:quadruped:walk`），跟模型同一個來源。
