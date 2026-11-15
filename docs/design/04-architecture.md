@@ -26,7 +26,7 @@
 | `scenes/levels/story_level.gd`、`corrupt_forest.gd/.tscn` | 關卡基底；腐敗之森入口（建場景＋設劇情旗標） |
 | `scenes/actors/player/` | `PlayerController`：移動、過肩鏡頭、鎖定、閃避、出手、釋放、手上的劍、劍光與揮劍聲（`_update_trail`） |
 | `scenes/actors/puppet/` | `Puppet`：有模型就播模型的動作，沒有就用程式拼的人偶（同一套介面：`set_move_speed`、`play_action("dodge"／"attack"／"shoot")`、`hand()`） |
-| `scenes/actors/sera/` | `Sera`（席菈：結伴前站著等、走路、轉身、舉弩、右手的手弩、靠近瘴氣戴的防毒面具）、`SeraVial`（飛向諾恩的藥瓶，落地套用狀態來源） |
+| `scenes/actors/sera/` | `Sera`（席菈：結伴前站著等、走路、轉身、舉弩、右手的手弩、靠近瘴氣戴的防毒面具）、`SeraVial`（飛向諾恩的藥瓶，落地套用狀態來源；來源寫 `color` 換顏色、寫 `smoke` 砸開時腳邊冒一圈貼地的煙） |
 | `scenes/actors/enemy/enemy_actor.gd`、`scenes/actors/slime/` | 敵人共用（追人、受擊、硬撐、跪地、倒下）；劇毒史萊姆 |
 | `scenes/world/poison_mist.gd` | 瘴氣／毒霧的節點（`MistZone`＋霧盤＋體積霧） |
 | `scenes/ui/` | `Hud`（目標、橫幅、存檔提示）、`CombatHud`（生命條）、對話框、暫停、設定、按鍵設定、互動提示 |
@@ -47,7 +47,7 @@
 - 存檔格式要改：`SaveCodec.CURRENT_VERSION` +1、加遷移、加一個從舊 JSON 讀起的測試（現在 v4；看 `test_save.gd` 的 v3 → v4）。
 - 新狀態：`statuses.json` 加一筆（種類 dot／action／guard／bleed／aim；要會疊就寫 `stack_max`）＋翻譯 key＋`StatusHud._draw` 的圖示；一樣東西要帶兩種狀態就在來源寫 `also`。反轉的回饋不用接。
 - 席菈的藥：來源寫在 `statuses.json` 的 `sources`（要別的顏色就寫 `color`，沒寫是紫的）。她自己射的是 `Sera.vial_source`（關卡可以換），玩家按鍵要的是 `Sera.ASK_SOURCE`；什麼時候可以要由關卡開（`Sera.ask_enabled`），她答不答應接 `Sera.asked`。
-- 劇情演到某一拍才開放的操作，要在左上多寫一行提示：`Hud.set_extra_hint(翻譯 key)`（任務階段的 `hint` 是整個階段固定的，寫不到）。
+- 劇情演到某一拍才開放的操作，要在左上多寫一行提示：`Hud.set_extra_hint(翻譯 key[, 要填的字])`（任務階段的 `hint` 是整個階段固定的，寫不到；第二個參數填按鍵以外的東西，例：`{"sec": 7}` 對應字裡的 `{sec}`）。
 - 換武器：劍光不用調——劍尖的位置從武器模型的外框算（`PlayerController.blade_tip`），顏色與大小在 `SlashTrail` 的常數，哪一段動作有劍光是 `PlayerController.TRAIL_WINDOW`。
 - 刀痕的方向、顏色、大小是出手的人放在傷害的 `info` 裡的：`cut`（劍往哪裡掃，`PlayerController.blade_sweep()` 從劍光的取樣算）、`gold`、`heavy`。別的會砍人的東西（之後的同伴、Boss 的武器）要刀痕就帶 `cut`，不帶就沒有。
 - 新的敵人不是人的體型時要改命中點：`EnemyActor._hit_height()`／`_hit_radius()`（預設是人的胸口 1.05 m；`Slime` 改成身體中間）——命中的閃光、碎屑、刀痕都生在那裡。
