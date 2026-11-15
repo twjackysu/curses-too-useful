@@ -26,6 +26,8 @@ const CHECKPOINT_LEVELS: Dictionary = {
 	"ch1_with_sera": "corrupt_forest",
 	"ch1_slimes": "corrupt_forest",
 	"ch1_after_slimes": "corrupt_forest",
+	"ch1_explore": "corrupt_forest",
+	"ch1_scream": "corrupt_forest",
 }
 const DEFAULT_LEVEL: String = "corrupt_forest"
 ## `--level=…` 開發旗標用的存檔資料夾：不會蓋掉玩家真正的進度

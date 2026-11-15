@@ -62,6 +62,21 @@ func hint_key(quest_id: String) -> String:
 	return str(db.stage(quest_id, stage_of(quest_id)).get("hint", ""))
 
 
+## 目前階段的目標清單（右上角）：每一項 {"text": 翻譯 key, "have": 現在幾個, "need": 要幾個（0＝只看有沒有完成）, "done", "optional"}。沒有就是空的。
+func checklist(quest_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if not is_active(quest_id):
+		return out
+	for item: Variant in (db.stage(quest_id, stage_of(quest_id)).get("checklist", []) as Array):
+		var it: Dictionary = item as Dictionary
+		var need: int = int(it.get("need", 0))
+		var value: Variant = state.get_flag(str(it["flag"]))
+		var have: int = int(value) if value is int or value is float else 0
+		var done: bool = have >= need if need > 0 else StoryLogic.check({"flag": str(it["flag"])}, state)
+		out.append({"text": str(it["text"]), "have": mini(have, need), "need": need, "done": done, "optional": bool(it.get("optional", false))})
+	return out
+
+
 ## 目前階段的目標指引（QuestDB.validate_marker 的格式）；marker_if 第一個成立的優先。沒有就回傳 null。
 func marker_spec(quest_id: String) -> Variant:
 	if not is_active(quest_id):

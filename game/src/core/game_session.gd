@@ -69,6 +69,17 @@ func advance() -> Array[Dictionary]:
 	return changes
 
 
+## 現在就自動存檔一次（自由探索的時候：採到東西、在營火休息、開了寶箱——這些不是任務階段，不會自己存）。
+func autosave() -> Error:
+	_flush_autosave()
+	return last_autosave_error
+
+
+## 目前主線階段的目標清單（QuestRunner.checklist）
+func checklist() -> Array[Dictionary]:
+	return quests.checklist(main_quest())
+
+
 func slot_path(slot: String) -> String:
 	return save_dir.path_join(slot + ".json")
 

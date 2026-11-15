@@ -40,11 +40,61 @@
       "done_when": {
         "flag": "ch1.after_slimes_talked"
       }
+    },
+    {
+      "id": "gather",
+      "objective": "Q_CH1_OBJ_GATHER",
+      "hint": "Q_CH1_HINT_EXPLORE",
+      "checkpoint": "ch1_explore",
+      "marker": "nearest:Mushroom",
+      "checklist": [
+        {
+          "text": "Q_CH1_LIST_MUSHROOMS",
+          "flag": "ch1.mushrooms",
+          "need": 5
+        },
+        {
+          "text": "Q_CH1_LIST_CAMP",
+          "flag": "ch1.campfire_talked",
+          "optional": true
+        },
+        {
+          "text": "Q_CH1_LIST_ANOMALY",
+          "flag": "ch1.chest_opened",
+          "optional": true
+        }
+      ],
+      "done_when": {
+        "flag": "ch1.mushrooms",
+        "gte": 5
+      }
+    },
+    {
+      "id": "to_altar",
+      "objective": "Q_CH1_OBJ_SCREAM",
+      "hint": "Q_CH1_HINT_EXPLORE",
+      "checkpoint": "ch1_scream",
+      "marker": "node:AltarGate",
+      "checklist": [
+        {
+          "text": "Q_CH1_LIST_CAMP",
+          "flag": "ch1.campfire_talked",
+          "optional": true
+        },
+        {
+          "text": "Q_CH1_LIST_ANOMALY",
+          "flag": "ch1.chest_opened",
+          "optional": true
+        }
+      ],
+      "done_when": {
+        "flag": "ch1.altar_gate_reached"
+      }
     }
   ],
   "on_complete": {
     "set": {
-      "ch1.forest_gate_done": true
+      "ch1.forest_done": true
     }
   }
 }

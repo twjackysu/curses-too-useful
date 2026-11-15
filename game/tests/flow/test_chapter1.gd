@@ -95,8 +95,25 @@ func test_quest_follows_the_four_flags_and_continue_restores_it() -> void:
 	assert_eq(s.quests.marker_spec("ch1_main"), "node:Sera", "指引指向席菈")
 	assert_false(s.quests.is_done("ch1_main"))
 	s.set_flag(CorruptForest.FLAG_AFTER_TALK, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "gather", "戰後那段話講完：自由探索")
+	assert_eq(s.state.checkpoint, "ch1_explore")
+	assert_eq(s.quests.marker_spec("ch1_main"), "nearest:Mushroom", "指引指向最近的夜光毒蕈")
+	var list: Array[Dictionary] = s.checklist()
+	assert_eq(list.size(), 3, "右上角的清單三項")
+	assert_true(int(list[0]["need"]) == 5 and int(list[0]["have"]) == 0 and not bool(list[0]["optional"]), "第一項要採 5 朵")
+	assert_true(bool(list[1]["optional"]) and bool(list[2]["optional"]), "另外兩項是可選的")
+	s.add_flag(ForestExplore.FLAG_MUSHROOMS, 4)
+	assert_eq(s.quests.stage_of("ch1_main"), "gather", "四朵還不夠")
+	assert_eq(int(s.checklist()[0]["have"]), 4)
+	s.add_flag(ForestExplore.FLAG_MUSHROOMS, 1)
+	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "採滿五朵：慘叫聲，往祭壇")
+	assert_eq(s.state.checkpoint, "ch1_scream")
+	assert_eq(s.quests.marker_spec("ch1_main"), "node:AltarGate")
+	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "corrupt_forest")
+	assert_false(s.quests.is_done("ch1_main"))
+	s.set_flag(ForestExplore.FLAG_ALTAR, true)
 	assert_true(s.quests.is_done("ch1_main"))
-	assert_eq(s.state.get_flag("ch1.forest_gate_done"), true)
+	assert_eq(s.state.get_flag("ch1.forest_done"), true)
 
 
 func test_quest_and_dialogue_data_are_valid() -> void:
@@ -700,7 +717,7 @@ func test_slimes_glow_green_in_the_purple_fog_and_mushrooms_have_colour() -> voi
 	assert_true(lamps > 0, "有會發光的毒蕈（%d 叢）" % lamps)
 
 
-func test_clearing_the_slimes_finishes_the_slice() -> void:
+func test_clearing_the_slimes_leads_to_the_talk_and_opens_the_forest() -> void:
 	_new_game_joined()
 	var s: GameSession = _session()
 	s.set_flag(CorruptForest.FLAG_REVERSAL, true)
@@ -737,13 +754,15 @@ func test_clearing_the_slimes_finishes_the_slice() -> void:
 	runner.advance()
 	assert_false(bool(_game().call("is_in_dialogue")), "講完了")
 	assert_eq(s.state.get_flag(CorruptForest.FLAG_AFTER_TALK), true)
-	assert_true(s.quests.is_done("ch1_main"))
+	assert_eq(s.quests.stage_of("ch1_main"), "gather", "講完之後自由探索開放")
 	for i: int in 3:
 		await tree.physics_frame
-	assert_true(s.story_finished(), "目前的內容到底了")
-	assert_true(hud.is_objective_shown(), "做完之後左上還是有字")
-	assert_eq(hud.objective_text_key(), Hud.STORY_END_KEY, "寫的是「目前的內容到這裡」")
-	assert_true(hud.hint_text().contains("[Q]") and not hud.hint_text().contains("\n"), "操作提示只剩向席菈要藥的那一行：%s" % hud.hint_text())
+	assert_false(s.story_finished(), "後面還有")
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_GATHER")
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_EXPLORE_LINE1", "CH1_EXPLORE_LINE2"]), "劇本的系統提示：探索解鎖")
+	assert_true(hud.hint_text().contains("[F]") and hud.hint_text().contains("[Q]"), "操作提示有互動與向席菈要藥：%s" % hud.hint_text())
+	assert_eq(hud.checklist_lines().size(), 3, "右上角有目標清單：%s" % str(hud.checklist_lines()))
+	assert_true(hud.checklist_lines()[0].begins_with("[0/5]"), "第一行寫採了幾朵：%s" % hud.checklist_lines()[0])
 
 
 ## 左上的目標一直在畫面上（不會過幾秒就淡掉），下面一行寫現在用得到的按鍵。
@@ -788,7 +807,7 @@ func test_cleared_glade_stays_cleared_after_reload() -> void:
 	assert_eq(runner.current_text(), "DLG_CH1_AFTER_B")
 	assert_eq(int(_session().state.get_flag("sera.affinity", 0)), 5)
 	runner.advance()
-	assert_true(_session().quests.is_done("ch1_main"))
+	assert_eq(_session().quests.stage_of("ch1_main"), "gather")
 	for i: int in 120:
 		await tree.physics_frame
 	assert_false(bool(_game().call("is_in_dialogue")), "只講一次")
@@ -828,3 +847,112 @@ func test_enemy_brain_cycle_with_slime_numbers() -> void:
 	assert_eq(far.state, EnemyBrain.State.STAGGERED)
 	far.kill()
 	assert_eq(far.state, EnemyBrain.State.DEAD)
+
+
+## 自由探索（劇本時段 B）：戰後那段話講完才開放——之前往北走不過去、毒蕈不能採。
+## 採一朵：右上角的清單加一、那一朵不見、存檔；讀檔之後採過的不會再長出來。採滿五朵：慘叫聲、目標換成往祭壇；走到祭壇路口這一段結束。
+func test_gathering_five_mushrooms_brings_the_scream_and_the_road_to_the_altar() -> void:
+	_new_game_joined()
+	var s: GameSession = _session()
+	s.set_flag(CorruptForest.FLAG_REVERSAL, true)
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	var explore: ForestExplore = level.explore
+	level.sera.set_physics_process(false)
+	for slime: Slime in level.slimes:
+		slime.set_physics_process(false)
+	assert_eq(explore.mushrooms_left(), ForestExplore.MUSHROOM_SPOTS.size(), "七朵都在")
+	assert_not_null(level.get_node_or_null("AltarGate"), "祭壇路口有標記")
+	assert_true(hud.checklist_lines().is_empty(), "還沒開放：右上角沒有清單")
+	# 還沒打完史萊姆：往北走不過去，毒蕈也不能採
+	player.global_position = Vector3(0, 0.05, -30.0)
+	for i: int in 3:
+		await tree.physics_frame
+	assert_true(player.global_position.z >= ForestExplore.NORTH_GATE_Z - 0.01, "教學戰打完之前過不去（z＝%.1f）" % player.global_position.z)
+	assert_true(hud.bark_keys().has("BARK_SERA_NOT_YET"), "席菈喊一聲")
+	var first: Interactable = explore.mushrooms[0]
+	player.global_position = first.global_position + Vector3(0.8, 0.05, 0.0)
+	await tree.physics_frame
+	assert_true(first.interact_hint().is_empty(), "還沒開放：沒有提示")
+	# 直接跳到戰後那段話講完
+	for flag: String in [CorruptForest.FLAG_MISFIRE, CorruptForest.FLAG_SLIMES, CorruptForest.FLAG_AFTER_TALK]:
+		s.set_flag(flag, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "gather")
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	for i: int in 4:
+		await tree.physics_frame
+	runner = _game().get("dialogue") as DialogueRunner
+	assert_true(runner == null, "戰後那段話已經講過，不會再跳出來")
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_GATHER")
+	assert_false(first.interact_hint().is_empty(), "走近可以採的毒蕈：下方出現提示")
+	assert_true(str(first.interact_hint()["fmt"]).contains("{key}"))
+	assert_true(ObjectiveGuide.resolve_target(level, s.quests.marker_spec("ch1_main"), player.global_position).distance_to(first.global_position) < 0.1, "目標指引指向最近的一朵")
+	Input.action_press(Interactable.ACTION)
+	await tree.physics_frame
+	Input.action_release(Interactable.ACTION)
+	await tree.physics_frame
+	assert_eq(int(s.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), 1, "按互動採了一朵")
+	assert_true(hud.checklist_lines()[0].begins_with("[1/5]"), "清單跟著加：%s" % hud.checklist_lines()[0])
+	assert_true(hud.banner_text().contains("1/5"), "上方閃一行：%s" % hud.banner_text())
+	assert_false(first.enabled, "採過的不能再採")
+	assert_true(ObjectiveGuide.resolve_target(level, s.quests.marker_spec("ch1_main"), player.global_position).distance_to(first.global_position) > 3.0, "指引換到下一朵")
+	# 採到東西就存檔：讀回來採過的那一朵不在、數量還在、從空地開始
+	var again := GameSession.new(QuestDB.load_default(), _dir)
+	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	assert_eq(int(again.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), 1, "存檔裡有這一朵")
+	assert_true(ForestExplore.unlocked(again.state))
+	assert_true(ForestExplore.spawn_point(again.state).distance_to(CorruptForest.GLADE_POS) < 6.0, "重來的位置在史萊姆空地")
+	# 再採四朵（直接用，不走過去）
+	for i: int in [1, 2, 3]:
+		explore.mushrooms[i].use(player)
+	assert_eq(s.quests.stage_of("ch1_main"), "gather", "四朵還不夠")
+	explore.mushrooms[6].use(player)
+	explore.mushrooms[6].use(player)
+	assert_eq(int(s.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), 5, "同一朵按兩次只算一次")
+	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "採滿五朵")
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_SCREAM_LINE1", "CH1_SCREAM_LINE2"]), "慘叫聲")
+	assert_true(hud.bark_keys().has("BARK_SERA_SCREAM"))
+	await tree.physics_frame
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_SCREAM")
+	assert_eq(hud.checklist_lines().size(), 2, "清單剩兩個可選的：%s" % str(hud.checklist_lines()))
+	for i: int in 30:
+		await tree.physics_frame
+	assert_eq(explore.mushrooms_left(), 2, "剩兩朵沒採")
+	# 走到祭壇路口：這一段結束
+	assert_false(s.quests.is_done("ch1_main"))
+	player.global_position = ForestMap.at(ForestMap.ALTAR_GATE) + Vector3(0.5, 0.05, 2.0)
+	for i: int in 3:
+		await tree.physics_frame
+	assert_eq(s.state.get_flag(ForestExplore.FLAG_ALTAR), true)
+	assert_true(s.quests.is_done("ch1_main") and s.story_finished(), "目前的內容到底了")
+	await tree.physics_frame
+	assert_eq(hud.objective_text_key(), Hud.STORY_END_KEY, "左上寫「目前的內容到這裡」")
+	assert_true(hud.checklist_lines().is_empty(), "清單收起來")
+
+
+## 探索開放之後讀檔（或倒下重來）：從史萊姆空地開始，席菈在旁邊，採過的毒蕈不會再長出來。
+func test_continue_during_exploration_starts_at_the_glade_without_picked_mushrooms() -> void:
+	_new_game_joined()
+	var s: GameSession = _session()
+	for flag: String in [CorruptForest.FLAG_REVERSAL, CorruptForest.FLAG_MISFIRE, CorruptForest.FLAG_SLIMES, CorruptForest.FLAG_AFTER_TALK]:
+		s.set_flag(flag, true)
+	s.state.set_flag("ch1.mushroom_2", true)
+	s.add_flag(ForestExplore.FLAG_MUSHROOMS, 1)
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	assert_true(player.global_position.distance_to(ForestExplore.RESPAWNS["glade"] as Vector3) < 0.5, "從空地開始：%s" % str(player.global_position))
+	assert_true(level.sera.global_position.distance_to(player.global_position) < 4.0, "席菈在旁邊")
+	assert_eq(level.explore.mushrooms_left(), ForestExplore.MUSHROOM_SPOTS.size() - 1, "採過的那一朵不在")
+	assert_true(level.explore.mushrooms[1] == null)
+	assert_eq(level.slimes.size(), 0)
+	for i: int in 5:
+		await tree.physics_frame
+	assert_true((level.get_node("Hud") as Hud).checklist_lines()[0].begins_with("[1/5]"))
+	# 探索中可以往北走
+	player.global_position = Vector3(0, 0.05, -30.0)
+	for i: int in 3:
+		await tree.physics_frame
+	assert_true(player.global_position.z < -29.0, "探索開放之後過得去")

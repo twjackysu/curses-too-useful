@@ -10,7 +10,9 @@ extends RefCounted
 ##      "hint": "選填：目標下面那一行操作提示的翻譯 key（{attack} 這類動作名會換成按鍵，見 Hud）",
 ##      "marker": "選填：目標指引指向哪裡（見 validate_marker）",
 ##      "marker_if": [{"when": {...條件}, "marker": ...}]  選填：第一個成立的取代 marker,
-##      "objective_if": [{"when": {...條件}, "objective": "Q_..."}]  選填：第一個成立的取代 objective}
+##      "objective_if": [{"when": {...條件}, "objective": "Q_..."}]  選填：第一個成立的取代 objective,
+##      "checklist": [{"text": "Q_...", "flag": "旗標", "need": 5, "optional": true}]  選填：右上角的目標清單（Hud）。
+##          need＝要幾個（旗標是數字；沒寫＝旗標為真就算完成）；optional＝可選的（不擋進度，只是提醒）}
 ##   ],
 ##   "on_complete": {...效果}
 ## }
@@ -104,6 +106,8 @@ func translation_keys() -> PackedStringArray:
 				out.append(str((s as Dictionary)["hint"]))
 			for alt: Variant in ((s as Dictionary).get("objective_if", []) as Array):
 				out.append(str((alt as Dictionary)["objective"]))
+			for item: Variant in ((s as Dictionary).get("checklist", []) as Array):
+				out.append(str((item as Dictionary)["text"]))
 	return out
 
 
@@ -166,6 +170,13 @@ static func validate_quest(q: Dictionary) -> PackedStringArray:
 					var oe: String = StoryLogic.validate_condition((alt as Dictionary)["when"])
 					if oe != "":
 						out.append("階段 %s 的 objective_if：%s" % [sid, oe])
+		if st.has("checklist"):
+			if not st["checklist"] is Array:
+				out.append("階段 %s 的 checklist 必須是陣列" % sid)
+			else:
+				for item: Variant in (st["checklist"] as Array):
+					if not item is Dictionary or not (item as Dictionary).get("text") is String or not (item as Dictionary).get("flag") is String:
+						out.append("階段 %s 的 checklist 每一項都要有 text 與 flag（字串）" % sid)
 		if st.has("on_done"):
 			var e: String = StoryLogic.validate_effects(st["on_done"])
 			if e != "":

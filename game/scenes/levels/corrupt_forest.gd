@@ -1,9 +1,10 @@
 class_name CorruptForest
 extends StoryLevel
 ## 腐敗之森入口（第一章的起點，docs/story/chapter-1.md 節點 2；計畫在 docs/design/13-chapter-1-plan.md）。
-## 現在是最小的一塊：諾恩一個人走進來 → 席菈等在瘴氣前面，問能不能一起去（答應了才結伴）→ 一團瘴氣（她戴上防毒面具；
+## 入口這一段：諾恩一個人走進來 → 席菈等在瘴氣前面，問能不能一起去（答應了才結伴）→ 一團瘴氣（她戴上防毒面具；
 ## 諾恩走進去中毒 → 反轉成回血 → 兩人講幾句）→ 林間空地的三隻劇毒史萊姆（席菈跟在後面，開打後往諾恩背上射藥：scenes/actors/sera/）。
 ## 劇本裡兩人是在公會大廳認識的（節點 1）；公會還沒做，先讓她在森林口開口（D-280）。
+## 戰後那段話講完，自由探索（時段 B）開放：那一段的東西在 ForestExplore。
 ## 地圖（空地、路）在 ForestMap，看得到的場景（天空、地面、樹、草）在 ForestScenery；這裡放規則與劇情。
 ## 教學戰照劇本：席菈慌了，第一瓶拿錯成【重度麻痺＋防禦歸零】（對諾恩＝出手快 150%＋受傷少 80%）→ 打完兩人講話（兩個選項）。
 ## 劇情旗標：ch1.sera_joined（結伴了，對話資料自己設）、ch1.reversal_seen（第一次反轉）、ch1.slimes_cleared（三隻都倒了）、ch1.after_slimes_talked（戰後那段話講完，
@@ -44,6 +45,8 @@ var slimes: Array[Slime] = []
 var miasma: PoisonMist
 var sera: Sera
 var talk_camera: TalkCamera
+## 自由探索（時段 B）的東西：夜光毒蕈、陷阱、野外的敵人、營火、寶箱
+var explore: ForestExplore
 var _talk_skip: int = 0
 ## 離瘴氣裡那段對話還有幾秒（< 0＝沒有在等）
 var _gate_talk_in: float = -1.0
@@ -73,7 +76,14 @@ func _ready() -> void:
 	# 截圖用：`--joined` 直接從結伴之後開始（席菈在旁邊）；`--burst-on=vial` 要她射藥，也要加這個
 	if args.has("joined"):
 		Game.session.set_flag(FLAG_JOINED, true)
-	_player.global_position = spawn.global_position if bool(Game.session.state.get_flag(FLAG_JOINED, false)) else ENTRANCE_POS
+	# 截圖用：`--explore` 直接從自由探索開始（教學戰與戰後那段話都過了）；配 `--at=x,z` 去看後面的森林
+	if args.has("explore"):
+		for flag: String in [FLAG_JOINED, FLAG_REVERSAL, FLAG_GATE_TALK, FLAG_MISFIRE, FLAG_SLIMES, FLAG_AFTER_TALK]:
+			Game.session.set_flag(flag, true)
+	var st0: GameState = Game.session.state
+	_player.global_position = spawn.global_position if bool(st0.get_flag(FLAG_JOINED, false)) else ENTRANCE_POS
+	if ForestExplore.unlocked(st0):
+		_player.global_position = ForestExplore.spawn_point(st0)
 	# 截圖用：`-- --level=corrupt_forest --cam-yaw=90` 鏡頭繞到諾恩的側面（180＝正面）
 	if args.has("cam-yaw"):
 		_player.yaw = deg_to_rad(float(str(args["cam-yaw"])))
@@ -83,6 +93,8 @@ func _ready() -> void:
 		_player.global_position = Vector3(float(at[0]), spawn.global_position.y, float(at[1]))
 	_player.snap_camera()
 	_spawn_sera()
+	explore = ForestExplore.create(self, _player, _hud, sera)
+	add_child(explore)
 	# 截圖用：`--talk-skip=N` 對話一開始就先按掉 N 句（拍第 N+1 句的鏡位；相遇那一段配 `--at=-0.3,12.2`）
 	_talk_skip = int(str(args.get("talk-skip", "0")))
 	if _talk_skip > 0:

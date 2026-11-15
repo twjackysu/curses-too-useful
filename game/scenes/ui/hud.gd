@@ -1,6 +1,6 @@
 class_name Hud
 extends CanvasLayer
-## 關卡 HUD：左上目前目標＋下面一行操作提示（一直在畫面上），右下存檔提示，目標指引（ObjectiveGuide）。
+## 關卡 HUD：左上目前目標＋下面一行操作提示（一直在畫面上），右上角的目標清單（任務階段有 checklist 的時候），右下存檔提示，目標指引（ObjectiveGuide）。
 ## 目標換了會淡入。主線做完（目前的內容到底了）：中央跳「未完待續」，左上改寫「目前的內容到這裡」。
 ## 以前目標 8 秒後會淡掉、要按鍵才再出現——Jacky 2026-11-14 玩過：「不知道要幹嘛，畫面也沒有什麼指引」。
 ## 進入檢查點（自動存檔）時右下閃一下「已存檔」（失敗則顯示「存檔失敗」）。
@@ -26,6 +26,13 @@ var _hint_key: String = ""
 var _extra_hint_key: String = ""
 var _extra_hint_args: Dictionary = {}
 var _hint_device: int = -1
+## 右上角的目標清單（任務階段的 checklist：`[2/5] 採集夜光毒蕈`、`[可選] …`）
+const LIST_COLOR: Color = Color(0.93, 0.92, 0.88)
+const LIST_OPTIONAL_COLOR: Color = Color(0.8, 0.78, 0.7)
+const LIST_DONE_COLOR: Color = Color(1.0, 0.84, 0.4)
+const LIST_MARGIN: Vector2 = Vector2(56.0, 44.0)
+var _list_box: VBoxContainer
+var _list_labels: Array[Label] = []
 var _saved: Label
 var _died: Label
 var _saved_tween: Tween
@@ -157,6 +164,20 @@ func _build() -> void:
 	_hint.add_theme_constant_override("shadow_offset_y", 2)
 	_objective_box.add_child(_hint)
 
+	_list_box = VBoxContainer.new()
+	_list_box.name = "Checklist"
+	_list_box.add_theme_constant_override("separation", 3)
+	_list_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_list_box.draw.connect(func() -> void:
+		_list_box.draw_style_box(_text_back, Rect2(-OBJECTIVE_BACK_PAD, _list_box.size + OBJECTIVE_BACK_PAD * 2.0)))
+	add_child(_list_box)
+	var list_header := Label.new()
+	list_header.name = "Header"
+	list_header.text = "HUD_LIST_TITLE"
+	list_header.add_theme_font_size_override("font_size", 17)
+	list_header.add_theme_color_override("font_color", Color(0.75, 0.66, 0.48, 0.9))
+	_list_box.add_child(list_header)
+
 	_died = Label.new()
 	_died.name = "Died"
 	_died.text = "HUD_DIED"
@@ -242,6 +263,7 @@ func _process(delta: float) -> void:
 	# 對話中鏡頭在講話的人臉上（TalkCamera）：左上的目標與操作提示先收起來，講完再回來
 	var talking: bool = Game.is_in_dialogue()
 	_objective_box.visible = _objective.text != "" and not talking
+	_refresh_checklist(talking)
 	# 左下的狀態列與生命條也是：對話框會蓋到它們的右半邊（字被切掉一半）
 	status.visible = not talking
 	combat.visible = not talking
@@ -483,6 +505,54 @@ func _refresh_objective(fade_in: bool) -> void:
 		_objective_box.modulate.a = 0.0
 		_objective_tween = create_tween()
 		_objective_tween.tween_property(_objective_box, "modulate:a", 1.0, OBJECTIVE_FADE_SEC)
+
+
+## 右上角的目標清單：照現在主線階段的 checklist 重寫（沒有清單、對話中、主線做完了就收起來）。
+## 要數的寫 [幾/幾]、可選的寫 [可選]、做完的寫 [完成]（金色）。
+func _refresh_checklist(talking: bool) -> void:
+	var lines: PackedStringArray = checklist_lines()
+	_list_box.visible = not lines.is_empty() and not talking
+	if not _list_box.visible:
+		return
+	var items: Array[Dictionary] = Game.session.checklist()
+	while _list_labels.size() < lines.size():
+		var l := Label.new()
+		l.add_theme_font_size_override("font_size", 23)
+		l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.75))
+		l.add_theme_constant_override("shadow_offset_y", 2)
+		l.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		l.set_meta("glyph", true)  # 組好的字（不是翻譯 key）
+		_list_box.add_child(l)
+		_list_labels.append(l)
+	for i: int in _list_labels.size():
+		var l: Label = _list_labels[i]
+		l.visible = i < lines.size()
+		if not l.visible:
+			continue
+		if l.text != lines[i]:
+			l.text = lines[i]
+		var color: Color = LIST_DONE_COLOR if bool(items[i]["done"]) else (LIST_OPTIONAL_COLOR if bool(items[i]["optional"]) else LIST_COLOR)
+		l.add_theme_color_override("font_color", color)
+	_list_box.reset_size()
+	_list_box.position = Vector2(get_viewport().get_visible_rect().size.x - _list_box.size.x - LIST_MARGIN.x, LIST_MARGIN.y)
+
+
+## 目標清單現在寫的每一行（已經組好的字；沒有清單是空的）
+func checklist_lines() -> PackedStringArray:
+	var lines := PackedStringArray()
+	if Game.session == null or not Game.session.in_story() or Game.session.story_finished():
+		return lines
+	for it: Dictionary in Game.session.checklist():
+		var text: String = tr(str(it["text"]))
+		if bool(it["done"]):
+			lines.append(tr("HUD_LIST_DONE").format({"text": text}))
+		elif int(it["need"]) > 0:
+			lines.append(tr("HUD_LIST_COUNT").format({"have": int(it["have"]), "need": int(it["need"]), "text": text}))
+		elif bool(it["optional"]):
+			lines.append(tr("HUD_LIST_OPTIONAL").format({"text": text}))
+		else:
+			lines.append(text)
+	return lines
 
 
 ## 關卡加的第二行操作提示（翻譯 key；空的＝拿掉）：任務階段的提示寫不到的——劇情演到某一拍才開放的操作（向席菈要藥）。
