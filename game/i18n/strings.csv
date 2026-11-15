@@ -118,6 +118,10 @@ STATUS_BLIND,Blinded,致盲
 STATUS_BLIND_REVERSED,Blinded → Every cut finds a weak spot,致盲 → 刀刀砍中要害
 STATUS_BLEED,Bleeding,流血
 STATUS_BLEED_REVERSED,Bleeding → Faster with every cut,流血 → 越砍越快
+STATUS_SLOW,Slowed,緩速
+STATUS_SLOW_REVERSED,Slowed → Faster on your feet,緩速 → 跑得更快
+STATUS_WEAKNESS,Weakened,衰弱
+STATUS_WEAKNESS_REVERSED,Weakened → Every cut hits harder,衰弱 → 砍得更重
 GAME_TITLE,These Curses Are Far Too Useful to Me,這些詛咒對我太有用了
 GAME_SUBTITLE,"My ""infection-prone"" body turned out to be the cheat that flips everything",被嫌棄的易感染體質，其實是逆轉一切的外掛
 SPK_LILITH,Lilith,莉莉絲

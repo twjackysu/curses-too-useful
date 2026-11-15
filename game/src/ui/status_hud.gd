@@ -1,7 +1,7 @@
 class_name StatusHud
 extends Control
 ## 狀態圖示：生命條上方一列，每種狀態一格。
-## 一格＝原類型的圖示（中毒：瓶子＋骷髏點；麻痺：閃電；防禦歸零：裂開的盾；流血：一滴血）＋反轉時右下角一個金色迴轉箭頭＋剩餘秒數，旁邊一行字
+## 一格＝原類型的圖示（中毒：瓶子＋骷髏點；麻痺：閃電；防禦歸零：裂開的盾；流血：一滴血；致盲：劃掉的眼睛；緩速：被纏住的靴子；衰弱：垂下來的手臂）＋反轉時右下角一個金色迴轉箭頭＋剩餘秒數，旁邊一行字
 ## 「中毒 → 回血」（反轉，金）／「中毒」（沒反轉，紅）。圖示保留原類型，看得出原本是什麼壞東西。會疊的狀態（流血）圖示右上角有一個小數字＝現在幾層。
 ## **翻面**：狀態剛上身時先是紅的；會反轉的人（StatusEffects.reverses）ReversalCue.CURSE_SEC 秒後翻成金的（跟畫面碎裂同一刻），旁邊彈一圈金光。
 ## 純顯示：refresh(effects) 每幀從玩家的 StatusEffects 讀。
@@ -16,6 +16,8 @@ const COL_BOLT: Color = Color(1.0, 0.86, 0.35)
 const COL_SHIELD: Color = Color(0.72, 0.78, 0.88)
 const COL_BLOOD: Color = Color(0.86, 0.2, 0.22)
 const COL_EYE: Color = Color(0.93, 0.93, 0.88)
+const COL_BOOT: Color = Color(0.62, 0.78, 0.95)
+const COL_ARM: Color = Color(0.9, 0.72, 0.6)
 
 ## 翻面那一刻彈出去的金圈多久散掉、散到多大（px）
 const PULSE_SEC: float = 0.45
@@ -116,6 +118,10 @@ func _draw() -> void:
 			_draw_drop(Vector2.ZERO)
 		elif str(r["id"]) == "blind":
 			_draw_eye(Vector2.ZERO)
+		elif str(r["id"]) == "slow":
+			_draw_boot(Vector2.ZERO)
+		elif str(r["id"]) == "weakness":
+			_draw_arm(Vector2.ZERO)
 		if gold:
 			_draw_reverse_mark(Vector2(ICON * 0.34, ICON * 0.34))
 		draw_set_transform(Vector2.ZERO)
@@ -178,6 +184,27 @@ func _draw_eye(c: Vector2) -> void:
 	draw_circle(c, 3.6, Color(0.1, 0.11, 0.14))
 	draw_line(c + Vector2(-8.0, 8.0), c + Vector2(8.0, -8.0), Color(0.1, 0.11, 0.14), 3.4)
 	draw_line(c + Vector2(-8.0, 8.0), c + Vector2(8.0, -8.0), COL_EYE, 1.4)
+
+
+## 緩速的原圖示：一隻靴子，腳踝上纏了兩圈
+func _draw_boot(c: Vector2) -> void:
+	draw_colored_polygon(PackedVector2Array([
+		c + Vector2(-5.0, -9.0), c + Vector2(1.0, -9.0), c + Vector2(1.0, 1.0), c + Vector2(8.0, 4.0),
+		c + Vector2(8.0, 8.0), c + Vector2(-5.0, 8.0),
+	]), COL_BOOT)
+	var dark := Color(0.1, 0.11, 0.14)
+	draw_line(c + Vector2(-6.5, -3.5), c + Vector2(2.5, -5.5), dark, 1.6)
+	draw_line(c + Vector2(-6.5, 0.5), c + Vector2(2.5, -1.5), dark, 1.6)
+
+
+## 衰弱的原圖示：一隻垂下來的手臂（往下的箭頭壓在拳頭上）
+func _draw_arm(c: Vector2) -> void:
+	draw_rect(Rect2(c + Vector2(-3.0, -9.0), Vector2(6.0, 9.0)), COL_ARM)
+	draw_circle(c + Vector2(0.0, 3.0), 5.0, COL_ARM)
+	var dark := Color(0.1, 0.11, 0.14)
+	draw_line(c + Vector2(0.0, -6.0), c + Vector2(0.0, 6.0), dark, 1.8)
+	draw_line(c + Vector2(-3.5, 2.5), c + Vector2(0.0, 6.5), dark, 1.8)
+	draw_line(c + Vector2(3.5, 2.5), c + Vector2(0.0, 6.5), dark, 1.8)
 
 
 ## 會疊的狀態：圖示右上角的層數

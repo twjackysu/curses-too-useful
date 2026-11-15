@@ -1,5 +1,5 @@
 {
-	"_doc": "異常狀態、來源與可攜藥劑。kind=dot：每秒扣血／反轉後回血；kind=action：不碰生命，影響出手（沒反轉＝不能出手；反轉＝出手加速，rate 是倍率）；kind=guard：不碰生命，影響受到的直接傷害（rate 是比例：沒反轉＝多吃這麼多；反轉＝少吃這麼多）；kind=bleed：rate 是層數，沒反轉＝每秒扣 rate 點血，反轉＝出手加速（每層快 haste_per_rate）；kind=aim：不碰生命，反轉＝每一刀都算砍在破綻上（傷害、失衡照 noen.weak_*_mult 加倍；沒反轉的「看不見、砍不中」還沒做——現在只有諾恩會中）。stack_max＝再上一次是把強度加上去（最多到這個數），沒寫的狀態只留比較強的那一份。來源的 also＝同一下再套用另一個來源（一瓶藥帶兩種狀態）。新的狀態照這張表加（docs/design/13-chapter-1-plan.md「系統」）。",
+	"_doc": "異常狀態、來源與可攜藥劑。kind=dot：每秒扣血／反轉後回血；kind=action：不碰生命，影響出手（沒反轉＝不能出手；反轉＝出手加速，rate 是倍率）；kind=guard：不碰生命，影響受到的直接傷害（rate 是比例：沒反轉＝多吃這麼多；反轉＝少吃這麼多）；kind=bleed：rate 是層數，沒反轉＝每秒扣 rate 點血，反轉＝出手加速（每層快 haste_per_rate）；kind=aim：不碰生命，反轉＝每一刀都算砍在破綻上（傷害、失衡照 noen.weak_*_mult 加倍；沒反轉的「看不見、砍不中」還沒做——現在只有諾恩會中）。kind=move：rate 是層數，沒反轉＝走得慢（每層慢 per_rate），反轉＝走得快；kind=power：rate 是層數，沒反轉＝砍得輕（每層輕 per_rate），反轉＝砍得重。stack_max＝再上一次是把強度加上去（最多到這個數），沒寫的狀態只留比較強的那一份。來源的 also＝同一下再套用另一個來源（一瓶藥帶兩種狀態）。新的狀態照這張表加（docs/design/13-chapter-1-plan.md「系統」）。",
 	"statuses": {
 		"poison": {
 			"max_duration": 30.0,
@@ -34,6 +34,22 @@
 			"max_duration": 5.0,
 			"name_key": "STATUS_BLEED",
 			"reversed_key": "STATUS_BLEED_REVERSED"
+		},
+		"slow": {
+			"kind": "move",
+			"stack_max": 3.0,
+			"per_rate": 0.15,
+			"max_duration": 30.0,
+			"name_key": "STATUS_SLOW",
+			"reversed_key": "STATUS_SLOW_REVERSED"
+		},
+		"weakness": {
+			"kind": "power",
+			"stack_max": 5.0,
+			"per_rate": 0.12,
+			"max_duration": 60.0,
+			"name_key": "STATUS_WEAKNESS",
+			"reversed_key": "STATUS_WEAKNESS_REVERSED"
 		}
 	},
 	"sources": {
@@ -44,7 +60,7 @@
 			"duration": 4.0
 		},
 		"boss_miasma": {
-			"_doc": "頭目的濃瘴氣。",
+			"_doc": "頭目的濃瘴氣（祭壇那一段用）。",
 			"status": "poison",
 			"rate": 8.0,
 			"duration": 3.0
@@ -92,6 +108,111 @@
 			"duration": 8.0,
 			"color": "#f2e27a",
 			"smoke": true
+		},
+		"vent_gas": {
+			"_doc": "毒氣噴發口：比瘴氣濃，站在上面每 0.25 秒刷新一次。",
+			"status": "poison",
+			"rate": 8.0,
+			"duration": 6.0
+		},
+		"swamp_miasma": {
+			"_doc": "毒沼上面的瘴氣：範圍大、比森林口的濃一點。",
+			"status": "poison",
+			"rate": 7.0,
+			"duration": 5.0
+		},
+		"web_snare": {
+			"_doc": "麻痺蜘蛛網：撞上去麻痺＋一層緩速（腳被纏住）→ 出手加速＋跑得更快。",
+			"status": "paralysis",
+			"rate": 1.5,
+			"duration": 12.0,
+			"also": "web_snare_slow"
+		},
+		"web_snare_slow": {
+			"status": "slow",
+			"rate": 1.0,
+			"duration": 14.0
+		},
+		"rotten_fruit": {
+			"_doc": "腐敗野果：吃下去一層衰弱＋食物中毒 → 砍得更重＋回血。",
+			"status": "weakness",
+			"rate": 1.0,
+			"duration": 25.0,
+			"also": "rotten_fruit_poison"
+		},
+		"rotten_fruit_poison": {
+			"status": "poison",
+			"rate": 4.0,
+			"duration": 8.0
+		},
+		"mold_touch": {
+			"_doc": "被黴菌史萊姆撞到：孢子讓人虛弱（一層衰弱）。",
+			"status": "weakness",
+			"rate": 1.0,
+			"duration": 20.0
+		},
+		"wolf_bite": {
+			"_doc": "被瘴氣狼咬到：一層流血 → 出手加速。",
+			"status": "bleed",
+			"rate": 1.0,
+			"duration": 5.0
+		},
+		"treant_slam": {
+			"_doc": "被孢子樹人砸到：根鬚纏腳（一層緩速）＋孢子嗆得睜不開眼（致盲）→ 跑得更快＋刀刀砍中要害。",
+			"status": "slow",
+			"rate": 1.0,
+			"duration": 14.0,
+			"also": "treant_spores"
+		},
+		"treant_spores": {
+			"status": "blind",
+			"rate": 1.0,
+			"duration": 8.0
+		},
+		"curse_weakness": {
+			"_doc": "詛咒寶箱的【衰弱詛咒】：三層衰弱、一分鐘。",
+			"status": "weakness",
+			"rate": 3.0,
+			"duration": 60.0
+		},
+		"split_blade_cut": {
+			"_doc": "【不祥的裂刃】每砍中一刀給自己一層流血＋一層衰弱（PlayerController.on_hit_source）：對諾恩是越砍越快、越砍越重。",
+			"status": "bleed",
+			"rate": 1.0,
+			"duration": 5.0,
+			"also": "split_blade_curse"
+		},
+		"split_blade_curse": {
+			"status": "weakness",
+			"rate": 1.0,
+			"duration": 8.0
+		},
+		"sera_weak_vial": {
+			"_doc": "席菈的另一瓶失敗作【劇毒大紅水】：兩層衰弱＋中毒 → 砍得更重＋回血。",
+			"status": "weakness",
+			"rate": 2.0,
+			"duration": 14.0,
+			"color": "#e0503c",
+			"also": "sera_weak_vial_poison"
+		},
+		"sera_weak_vial_poison": {
+			"status": "poison",
+			"rate": 5.0,
+			"duration": 10.0
+		},
+		"sera_duo_smoke": {
+			"_doc": "營火之後的連攜【雙重調合】：致盲煙霧彈裡多調一份麻痺 → 刀刀砍中要害＋出手加速。",
+			"status": "blind",
+			"rate": 1.0,
+			"duration": 8.0,
+			"color": "#f2e27a",
+			"smoke": true,
+			"also": "sera_duo_smoke_paralysis"
+		},
+		"sera_duo_smoke_paralysis": {
+			"status": "paralysis",
+			"rate": 1.6,
+			"duration": 8.0
 		}
 	},
 	"items": {

@@ -319,7 +319,8 @@ func _physics_process(delta: float) -> void:
 			_dodge_cooldown = DODGE_COOLDOWN
 			invulnerable = false
 	else:
-		var target: Vector3 = dir * (SPRINT_SPEED if sprinting else WALK_SPEED)
+		# 緩速被反轉＝跑得更快（沒反轉的人是變慢）
+		var target: Vector3 = dir * (SPRINT_SPEED if sprinting else WALK_SPEED) * status_effects.move_speed_scale()
 		horizontal = horizontal.lerp(target, clampf(ACCEL * delta, 0.0, 1.0))
 	# 出手的那一小步疊在走路上面，但不記進下一幀的速度（不然滑完還會往前溜）
 	var lunge: Vector3 = _lunge_velocity(delta) if _dodge_left <= 0.0 else Vector3.ZERO
@@ -826,6 +827,8 @@ func strike() -> int:
 	# 出手越快砍得越重：出手加速了多少，傷害就多那麼多的 `noen.haste_damage` 成（1＝一樣多）。
 	# 吃了拿錯的那一瓶（出手 ×2.5）一刀就是 2.5 倍——劇本的「超頻一刀秒殺史萊姆」靠這個，不是把史萊姆的血調低
 	damage *= 1.0 + (status_effects.attack_speed() - 1.0) * CombatTuning.num("noen.haste_damage", 0.0)
+	# 衰弱被反轉＝每一刀更重（每一層多 per_rate）
+	damage *= status_effects.damage_dealt_scale()
 	var stagger: float = CombatTuning.num("noen.blunt_stagger", 20.0)
 	var weak_damage: float = CombatTuning.num("noen.weak_damage_mult", 2.0)
 	var weak_stagger: float = CombatTuning.num("noen.weak_stagger_mult", 2.0)

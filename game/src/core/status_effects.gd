@@ -13,6 +13,10 @@ const PARALYSIS: String = "paralysis"
 const DEFENSE_ZERO: String = "defense_zero"
 const BLEED: String = "bleed"
 const BLIND: String = "blind"
+const SLOW: String = "slow"
+const WEAKNESS: String = "weakness"
+## 沒反轉的緩速、衰弱最多把速度、傷害壓到剩幾成
+const WORST_SCALE: float = 0.3
 
 ## event："start"（新上身）、"refresh"（同種刷新）、"end"（時間到）、"clear"（被清掉）
 signal changed(status_id: String, event: String)
@@ -79,6 +83,21 @@ func attack_speed() -> float:
 ## 致盲被反轉（鷹眼）：每一刀都算砍在破綻上（傷害、失衡加倍的倍率在 `noen.weak_*_mult`，見 PlayerController.strike）。
 func strikes_weakpoint() -> bool:
 	return reverses and has(BLIND)
+
+
+## 走路、跑步的速度乘幾倍（緩速）：每一層 per_rate；沒反轉＝變慢，反轉＝變快。身上沒有＝1。
+func move_speed_scale() -> float:
+	return _layered_scale(SLOW)
+
+
+## 砍人的傷害乘幾倍（衰弱）：每一層 per_rate；沒反轉＝變輕，反轉＝變重。身上沒有＝1。
+func damage_dealt_scale() -> float:
+	return _layered_scale(WEAKNESS)
+
+
+func _layered_scale(status_id: String) -> float:
+	var k: float = rate(status_id) * rules.per_rate(status_id)
+	return 1.0 + k if reverses else maxf(1.0 - k, WORST_SCALE)
 
 
 ## 受到直接傷害時乘幾倍（防禦歸零）：沒反轉＝多吃（1 + 強度）；反轉＝少吃（1 − 強度，強度不超過 max_reversed_rate）。身上沒有＝1。
@@ -151,7 +170,7 @@ func tick(delta: float, health: Health) -> void:
 		var id: String = str(k)
 		var cur: Dictionary = _active[id] as Dictionary
 		var dt: float = minf(delta, float(cur["remaining"]))
-		# 麻痺（action）、防禦歸零（guard）不碰生命：只計時，效果由 attack_speed()／blocks_attack()／damage_taken_scale() 問。
+		# 麻痺（action）、防禦歸零（guard）、致盲（aim）、緩速（move）、衰弱（power）不碰生命：只計時，效果由 attack_speed()／blocks_attack()／damage_taken_scale() 問。
 		# 流血（bleed）沒反轉跟中毒一樣每秒扣血；反轉了不碰生命（變成出手加速）
 		var kind: String = rules.kind(id)
 		if health != null and dt > 0.0 and (kind == "dot" or kind == "bleed"):
