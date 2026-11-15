@@ -21,7 +21,7 @@
 | `src/core/health.gd`、`combat_tuning.gd`、`enemy_brain.gd`、`sera_brain.gd` | 生命、戰鬥數值（`data/combat/tuning.json`，F5 重讀、`user://tuning.json` 可覆寫）、敵人狀態機、席菈要做什麼（跟隨距離、射藥節奏、玩家要藥與裝填） |
 | `src/core/input_setup.gd`、`sfx.gd`、`ambience.gd`、`footsteps.gd`、`quality_preset.gd`、`frame_stats.gd`、`benchmark_run.gd` | 按鍵、音效、環境音與配樂、腳步、畫質三級、效能統計 |
 | `src/ui/` | 字型與主題、按鍵圖示（`GlyphLine`、`PadGlyph`）、狀態列（`StatusHud`，圖示會翻面）、反轉的畫面那一層（`ReversalOverlay`＋`reversal_overlay.gdshader`）、藥劑格、目標指引、章節卡（`ChapterCard`，還沒用到）、設定頁的小元件 |
-| `src/world/` | `CharacterModels`／`PropModels`（模型載入，找不到回傳 null）、`ContactShadow`、`CameraFade`、`HealMotes`、`PoisonBurst`、`ParticleLook`、`SlashTrail`＋`slash_trail.gdshader`（揮劍的劍光：跟著劍的帶子，每一段過了壽命就消失）、`SlashMark`＋`slash_mark.gdshader`（砍中的刀痕：`EnemyActor._hit_fx` 在傷害的 `info` 帶著 `cut` 時生一道）、`GrassTufts`（一整片草叢，一個 MultiMesh）、`forest_ground.gdshader`（森林的地面：苔／土／落葉、路與空地、樹腳下的苔）、毒霧與接地陰影的 shader |
+| `src/world/` | `CharacterModels`／`PropModels`（模型載入，找不到回傳 null）、`ContactShadow`、`CameraFade`、`HealMotes`、`PoisonBurst`、`ParticleLook`、`SlashTrail`＋`slash_trail.gdshader`（揮劍的劍光：跟著劍的帶子，每一段過了壽命就消失）、`SlashMark`＋`slash_mark.gdshader`（砍中的刀痕：`EnemyActor._hit_fx` 在傷害的 `info` 帶著 `cut` 時生一道）、`TalkCamera`（對話時的鏡頭：看著正在講話的人，講完滑回玩家的鏡頭）、`GrassTufts`（一整片草叢，一個 MultiMesh）、`forest_ground.gdshader`（森林的地面：苔／土／落葉、路與空地、樹腳下的苔）、毒霧與接地陰影的 shader |
 | `scenes/boot/` | 標題畫面 |
 | `scenes/levels/story_level.gd`、`corrupt_forest.gd/.tscn` | 關卡基底；腐敗之森入口（建場景＋設劇情旗標） |
 | `scenes/actors/player/` | `PlayerController`：移動、過肩鏡頭、鎖定、閃避、出手、釋放、手上的劍、劍光與揮劍聲（`_update_trail`） |
@@ -32,11 +32,12 @@
 | `scenes/ui/` | `Hud`（目標、橫幅、存檔提示）、`CombatHud`（生命條）、對話框、暫停、設定、按鍵設定、互動提示 |
 | `scenes/bench/` | `--benchmark`：鏡頭飛過關卡、把統計寫到 `user://benchmark/` |
 | `data/` | `quests/`、`dialogue/`（`ch1_forest_gate`、`ch1_after_slimes`）、`status/statuses.json`、`combat/tuning.json` |
-| `tests/` | 自製測試框架（`framework/test_case.gd`）；`unit/`、`flow/test_chapter1.gd`（新遊戲 → 一個人走進來 → 遇到席菈、結伴 → 她戴面具 → 瘴氣 → 對話 → 席菈跟隨 → 拿錯的那一瓶 → 清場要幾幀、幾刀（超頻要一刀一隻）→ 戰後對話的兩個回答 → 讀檔） |
+| `tests/` | 自製測試框架（`framework/test_case.gd`）；`unit/`、`flow/test_chapter1.gd`（新遊戲 → 一個人走進來 → 遇到席菈、結伴 → 她戴面具 → 瘴氣 → 對話 → 席菈跟隨 → 對話的鏡頭先拍她、換諾恩講就切過去、講完還給玩家 → 拿錯的那一瓶 → 清場要幾幀、幾刀（超頻要一刀一隻）→ 戰後對話的兩個回答 → 讀檔） |
 
 **加東西的做法**
 
 - 新關卡：繼承 `StoryLevel`、場景裡放 `Spawn`／`Player`／`Hud`／`PauseMenu`／`DialogueBox`，在 `Game.LEVELS` 與 `CHECKPOINT_LEVELS` 登記；劇情只透過 `Game.session.set_flag()` 推進任務。
+- 新的對話角色：關卡在 `TalkCamera.cast` 登記「說話者的翻譯 key → 那個角色」（看 `CorruptForest._spawn_sera`；同一個人有兩個名字就登記兩筆，例：還沒自我介紹的 `SPK_UNKNOWN`）。沒登記的說話者鏡頭不動。角色有 `talk_to(位置)` 的話，對話開始時會被叫去面向對方。
 - 任務階段的操作提示：階段加 `"hint": "<翻譯 key>"`，字裡的 `{attack}`、`{dodge}` 這類動作名（`InputSetup.ACTION_KEYS`）與 `{move}`、`{look}` 會換成現在裝置的按鍵（`Hud._refresh_hint`）。
 - 會走路的角色要腳步聲：接 `Puppet.footfall`（腳落地的那一刻）呼叫 `Footsteps.stomp()`，不要照距離算（看 `PlayerController`）。
 - 新敵人：繼承 `EnemyActor`，覆寫 `tuning_id()`、`_build_body()`、`_on_strike()`，數值加在 `tuning.json`（看 `Slime`）。
@@ -75,4 +76,4 @@
 | `scripts/burst.sh <out.png> <從第幾幀> [旗標…]` | 連拍 8 張拼一張：會動的東西（出手、受擊）用這個驗收 |
 | `scripts/gen_art.sh`、`gen_props.sh` | 用 bpy 把 `art-inbox/tripo/` 的模型轉成遊戲用的（`gen-assets.sh` 會叫） |
 
-遊戲的命令列旗標（放在 `--` 之後）：`--level=corrupt_forest`（直接開新遊戲進關卡，存檔寫到 `user://saves_dev`）、`--cam-yaw=90|180`（鏡頭繞到諾恩側面／正面）、`--hold=move_right,sprint`（一直按住這些動作：連拍走路、跑步用；`move_right` 配預設鏡頭剛好是側面）、`--tap=attack`（一直連按：出手要「剛按下去」才算，`--hold` 只會砍一刀）、`--at=x,z`（把諾恩放到別的地方，例：空地前面 `--at=0,-5`）、`--joined`（直接從結伴之後開始，席菈在旁邊；不加的話她等在瘴氣前面、不跟不射）、`--burst-on=reversal`（進場 1.5 秒後讓諾恩中毒並從那一刻開始連拍；`--burst-on=combo` 是連砍三下，`BURST_EVERY=4 BURST_COUNT=24` 剛好三下各 8 格；`scripts/burst.sh` 的起始幀填很大的數字、`BURST_CROP="0,0,1,1"` 看整個畫面）、`--joined --burst-on=ask`（玩家向席菈要一瓶致盲煙霧彈：舉弩 36 幀＋飛 33 幀＋反轉 18 幀，`BURST_EVERY=14` 八格剛好拍完；`BURST_EVERY=20` 的最後幾格是狀態列翻成金色之後）、`--joined --burst-on=vial`（改成讓席菈射一瓶：舉弩 0.6 秒＋飛 0.55 秒，`BURST_EVERY=10` 以上才拍得到落地；加 `--cam-yaw=90`、`BURST_CROP="0.5,0.3,0.78,0.82"` 是她的側面近拍）、`--joined --at=0,-12 --tap=attack --burst-on=hit`（真的打一場，從第一次砍中史萊姆的那一刻開始拍：看刀痕、命中的閃光；不加 `--joined` 會先跳相遇的對話、諾恩不出手；要拍後面幾刀就不加 `--burst-on`、`--burst-from` 填 100 左右）、`--open=pause|settings|controls`、`--locale=zh_TW|en`、`--quality=0..2`、`--perf`、`--benchmark`、`--screenshot=<png> --frames=<n>`。
+遊戲的命令列旗標（放在 `--` 之後）：`--level=corrupt_forest`（直接開新遊戲進關卡，存檔寫到 `user://saves_dev`）、`--cam-yaw=90|180`（鏡頭繞到諾恩側面／正面）、`--hold=move_right,sprint`（一直按住這些動作：連拍走路、跑步用；`move_right` 配預設鏡頭剛好是側面）、`--tap=attack`（一直連按：出手要「剛按下去」才算，`--hold` 只會砍一刀）、`--at=x,z`（把諾恩放到別的地方，例：空地前面 `--at=0,-5`）、`--joined`（直接從結伴之後開始，席菈在旁邊；不加的話她等在瘴氣前面、不跟不射）、`--burst-on=reversal`（進場 1.5 秒後讓諾恩中毒並從那一刻開始連拍；`--burst-on=combo` 是連砍三下，`BURST_EVERY=4 BURST_COUNT=24` 剛好三下各 8 格；`scripts/burst.sh` 的起始幀填很大的數字、`BURST_CROP="0,0,1,1"` 看整個畫面）、`--joined --burst-on=ask`（玩家向席菈要一瓶致盲煙霧彈：舉弩 36 幀＋飛 33 幀＋反轉 18 幀，`BURST_EVERY=14` 八格剛好拍完；`BURST_EVERY=20` 的最後幾格是狀態列翻成金色之後）、`--joined --burst-on=vial`（改成讓席菈射一瓶：舉弩 0.6 秒＋飛 0.55 秒，`BURST_EVERY=10` 以上才拍得到落地；加 `--cam-yaw=90`、`BURST_CROP="0.5,0.3,0.78,0.82"` 是她的側面近拍）、`--joined --at=0,-12 --tap=attack --burst-on=hit`（真的打一場，從第一次砍中史萊姆的那一刻開始拍：看刀痕、命中的閃光；不加 `--joined` 會先跳相遇的對話、諾恩不出手；要拍後面幾刀就不加 `--burst-on`、`--burst-from` 填 100 左右）、`--talk-skip=N`（對話一開始先按掉 N 句：拍第 N+1 句的鏡位。相遇那一段 `--at=-0.3,12.2`，`--talk-skip=1` 是諾恩的那一句、`3` 是選項；瘴氣裡那一段 `--joined --at=0,3`，要等反轉演完，用 `BURST_LAZY=1 BURST_COUNT=2 BURST_EVERY=20 BURST_CROP="0,0,1,1" scripts/burst.sh <out> 130 …`）、`--open=pause|settings|controls`、`--locale=zh_TW|en`、`--quality=0..2`、`--perf`、`--benchmark`、`--screenshot=<png> --frames=<n>`。

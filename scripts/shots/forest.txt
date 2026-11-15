@@ -1,8 +1,11 @@
 # 腐敗之森入口的固定鏡頭組：名稱 幀數 旗標…
 # 第 1 張＝玩家實際的鏡頭（驗收看這一張）；第 2、3 張繞到諾恩的側面與正面，只用來看模型與手上的劍；
-# 第 4 張站在空地前面看史萊姆（打架的地方）。
+# 第 4 張站在空地前面看史萊姆（打架的地方；要加 --joined，不然會先跳相遇的對話、鏡頭被帶去席菈臉上。
+#   這一張拍到的是打到一半——每次拍的時間點不一樣，跟基準的差異數字不準，要看圖）；
+# 第 5 張是相遇那段對話的第一句：對話鏡頭（TalkCamera）拍席菈的上半身近景——人物近看好不好看看這一張。
 # 用法：改畫面之前 scripts/shots.sh forest --save-baseline，改完 scripts/shots.sh forest，先看印出來的數字。
 forest-view 60 --level=corrupt_forest --locale=zh_TW
 forest-noen-side 60 --level=corrupt_forest --cam-yaw=90 --locale=zh_TW
 forest-noen-front 60 --level=corrupt_forest --cam-yaw=180 --locale=zh_TW
-forest-glade 40 --level=corrupt_forest --at=0,-5 --locale=zh_TW
+forest-glade 40 --level=corrupt_forest --joined --at=0,-5 --locale=zh_TW
+forest-talk 70 --level=corrupt_forest --at=-0.3,12.2 --locale=zh_TW
