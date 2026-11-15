@@ -26,6 +26,7 @@ loop 自己的美術待辦（不是給 Jacky 的需求單）。來源優先順�
 
 - 「已擺正」＝寫在 `scripts/gen_props.sh` 的 `ARGS` 裡，建置時會出現在 `game/assets/props/tripo/`，可以直接 `PropModels.instance("tripo/<id>")`。
 - `prop_poison_vent` 的毒煙是實心模型、還帶兩顆眼睛：只取底座，煙用粒子或 `PoisonMist`。
+- **顏色貼圖是灰的**（預覽圖有顏色、模型的貼圖沒有；11/15 掃過全部）：`prop_glow_toxic_mushroom`（已經在遊戲裡，顏色改用 `glow_mushroom.gdshader` 照形狀算，不重產）、`prop_ruined_altar`（還沒接；接的時候決定用 shader 上色還是重產 `_v2`，約 20 點）。其他的貼圖都有顏色。
 - 沒用到的在 `art-inbox/tripo/_unused/`（那裡有 README）；不刪。
 - 點數：第一批約 500、第二批 1015；餘額約 1985（≈19.85 美元）。預算上限 100 美元。
 

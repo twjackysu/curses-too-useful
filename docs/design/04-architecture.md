@@ -21,7 +21,7 @@
 | `src/core/health.gd`、`combat_tuning.gd`、`enemy_brain.gd`、`sera_brain.gd` | 生命、戰鬥數值（`data/combat/tuning.json`，F5 重讀、`user://tuning.json` 可覆寫）、敵人狀態機、席菈要做什麼（跟隨距離、射藥節奏、玩家要藥與裝填） |
 | `src/core/input_setup.gd`、`sfx.gd`、`ambience.gd`、`footsteps.gd`、`quality_preset.gd`、`frame_stats.gd`、`benchmark_run.gd` | 按鍵、音效、環境音與配樂、腳步、畫質三級、效能統計 |
 | `src/ui/` | 字型與主題、按鍵圖示（`GlyphLine`、`PadGlyph`）、狀態列（`StatusHud`，圖示會翻面）、反轉的畫面那一層（`ReversalOverlay`＋`reversal_overlay.gdshader`）、藥劑格、目標指引、章節卡（`ChapterCard`，還沒用到）、設定頁的小元件 |
-| `src/world/` | `CharacterModels`／`PropModels`（模型載入，找不到回傳 null）、`ContactShadow`、`CameraFade`、`HealMotes`、`PoisonBurst`、`ParticleLook`、`SlashTrail`＋`slash_trail.gdshader`（揮劍的劍光：跟著劍的帶子，每一段過了壽命就消失）、`SlashMark`＋`slash_mark.gdshader`（砍中的刀痕：`EnemyActor._hit_fx` 在傷害的 `info` 帶著 `cut` 時生一道）、`TalkCamera`（對話時的鏡頭：看著正在講話的人，講完滑回玩家的鏡頭）、`GrassTufts`（一整片草叢，一個 MultiMesh）、`forest_ground.gdshader`（森林的地面：苔／土／落葉、路與空地、樹腳下的苔）、毒霧與接地陰影的 shader |
+| `src/world/` | `CharacterModels`／`PropModels`（模型載入，找不到回傳 null）、`ContactShadow`、`CameraFade`、`HealMotes`、`PoisonBurst`、`ParticleLook`、`SlashTrail`＋`slash_trail.gdshader`（揮劍的劍光：跟著劍的帶子，每一段過了壽命就消失）、`SlashMark`＋`slash_mark.gdshader`（砍中的刀痕：`EnemyActor._hit_fx` 在傷害的 `info` 帶著 `cut` 時生一道）、`TalkCamera`（對話時的鏡頭：看著正在講話的人，講完滑回玩家的鏡頭）、`GrassTufts`（一整片草叢，一個 MultiMesh）、`forest_ground.gdshader`（森林的地面：苔／土／落葉、路與空地、樹腳下的苔）、`glow_mushroom.gdshader`（夜光毒蕈的顏色：照形狀算，模型的顏色貼圖是灰的）、`brace_glow.gdshader`（蓋在身體上的一圈加法光：硬撐的紅光、史萊姆的綠邊）、毒霧與接地陰影的 shader |
 | `scenes/boot/` | 標題畫面 |
 | `scenes/levels/story_level.gd`、`corrupt_forest.gd/.tscn` | 關卡基底；腐敗之森入口（建場景＋設劇情旗標） |
 | `scenes/actors/player/` | `PlayerController`：移動、過肩鏡頭、鎖定、閃避、出手、釋放、手上的劍、劍光與揮劍聲（`_update_trail`） |
@@ -40,11 +40,11 @@
 - 新的對話角色：關卡在 `TalkCamera.cast` 登記「說話者的翻譯 key → 那個角色」（看 `CorruptForest._spawn_sera`；同一個人有兩個名字就登記兩筆，例：還沒自我介紹的 `SPK_UNKNOWN`）。沒登記的說話者鏡頭不動。角色有 `talk_to(位置)` 的話，對話開始時會被叫去面向對方。
 - 任務階段的操作提示：階段加 `"hint": "<翻譯 key>"`，字裡的 `{attack}`、`{dodge}` 這類動作名（`InputSetup.ACTION_KEYS`）與 `{move}`、`{look}` 會換成現在裝置的按鍵（`Hud._refresh_hint`）。
 - 會走路的角色要腳步聲：接 `Puppet.footfall`（腳落地的那一刻）呼叫 `Footsteps.stomp()`，不要照距離算（看 `PlayerController`）。
-- 新敵人：繼承 `EnemyActor`，覆寫 `tuning_id()`、`_build_body()`、`_on_strike()`，數值加在 `tuning.json`（看 `Slime`）。
+- 新敵人：繼承 `EnemyActor`，覆寫 `tuning_id()`、`_build_body()`、`_on_strike()`，數值加在 `tuning.json`（看 `Slime`）。森林裡有毒的敵人照 `Slime._add_glow()` 加螢光綠的邊與腳下的燈（D-288；邊掛在材質的 `next_pass`，`material_overlay` 留給硬撐的紅光）。
 - 新角色模型：`scripts/gen_art.sh` 的 `SRC`／`ARGS` 加一行、`scripts/import_characters.py` 的 `KNOWN` 加 id，場景裡 `Puppet.character_id = "<id>"`。
 - 出手的動作：`tools/blender/common.py` 的 `standard_actions` 裡三段 `swing(拉開, 砍到, 帶過去, 踏幾步)`（`light_attack_01～03`；右手是 `(hang, swing, elbow[, turn])`，橫掃要手臂抬到肩膀高再 `turn`）。遊戲的命中判定在出手後 0.19 秒，劍要在 `T_HIT` 之前砍到位。**劍要在身體右邊或頭上揮、劍身橫對著鏡頭**（D-284）。改的流程：先量再拍——寫一個暫時的測試（照 `test_slash_trail.gd` 最後一個的寫法取每一幀的手與劍尖），投到假的過肩鏡頭（身體座標：後 3.4、高 2.1、右 0.5 m，看前面 2 m）算劍光帶子在畫面上的面積，`ART_ONLY=noen scripts/gen_art.sh && python3 -P scripts/import_characters.py`、import、跑那個測試，一輪 11 秒；數字過了才用 `--joined --at=0,-5 --burst-on=combo`（`BURST_EVERY=4 BURST_COUNT=24`）連拍，從 `build/burst/.burst-<名字>/f-N.png` 原尺寸裁出諾恩看（240 px 的小圖看不出好壞）。`Puppet.attack_variant` 選第幾段，模型沒有那一段就播第一段。
 - 新的人物動作：`tools/blender/common.py` 的 `standard_actions` 加一段（每個角色都會有）、`CharacterModels.ANIM_MAP` 與 `Puppet.ACTION_TIME`／`STATES` 加名字、程式人偶補一個最簡單的姿勢（看 `shoot`）。
-- 新物件／武器模型：`scripts/gen_props.sh` 的 `ARGS` 加一行 → `PropModels.instance("tripo/<名字>")`（記得寫檔案不在時的替身）。模型自帶一圈亮色草皮底座的（樹）加 `--moss-below <高度> --sink <公尺>`：草皮改塗成地面的苔色、底座邊緣埋進地面；苔色在 `tripo_prop.py` 的 `MOSS` 與 `forest_ground.gdshader` 的 `moss`，兩邊要一樣。
+- 新物件／武器模型：`scripts/gen_props.sh` 的 `ARGS` 加一行 → `PropModels.instance("tripo/<名字>")`（記得寫檔案不在時的替身）。模型自帶一圈亮色草皮底座的（樹）加 `--moss-below <高度> --sink <公尺>`：草皮改塗成地面的苔色、底座邊緣埋進地面；苔色在 `tripo_prop.py` 的 `MOSS` 與 `forest_ground.gdshader` 的 `moss`，兩邊要一樣。 **Tripo 的模型接進來先看顏色貼圖是不是灰的**（預覽圖有顏色、模型沒有的情況發生過兩次：夜光毒蕈、祭壇）：是的話用 shader 照形狀上色（看 `CorruptForest._paint_mushroom`）或重產。會發光、旁邊又掛一盞燈的小物：模型放 `GLOW_PROP_LAYER`、燈的 `light_cull_mask` 不照那一層，不然近看被自己的燈打成一片白。
 - 存檔格式要改：`SaveCodec.CURRENT_VERSION` +1、加遷移、加一個從舊 JSON 讀起的測試（現在 v4；看 `test_save.gd` 的 v3 → v4）。
 - 新狀態：`statuses.json` 加一筆（種類 dot／action／guard／bleed／aim；要會疊就寫 `stack_max`）＋翻譯 key＋`StatusHud._draw` 的圖示；一樣東西要帶兩種狀態就在來源寫 `also`。反轉的回饋不用接。
 - 席菈的藥：來源寫在 `statuses.json` 的 `sources`（要別的顏色就寫 `color`，沒寫是紫的）。她自己射的是 `Sera.vial_source`（關卡可以換），玩家按鍵要的是 `Sera.ASK_SOURCE`；什麼時候可以要由關卡開（`Sera.ask_enabled`），她答不答應接 `Sera.asked`。
