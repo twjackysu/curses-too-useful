@@ -110,14 +110,42 @@ func test_quest_and_dialogue_data_are_valid() -> void:
 
 
 func test_moss_mask_is_white_under_trees_and_black_elsewhere() -> void:
-	var mask: Image = CorruptForest.moss_mask(PackedVector3Array([Vector3(10, 1.0, -20), Vector3(-69.9, 1.3, 69.9)]))
-	var per_meter: float = float(CorruptForest.MOSS_MASK_SIZE) / CorruptForest.GROUND_SIZE
-	var half: float = float(CorruptForest.MOSS_MASK_SIZE) * 0.5
+	var edge: float = ForestMap.SIZE * 0.5 - 0.1
+	var mask: Image = ForestScenery.moss_mask(PackedVector3Array([Vector3(10, 1.0, -20), Vector3(-edge, 1.3, edge)]))
+	var per_meter: float = float(ForestScenery.MOSS_MASK_SIZE) / ForestMap.SIZE
+	var half: float = float(ForestScenery.MOSS_MASK_SIZE) * 0.5
 	assert_true(mask.get_pixel(int(10.0 * per_meter + half), int(-20.0 * per_meter + half)).r > 0.95, "樹腳下是白的")
 	assert_true(mask.get_pixel(int(12.0 * per_meter + half), int(-20.0 * per_meter + half)).r > 0.95, "離樹 2 m 還是白的（土丘在苔裡）")
 	assert_eq(mask.get_pixel(int(18.0 * per_meter + half), int(-20.0 * per_meter + half)).r, 0.0, "離樹 8 m 沒有苔")
 	assert_eq(mask.get_pixel(int(half), int(half)).r, 0.0, "沒有樹的地方是黑的")
-	assert_true(mask.get_pixel(0, CorruptForest.MOSS_MASK_SIZE - 1).r > 0.5, "地圖角落的樹不會畫到圖外面去")
+	assert_true(mask.get_pixel(0, ForestScenery.MOSS_MASK_SIZE - 1).r > 0.5, "地圖角落的樹不會畫到圖外面去")
+
+
+## 地圖（ForestMap）：路與空地不種樹、不長草；地面的遮罩在路上是白的、樹林裡是黑的、毒沼另外記一層；走太遠會被拉回來。
+func test_forest_map_keeps_trails_clear_and_pulls_strays_back() -> void:
+	assert_false(ForestMap.tree_ok(Vector2(0, 8)), "森林口的路上不種樹")
+	assert_false(ForestMap.tree_ok(Vector2(0, -15)), "史萊姆空地不種樹")
+	assert_false(ForestMap.tree_ok(Vector2(-12, -41)), "往營火的岔路上不種樹")
+	assert_false(ForestMap.tree_ok(ForestMap.flat(ForestMap.at(ForestMap.SWAMP))), "毒沼裡不種樹")
+	assert_true(ForestMap.tree_ok(Vector2(12, 8)))
+	assert_false(ForestMap.grass_ok(Vector2(0, 8)), "路中間不長草")
+	assert_false(ForestMap.grass_ok(Vector2(0, -15)), "空地不長草")
+	assert_true(ForestMap.grass_ok(Vector2(12, 8)))
+	var mask: Image = ForestMap.trail_mask()
+	var per_meter: float = float(ForestMap.MASK_SIZE) / ForestMap.SIZE
+	var half: float = float(ForestMap.MASK_SIZE) * 0.5
+	var px: Callable = func(p: Vector2) -> Color: return mask.get_pixel(int(p.x * per_meter + half), int(p.y * per_meter + half))
+	assert_true((px.call(Vector2(0, 10)) as Color).r > 0.8, "路上是土")
+	assert_true((px.call(Vector2(-24, -46)) as Color).r > 0.9, "營火的空地是土")
+	assert_eq((px.call(Vector2(30, 10)) as Color).r, 0.0, "樹林裡不是")
+	assert_true((px.call(Vector2(40, -64)) as Color).g > 0.9 and (px.call(Vector2(0, -15)) as Color).g < 0.05, "只有毒沼是濕的")
+	for c: Vector3 in ForestMap.CLEARINGS:
+		assert_true(absf(c.x) + c.z < ForestMap.SIZE * 0.5 - 5.0 and absf(c.y) + c.z < ForestMap.SIZE * 0.5 - 5.0, "空地都在地面裡面：%s" % str(c))
+	var on_path := Vector3(1.0, 0.05, -50.0)
+	assert_eq(ForestMap.keep_inside(on_path), on_path, "在路上不會被動到")
+	var back: Vector3 = ForestMap.keep_inside(Vector3(-60.0, 0.05, 10.0))
+	assert_true(absf(ForestMap.flat(back).distance_to(ForestMap.nearest_on_trail(ForestMap.flat(back))) - ForestMap.STRAY_LIMIT) < 0.01 and back.x > -25.0,
+		"走進樹林太深被拉回離路 %.0f m 的地方：%s" % [ForestMap.STRAY_LIMIT, str(back)])
 
 
 func test_level_builds_with_markers_miasma_slimes_and_a_clear_path() -> void:
@@ -128,17 +156,14 @@ func test_level_builds_with_markers_miasma_slimes_and_a_clear_path() -> void:
 		assert_not_null(level.get_node_or_null(marker), "有節點 %s" % marker)
 	assert_eq(level.slimes.size(), 3, "三隻史萊姆")
 	assert_eq(level.slimes_alive(), 3)
-	assert_true(level.get_node("Forest").get_child_count() >= CorruptForest.TREE_COUNT, "樹與路邊的小東西都種了")
-	assert_false(CorruptForest.tree_spot_ok(Vector3(0, 0, 8)), "路上不種樹")
-	assert_false(CorruptForest.tree_spot_ok(CorruptForest.GLADE_POS), "空地不種樹")
-	assert_false(CorruptForest.tree_spot_ok(CorruptForest.MIASMA_POS), "瘴氣裡不種樹")
-	assert_true(CorruptForest.tree_spot_ok(Vector3(12, 0, 8)))
+	assert_true(level.get_node("Forest").get_child_count() >= ForestScenery.TREE_COUNT + ForestScenery.DEEP_TREE_COUNT - 20, "樹與路邊的小東西都種了（%d）" % level.get_node("Forest").get_child_count())
+	for tree_node: Node in level.get_node("Forest").get_children():
+		if tree_node is StaticBody3D:
+			assert_true(ForestMap.tree_ok(ForestMap.flat((tree_node as Node3D).position)), "樹不擋路：%s" % str((tree_node as Node3D).position))
+	assert_true(level._no_tree_here(CorruptForest.MIASMA_POS), "瘴氣裡不種樹")
 	var grass: MultiMeshInstance3D = level.get_node_or_null("Forest/GrassTufts") as MultiMeshInstance3D
 	assert_not_null(grass, "有草叢")
-	assert_true(grass.multimesh.instance_count > 1000, "草叢不只幾叢（%d）" % grass.multimesh.instance_count)
-	assert_false(CorruptForest.grass_spot_ok(Vector3(0, 0, 8)), "路中間不長草")
-	assert_false(CorruptForest.grass_spot_ok(CorruptForest.GLADE_POS), "空地不長草")
-	assert_true(CorruptForest.grass_spot_ok(Vector3(12, 0, 8)))
+	assert_true(grass.multimesh.instance_count > 3000, "草叢不只幾叢（%d）" % grass.multimesh.instance_count)
 	var player: PlayerController = level.get_node("Player") as PlayerController
 	assert_true(player.global_position.distance_to((level.get_node("Spawn") as Node3D).global_position) < 0.5, "諾恩在出生點")
 	assert_not_null(player.weapon(), "手上有劍")
@@ -670,7 +695,7 @@ func test_slimes_glow_green_in_the_purple_fog_and_mushrooms_have_colour() -> voi
 			var mi := n as MeshInstance3D
 			assert_eq(mi.layers & lamp.light_cull_mask, 0, "夜光毒蕈自己的燈不照毒蕈")
 			var paint := mi.get_surface_override_material(0) as ShaderMaterial
-			assert_true(paint != null and paint.shader == CorruptForest.MUSHROOM_SHADER, "毒蕈的顏色照形狀算（模型的顏色貼圖是灰的）")
+			assert_true(paint != null and paint.shader == ForestScenery.MUSHROOM_SHADER, "毒蕈的顏色照形狀算（模型的顏色貼圖是灰的）")
 		assert_true(lamp.light_cull_mask & 1 == 1, "照得到地面與旁邊的東西")
 	assert_true(lamps > 0, "有會發光的毒蕈（%d 叢）" % lamps)
 

@@ -1,5 +1,5 @@
 shader_type spatial;
-// 腐敗之森的地面：一大片平面，顏色照世界座標用雜訊混——暗土、苔、發紫的腐葉，路與空地是比較亮的土，
+// 腐敗之森的地面：一大片平面，顏色照世界座標用雜訊混——暗土、苔、發紫的腐葉，路與空地是比較亮的土，毒沼是濕的黑泥，
 // 邊緣是不規則的（不是一條直線），近處灑一些落葉。全部用算的，沒有貼圖。
 // moss 跟 tools/blender/tripo_prop.py 的 MOSS 同一個顏色：樹的模型自帶的土丘改塗成它，才會跟地面接起來。
 
@@ -7,10 +7,10 @@ uniform vec3 soil : source_color = vec3(0.15, 0.12, 0.18);
 uniform vec3 moss : source_color = vec3(0.12, 0.22, 0.18);
 uniform vec3 rot : source_color = vec3(0.25, 0.15, 0.31);
 uniform vec3 dirt : source_color = vec3(0.37, 0.3, 0.3);
-uniform float path_half_width = 2.6;
-uniform float path_z_from = -15.0;   // 路沿著 x＝0，從這裡（空地）往 +z 一直到出生點後面
-uniform vec2 glade_center = vec2(0.0, -15.0);
-uniform float glade_radius = 8.0;
+// 路、空地與毒沼：關卡把地圖畫成一張小圖（ForestMap.trail_mask()：R＝土路與空地，邊界是 0.5；G＝毒沼），這裡用雜訊把邊緣咬成不規則的
+uniform sampler2D trail_mask : hint_default_black, filter_linear, repeat_disable;
+uniform vec3 bog : source_color = vec3(0.07, 0.1, 0.1);
+uniform vec3 bog_glow : source_color = vec3(0.16, 0.42, 0.2);
 // 樹腳下長苔：關卡把每棵樹的位置畫成一張小圖（R＝離樹多近），這裡照它把地面換成苔
 uniform sampler2D moss_mask : hint_default_black, filter_linear, repeat_disable;
 uniform float ground_size = 140.0;
@@ -44,10 +44,10 @@ void fragment() {
 	vec3 col = mix(soil, moss, mossy);
 	col = mix(col, rot, smoothstep(0.58, 0.7, fbm(p * 0.1 + 43.0)) * 0.7 * (1.0 - near_tree));
 	// 路與空地：邊緣跟著雜訊走
-	float wobble = (fbm(p * 0.3 + 7.0) - 0.5) * 3.0;
-	float on_path = (1.0 - smoothstep(-0.5, 0.7, abs(p.x + wobble * 0.5) - path_half_width - wobble * 0.4)) * smoothstep(path_z_from - 2.0, path_z_from + 2.0, p.y);
-	float on_glade = 1.0 - smoothstep(-1.2, 0.8, length(p - glade_center) - glade_radius - wobble);
-	float bare = max(on_path, on_glade);
+	vec2 trail = texture(trail_mask, p / ground_size + 0.5).rg;
+	float wobble = fbm(p * 0.3 + 7.0) - 0.5;
+	float bare = smoothstep(0.42, 0.58, trail.r + wobble * 0.45);
+	float wet = smoothstep(0.4, 0.62, trail.g + wobble * 0.5);
 	col = mix(col, dirt, bare * (0.75 + 0.25 * grain));
 	col *= 0.78 + 0.44 * grain;
 	// 落葉：每格一片，位置、大小、顏色照格子的亂數；路上少一點；遠處不畫（會閃）
@@ -62,7 +62,12 @@ void fragment() {
 	leaf *= step(mix(0.62, 0.86, bare), pick) * near;
 	vec3 leaf_col = mix(vec3(0.42, 0.27, 0.12), vec3(0.36, 0.17, 0.42), step(0.5, hash(cell + 55.5)));
 	col = mix(col, leaf_col, leaf * 0.85);
+	// 毒沼：整片是濕的黑泥，一灘一灘發綠的水（月光照得出反光）
+	float pools = smoothstep(0.5, 0.62, fbm(p * 0.45 + 91.0)) * wet;
+	col = mix(col, bog * (0.7 + 0.5 * grain), wet * 0.9);
+	col = mix(col, bog_glow, pools * 0.55);
 	ALBEDO = col;
-	ROUGHNESS = 1.0;
-	SPECULAR = 0.1;
+	ROUGHNESS = mix(1.0, 0.25, max(pools, wet * 0.35));
+	SPECULAR = mix(0.1, 0.6, pools);
+	EMISSION = bog_glow * pools * 0.25;
 }
