@@ -107,7 +107,7 @@ func _ready() -> void:
 	if Game.session.in_story() and not stage() in STAGES:
 		skip_to_altar(Game.session)
 	# 截圖用：`--boss` 跳過抵達的那段話直接開打；`--phase2` 魔像一醒來就只剩一半的生命（馬上狂暴）
-	if args.has("boss") or args.has("phase2") or args.has("after"):
+	if args.has("boss") or args.has("phase2") or args.has("after") or args.has("floor"):
 		Game.session.set_flag(FLAG_TALKED, true)
 	# `--after`：魔像已經倒了，進場一秒多之後戰後那段話開始；`--talk-skip=N` 對話一開始先按掉 N 句（拍第 N+1 句的鏡位）
 	if args.has("after"):
@@ -139,6 +139,9 @@ func _ready() -> void:
 		_spawn_golem()
 		if args.has("phase2"):
 			golem.health.hp = golem.health.max_hp * golem.phases.enrage_at
+		# `--floor`：生命一開始就在底線（核心還在、扣不下去）——配 `--tap=attack --burst-on=hit` 拍「打不下去」的那一圈
+		if args.has("floor"):
+			golem.health.hp = golem.health.max_hp * golem.phases.hp_floor
 	elif stage() == STAGE_AFTER:
 		_after_talk_in = AFTER_TALK_RELOAD  # 魔像倒了、話還沒講就離開的存檔：讀回來接著講
 		core = GolemCore.create()

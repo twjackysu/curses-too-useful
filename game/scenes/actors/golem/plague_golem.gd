@@ -45,8 +45,9 @@ const EYE_OFFSET: Vector3 = Vector3(0.0, 0.15, -0.55)
 const RAY_WIDTH: float = 1.3
 const RAY_SEC: float = 0.4
 const GAZE_WAVE_RADIUS: float = 30.0
-## 胸口的核心（模型上那顆紫色的晶石）：在胸口的骨頭前面多遠（模型的胸口很厚）；沒有模型時離地多高
-const CORE_FORWARD: float = 0.95
+## 胸口的核心（模型上那顆紫色的晶石）：在胸口的骨頭前面多遠（剛好在晶石的表面：再往前，從側面看那團光會浮在胸口前面的半空中）；
+## 沒有模型時離地多高
+const CORE_FORWARD: float = 0.6
 const CORE_HEIGHT: float = 2.35
 ## 那片光多大（公尺）：平常、可以粉碎了
 const CORE_SIZE: float = 1.6
