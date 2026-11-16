@@ -233,6 +233,44 @@
 			"status": "paralysis",
 			"rate": 1.6,
 			"duration": 8.0
+		},
+		"sera_chaos": {
+			"_doc": "Boss 戰席菈孤注一擲的禁藥【混沌大災難藥劑】（劇本節點 3）：她做得出來的壞東西一次全部上身——重度麻痺、防禦歸零、致盲、衰弱疊滿、緩速疊滿、流血疊滿。落在諾恩身上全部反轉；這一瓶砸中之後魔像的核心才打得碎。",
+			"status": "paralysis",
+			"rate": 2.5,
+			"duration": 20.0,
+			"color": "#ff5ad0",
+			"smoke": true,
+			"also": "sera_chaos_guard"
+		},
+		"sera_chaos_guard": {
+			"status": "defense_zero",
+			"rate": 0.8,
+			"duration": 20.0,
+			"also": "sera_chaos_blind"
+		},
+		"sera_chaos_blind": {
+			"status": "blind",
+			"rate": 1.0,
+			"duration": 15.0,
+			"also": "sera_chaos_weak"
+		},
+		"sera_chaos_weak": {
+			"status": "weakness",
+			"rate": 5.0,
+			"duration": 30.0,
+			"also": "sera_chaos_slow"
+		},
+		"sera_chaos_slow": {
+			"status": "slow",
+			"rate": 3.0,
+			"duration": 30.0,
+			"also": "sera_chaos_bleed"
+		},
+		"sera_chaos_bleed": {
+			"status": "bleed",
+			"rate": 5.0,
+			"duration": 5.0
 		}
 	},
 	"items": {

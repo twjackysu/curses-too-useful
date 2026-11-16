@@ -218,3 +218,40 @@ DLG_CH1_AFTER_A,"...Nobody has ever said that to me. Th-then I will make lots mo
 DLG_CH1_AFTER_B,"O-okay! I will shout! ...So, um, you will still let me shoot you?",好、好的！我會喊的！……那個，所以你還願意讓我射？
 ITEM_SERA_POISON,Sera's Failed Potion (Poison),席菈的失敗作（劇毒）
 ITEM_SERA_POISON_DESC,Poisons whoever drinks it for 20 seconds.,喝下去會中毒 20 秒。
+BOSS_PLAGUE_GOLEM,Abyssal Plague Golem,深淵疫病魔像
+DLG_CH1_ALTAR_001,"...You two? The kid with no aptitude, and... the walking gas bomb.",……是你們？那個沒適性的，跟……移動毒氣彈。
+DLG_CH1_ALTAR_002,Stay back... Step inside the ring around that thing and your whole body gives out. And you just keep bleeding... None of us can even stand.,別過來……那傢伙身邊那一圈，站進去全身都使不上力，血還一直流……我們三個連站都站不起來。
+DLG_CH1_ALTAR_003,That's... the Abyssal Plague Golem! Its aura halves everyone's abilities and makes them bleed nonstop. Who touched the altar?!,那是……【深淵疫病魔像】！牠周圍的光環會讓所有人的能力掉一半、不停失血——是誰碰了祭壇的機關？！
+DLG_CH1_ALTAR_004,"Abilities cut in half, and constant bleeding...",能力掉一半，還會一直失血……
+DLG_CH1_ALTAR_005,Norn? Wh-why are you smiling...,諾恩？你、你為什麼在笑……
+DLG_CH1_ALTAR_006,"Stay behind me, Sera. For everyone else that ring is a death trap. For me, it's home turf.",席菈，跟在我後面。那一圈對別人是死路——對我是主場。
+DLG_CH1_AFTERBOSS_001,...You won? Just the two of you... the guild's two biggest washouts...,……贏了？就憑你們兩個……公會的兩大廢物……
+DLG_CH1_AFTERBOSS_002,Norn! A-are you all right? That was the worst failure I've ever brewed. I thought for sure—,諾恩！你、你沒事吧？剛剛那一瓶是我調過最糟的失敗作，我還以為——
+DLG_CH1_AFTERBOSS_003,"It was the strongest thing I've ever been hit with. Without it, that core would never have cracked.",那是我挨過最猛的一瓶。沒有它，核心砍不碎。
+DLG_CH1_AFTERBOSS_004,"...So my potion... actually helped, for once?",……我的藥，第一次……幫上忙了嗎？
+DLG_CH1_AFTERBOSS_CHOICE_A,It saved the day. I'm counting on you from now on.,幫大忙了。以後也拜託你。
+DLG_CH1_AFTERBOSS_CHOICE_B,Half the credit is yours. We split the core.,一半功勞是你的。核心我們一人一半。
+DLG_CH1_AFTERBOSS_A,"...Yes! L-leave it to me! I'll brew something even worse— I mean, even better!",……嗯！交、交給我！我會調出更糟的——不是，更厲害的！
+DLG_CH1_AFTERBOSS_B,"H-half?! That core is worth a fortune...! ...Thank you, Norn.",一、一半？！那個核心很貴的……！……謝謝你，諾恩。
+DLG_CH1_AFTERBOSS_END,Let's go. We're taking the golem's core back to the guild. Lilith is in for a shock.,走吧，把魔像的核心帶回公會。莉莉絲看到大概會嚇一跳。
+CH1_AURA_LINE1,Plague aura: all abilities down 50% and constant bleeding,疫病光環：全能力下降 50%＋持續失血
+CH1_AURA_LINE2,On Norn it flips: all abilities up 50% and fast healing,落在諾恩身上反轉：全能力提升 50%＋高速回血
+BARK_LEO_AURA,He... walked right into the aura?!,他……直接走進光環裡了？！
+BARK_SERA_AURA,"My mask's filter won't hold long in here... Be careful, Norn!",面具的濾芯在這裡撐不了多久……諾恩，小心！
+CH1_ENRAGE_LINE1,The golem is enraged!,魔像狂暴了！
+CH1_ENRAGE_LINE2,Sera is falling back to load her forbidden brew. Hold on.,席菈退到後面裝她的禁藥——撐住。
+BARK_SERA_FORBIDDEN,I-I still have one... a forbidden one! Give me a moment to load it!,我、我還有一瓶……禁藥！給我一點時間裝！
+CH1_GAZE_LINE1,Petrifying Gaze incoming!,石化凝視要來了！
+CH1_GAZE_LINE2,Shield Sera: stand on the beam of light on the ground,擋在席菈前面——站到地上那道光上
+HINT_GAZE,Shield Sera: stand on the beam between her and the golem,擋在席菈前面：站到她和魔像之間那道光上
+CH1_BLOCKED_LINE1,Petrified → Unstoppable and invincible,石化 → 霸體無敵
+CH1_BLOCKED_LINE2,You shielded Sera. The golem is spent!,你擋住了，席菈沒事——魔像力竭了！
+CH1_STONED_LINE1,Sera has been petrified!,席菈被石化了！
+CH1_STONED_LINE2,"At the next gaze, stand between her and the golem",下一次凝視，擋在她和魔像中間
+BARK_SERA_FREED,I-I can move again... Loading it one more time!,能、能動了……我重新裝一次！
+BARK_SERA_CHAOS,"Loaded! Norn, take all of it!",裝好了！諾恩——全部接住！
+CH1_CHAOS_LINE1,"Chaos Catastrophe Brew: every curse she can make, all at once",【混沌大災難藥劑】：她做得出來的壞東西一次全部上身
+CH1_CHAOS_LINE2,All of it flips. Shatter the golem's core!,全部反轉——砍碎魔像的核心！
+BARK_SERA_CORE,It won't break... The core is still holding it together!,砍不碎……核心還撐著！
+CH1_GOLEM_DOWN,The Abyssal Plague Golem falls,【深淵疫病魔像】倒下了
+CH1_GOT_CORE,Obtained: Golem Core,獲得【魔像核心】

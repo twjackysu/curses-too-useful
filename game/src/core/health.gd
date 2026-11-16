@@ -19,6 +19,8 @@ var invulnerable_check: Callable = Callable()
 ## 受傷之前先問擁有者這一下乘幾倍（沒設＝照扣）。例：硬撐中的敵人只扣四分之一；防禦歸零的人多吃。
 ## 擁有者可以在 info 裡留記號（例如 info["braced"] = true），收 damaged 的人看得到。
 var damage_scale: Callable = Callable()
+## 生命最低只能被打到這裡（0＝可以打死）。Boss 的核心被粉碎之前用：照樣算打中（發 damaged、有受擊的演出），只是扣不下去。
+var min_hp: float = 0.0
 
 
 func _init(maximum: float = 100.0) -> void:
@@ -44,7 +46,7 @@ func apply_damage(amount: float, info: Dictionary = {}) -> bool:
 		amount *= maxf(float(damage_scale.call(info)), 0.0)
 		if amount <= 0.0:
 			return false
-	hp = maxf(hp - amount, 0.0)
+	hp = maxf(hp - amount, minf(min_hp, hp))
 	damaged.emit(amount, info)
 	if is_dead():
 		died.emit()
@@ -55,7 +57,7 @@ func apply_damage(amount: float, info: Dictionary = {}) -> bool:
 func apply_status_damage(amount: float, info: Dictionary = {}) -> float:
 	if is_dead() or amount <= 0.0:
 		return 0.0
-	var dealt: float = minf(amount, hp)
+	var dealt: float = minf(amount, maxf(hp - min_hp, 0.0))
 	hp -= dealt
 	status_damaged.emit(dealt, info)
 	if is_dead():

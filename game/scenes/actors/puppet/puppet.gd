@@ -69,6 +69,8 @@ var attack_speed: float = 1.0
 var attack_variant: int = 0
 ## 「釋放」的姿勢還剩幾秒（0＝沒有在播）
 var release_left: float = 0.0
+## 一次性動作停在第幾秒（< 0＝沒有停；hold_action）
+var _hold_at: float = -1.0
 var phase: float = 0.0
 ## 上一幀的 gait_cycle()（-1＝那時候不在走）
 var _last_cycle: float = -1.0
@@ -113,6 +115,17 @@ func play_action(action_name: String) -> void:
 		return
 	action = action_name
 	action_time = 0.0
+
+
+## 把一次性動作停在某一刻不動（魔像舉著拳頭等在那裡）：at_sec＝動作開始後第幾秒的姿勢。release_hold() 放開，從那一刻接著播完。
+func hold_action(action_name: String, at_sec: float) -> void:
+	play_action(action_name)
+	action_time = at_sec
+	_hold_at = at_sec
+
+
+func release_hold() -> void:
+	_hold_at = -1.0
 
 
 ## 釋放的那一下：先縮、再把兩手往兩邊甩開。滾到一半不擺（看不出來）。
@@ -208,7 +221,9 @@ func advance(delta: float) -> void:
 	var speed_t: float = clampf(move_speed / RUN_SPEED, 0.0, 1.0)
 	if move_speed >= WALK_MIN_SPEED:
 		phase = fmod(phase + delta * TAU * lerpf(0.9, 1.4, speed_t), TAU)
-	if action != "":
+	if action != "" and _hold_at >= 0.0:
+		action_time = _hold_at
+	elif action != "":
 		action_time += delta * (attack_speed if action == "attack" else 1.0)
 		if action_time >= float(ACTION_TIME[action]):
 			action = ""
@@ -288,6 +303,11 @@ func _animate_model() -> void:
 			anim.speed_scale = attack_speed
 		_:
 			anim.speed_scale = 1.0
+	if _hold_at >= 0.0 and state == action:
+		# 停在那一刻：不混合、不往前播
+		anim.play(name_found, 0.0)
+		anim.speed_scale = 0.0
+		anim.seek(_hold_at, true)
 
 
 ## 換成正式模型；沒有骨架就放棄（回傳 false，用程序人偶）。

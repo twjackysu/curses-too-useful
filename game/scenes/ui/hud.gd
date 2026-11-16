@@ -94,6 +94,8 @@ const BARK_COLOR: Color = Color(0.97, 0.94, 0.84)
 var _bark_root: Control
 ## 畫面下方「名字：台詞」那一行後面的暗底（頭上的話沒有：字小、跟著人動，加了底反而擋人）
 var _bark_back: StyleBoxFlat
+## Boss 的生命條（畫面上方中間；場上有醒著的 Boss 才出現）
+var boss_bar: BossBar
 var _barks: Array[Dictionary] = []
 
 
@@ -250,6 +252,8 @@ func _build() -> void:
 	_center.modulate.a = 0.0
 	combat = CombatHud.new()
 	add_child(combat)
+	boss_bar = BossBar.new()
+	add_child(boss_bar)
 	guide = ObjectiveGuide.new()
 	add_child(guide)
 	interact = InteractPrompt.new()
