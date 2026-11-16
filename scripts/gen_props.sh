@@ -2,6 +2,7 @@
 # Tripo 產的武器、物件與沒有骨架的怪物（art-inbox/tripo/<名字>/<名字>_model.glb）：用 tools/blender/tripo_prop.py 擺正、縮到實際大小，
 # 四足怪（<名字>_anim.glb，有骨架與走路的動作）用 tools/blender/tripo_quadruped.py 轉向、縮放，
 # 產物放 build/art/props/<名字>.glb，再複製到 game/assets/props/tripo/（不進 git）。scripts/gen-assets.sh 會呼叫。
+# 最後一段另外把用到的 Quaternius CC0 小物複製到 game/assets/props/quaternius/。
 # 來源或腳本沒改就跳過；裝不了 bpy 或失敗：印出原因、回傳 0（遊戲退回程式拼的替身）。
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -83,5 +84,18 @@ for name in "${!QUADS[@]}"; do
     fi
   fi
   cmp -s "$OUT/$name.glb" "$DEST/$name.glb" || cp -f "$OUT/$name.glb" "$DEST/$name.glb"
+done
+# Quaternius 的 CC0 小物（art-inbox/props/Exports/glTF，授權在 art-inbox/props/README.md）：遊戲裡用到的幾樣，連它們用到的貼圖
+# 一起複製到 game/assets/props/quaternius/（不進 git；PropModels.instance("quaternius/<名字>")）。要多用一樣就在 QUAT 加名字。
+QUAT_SRC="$ROOT/art-inbox/props/Exports/glTF"
+QUAT_DEST="$ROOT/game/assets/props/quaternius"
+QUAT=(Table_Large Bench Stool Barrel Crate_Wooden Chandelier Lantern_Wall Banner_1 Bookcase_2 Mug Table_Plate WeaponStand Shield_Wooden Cabinet Bottle_1 Book_Stack_1)
+mkdir -p "$QUAT_DEST"
+for name in "${QUAT[@]}"; do
+  [[ -s "$QUAT_SRC/$name.gltf" ]] || { echo "[props] Quaternius 沒有 $name，略過"; continue; }
+  for f in "$name.gltf" $(grep -o '"uri" *: *"[^"]*"' "$QUAT_SRC/$name.gltf" | sed 's/.*"\([^"]*\)"$/\1/' | sort -u); do
+    [[ -s "$QUAT_SRC/$f" ]] || continue
+    cmp -s "$QUAT_SRC/$f" "$QUAT_DEST/$f" || cp -f "$QUAT_SRC/$f" "$QUAT_DEST/$f"
+  done
 done
 exit 0

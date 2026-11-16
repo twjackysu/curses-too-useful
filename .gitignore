@@ -29,6 +29,8 @@ art-work/
 game/assets/characters/
 # Tripo 的武器與物件擺正後的複本（scripts/gen_props.sh）
 game/assets/props/tripo/
+# Quaternius 的 CC0 小物用到的幾樣（scripts/gen_props.sh 從 art-inbox/props 複製）
+game/assets/props/quaternius/
 
 # Python 快取（tools/blender/common.py 被角色腳本 import）
 __pycache__/

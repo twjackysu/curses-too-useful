@@ -23,6 +23,10 @@ declare -A SRC=(
   [leo]="art-inbox/tripo/leo/leo_rig.glb"
   [leo_mage]="art-inbox/tripo/leo_party_mage/leo_party_mage_rig.glb"
   [leo_tank]="art-inbox/tripo/leo_party_tank/leo_party_tank_rig.glb"
+  [lilith]="art-inbox/tripo/lilith/lilith_rig.glb"
+  [guild_adventurer_a]="art-inbox/tripo/guild_adventurer_a/guild_adventurer_a_rig.glb"
+  [guild_adventurer_b]="art-inbox/tripo/guild_adventurer_b/guild_adventurer_b_rig.glb"
+  [royal_inspector]="art-inbox/tripo/royal_inspector/royal_inspector_rig.glb"
 )
 # 給 tripo_character.py 的參數：--height 身高（m）
 declare -A ARGS=(
@@ -33,6 +37,10 @@ declare -A ARGS=(
   [leo]="--height 1.82"
   [leo_mage]="--height 1.64"
   [leo_tank]="--height 1.92"
+  [lilith]="--height 1.68"
+  [guild_adventurer_a]="--height 1.72"
+  [guild_adventurer_b]="--height 1.62"
+  [royal_inspector]="--height 1.80"
 )
 
 todo=()
