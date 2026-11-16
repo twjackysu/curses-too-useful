@@ -4,9 +4,6 @@ extends StaticBody3D
 ## 不會被打、不做決定——要他做什麼由關卡叫（walk_to、face）。站著的時候擋路（一個膠囊，只在 GuildScenery.PEOPLE_LAYER：
 ## 擋人不擋鏡頭）；走路的時候不擋（不會把諾恩推開或卡住）。外型用 Puppet（有模型用模型，沒有就是程式人偶）。
 
-## 走到 walk_to 指定的地方的那一刻
-signal arrived
-
 const TURN_SPEED: float = 7.0
 const ARRIVE_DIST: float = 0.12
 
@@ -57,7 +54,7 @@ func walk_to(point: Vector3, speed: float = 1.5) -> void:
 	_shape.set_deferred("disabled", true)
 
 
-## 照順序走過這幾個點（繞過桌子用）；走到最後一個才發 arrived
+## 照順序走過這幾個點（繞過桌子用）
 func walk_path(points: Array[Vector3], speed: float = 1.5) -> void:
 	_path = points.duplicate()
 	if not _path.is_empty():
@@ -93,7 +90,6 @@ func _physics_process(delta: float) -> void:
 			_goal = Vector3.INF
 			puppet.set_move_speed(0.0)
 			_shape.set_deferred("disabled", false)
-			arrived.emit()
 			if leave_on_arrival:
 				queue_free()
 			return
