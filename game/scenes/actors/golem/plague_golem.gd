@@ -274,7 +274,7 @@ func _update_look() -> void:
 		_set_glow(glow)
 
 
-## 倒下：先跪、胸口炸開一團光，再整個垮下去（往下塌，不往前趴——諾恩就站在牠面前）、最後沉進地面。比一般敵人久。
+## 倒下：先跪、胸口炸開一團光，再往後仰倒（不往前趴——諾恩就站在牠面前）、躺一下、最後沉進地面。比一般敵人久。
 ## 垮完之前照樣擋路：粉碎核心的那一刀會往前滑一步，不擋的話諾恩會滑進牠的身體裡。
 func _on_died() -> void:
 	_begin_death()
@@ -288,8 +288,8 @@ func _on_died() -> void:
 	_fall_tween = t
 	t.tween_property(_body, "position:y", -0.7, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	t.tween_interval(0.5)
-	t.tween_property(_body, "rotation_degrees:x", FALL_FORWARD * 24.0, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	t.parallel().tween_property(_body, "position:y", -1.7, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(_body, "rotation_degrees:x", -FALL_FORWARD * 76.0, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.parallel().tween_property(_body, "position:y", 0.35, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_callback(_on_fall_impact)
 	t.tween_interval(3.5)
 	t.tween_callback(func() -> void: collision_layer = 0)
@@ -301,7 +301,7 @@ func _on_fall_impact() -> void:
 	has_fallen = true
 	if is_inside_tree():
 		Sfx.play_at(get_parent(), "blunt", global_position, 0.0, 0.03)
-	_ground_puff(global_position + forward() * 1.2, Vector3(1.8, 0.05, 1.8), 50, Color(0.6, 0.62, 0.66, 0.65))
+	_ground_puff(global_position - forward() * 1.6, Vector3(1.8, 0.05, 1.8), 50, Color(0.6, 0.62, 0.66, 0.65))
 	if _player != null and is_instance_valid(_player):
 		_player.shake(0.6)
 

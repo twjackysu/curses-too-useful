@@ -55,7 +55,7 @@
 			"kind": "all",
 			"max_duration": 12.0,
 			"max_reversed_rate": 0.5,
-			"drain": 5.0,
+			"drain": 8.0,
 			"name_key": "STATUS_PLAGUE",
 			"reversed_key": "STATUS_PLAGUE_REVERSED"
 		},

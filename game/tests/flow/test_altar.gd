@@ -485,3 +485,48 @@ func test_retry_restarts_the_fight_and_a_save_after_the_golem_fell_resumes_the_t
 	assert_true(bool(_game().call("is_in_dialogue")), "戰後那段話接著講")
 	_finish_dialogue(0)
 	assert_true(_session().story_finished())
+
+
+## 整場照真的時間打一遍（階段不縮短）：一個不會閃的「玩家」——平常站在魔像面前一直砍；凝視的前兆一開始就跑到那道光上站著；
+## 禁藥砸中之後回去砍。要贏得了、第一次凝視就擋得住，印出整場打了多久。
+func test_a_player_who_never_dodges_can_still_win_the_whole_fight_in_real_time() -> void:
+	var level: RuinedAltar = await _load_fight()
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var golem: PlagueGolem = level.golem
+	var sera: Sera = level.sera
+	sera.set_physics_process(true)
+	player.global_position = golem.global_position + Vector3(0, 0.05, 2.4)
+	var frames: int = -1
+	var enraged_at: int = -1
+	var low: float = player.health.max_hp
+	for f: int in 60 * 240:
+		if golem.health.is_dead():
+			frames = f
+			break
+		if player.health.is_dead():
+			break
+		low = minf(low, player.health.hp)
+		if enraged_at < 0 and golem.phases.is_enraged():
+			enraged_at = f
+		if golem.phases.phase == GolemPhases.Phase.GAZE:
+			# 跑到魔像與席菈中間（離魔像三成的地方）站著
+			var spot: Vector3 = golem.global_position.lerp(sera.global_position, 0.3)
+			var step: Vector3 = spot - player.global_position
+			step.y = 0.0
+			if step.length() > 0.2:
+				player.global_position += step.normalized() * minf(PlayerController.SPRINT_SPEED / 60.0, step.length())
+		elif player.puppet().action != "attack" and player.hurt_left <= 0.0:
+			var to: Vector3 = golem.global_position - player.global_position
+			to.y = 0.0
+			player.yaw = atan2(-to.x, -to.z)
+			if to.length() > 2.6:
+				player.global_position += to.normalized() * (PlayerController.WALK_SPEED / 60.0)
+			else:
+				player.start_attack()
+		await tree.physics_frame
+	Engine.time_scale = 1.0
+	print("    整場照真的時間打（不閃、只靠光環＋鐵劍＋席菈的藥）：%d 幀（%.0f 秒）打倒魔像；第 %.0f 秒狂暴；凝視 %d 次；諾恩最低剩 %.0f 點生命" % [frames, float(frames) / 60.0, float(enraged_at) / 60.0, golem.phases.gazes, low])
+	assert_false(player.health.is_dead(), "不閃也不會死")
+	assert_true(frames > 0, "打得贏")
+	assert_eq(golem.phases.gazes, 1, "第一次凝視就擋住了（前兆夠長，跑得到那道光上）")
+	assert_true(frames < 60 * 150, "整場不超過兩分半（%d 幀）" % frames)

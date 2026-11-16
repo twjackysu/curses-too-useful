@@ -83,8 +83,16 @@ func _ready() -> void:
 	if Game.session.in_story() and not stage() in STAGES:
 		skip_to_altar(Game.session)
 	# 截圖用：`--boss` 跳過抵達的那段話直接開打；`--phase2` 魔像一醒來就只剩一半的生命（馬上狂暴）
-	if args.has("boss") or args.has("phase2"):
+	if args.has("boss") or args.has("phase2") or args.has("after"):
 		Game.session.set_flag(FLAG_TALKED, true)
+	# `--after`：魔像已經倒了，進場一秒多之後戰後那段話開始；`--talk-skip=N` 對話一開始先按掉 N 句（拍第 N+1 句的鏡位）
+	if args.has("after"):
+		Game.session.set_flag(FLAG_GOLEM_DOWN, true)
+	var talk_skip: int = int(str(args.get("talk-skip", "0")))
+	if talk_skip > 0:
+		Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
+			for i: int in talk_skip:
+				r.advance.call_deferred())
 	scenery = AltarScenery.build(self, _rng)
 	_spores = ForestScenery.build_spores(self)
 	_mark("AltarRuins", Vector3(0, 0, 6.0))
