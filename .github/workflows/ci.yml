@@ -202,6 +202,13 @@ jobs:
           shot 30-altar-arrive 20 --level=ruined_altar --at=-1.5,15.6 --locale=zh_TW
           shot 31-altar-leo 60 --level=ruined_altar --at=0,14.5 --locale=zh_TW
           shot 32-altar-fight 110 --level=ruined_altar --boss --at=0.5,6.5 --locale=zh_TW
+          # 跟 scripts/shots/guild.txt 同一組：公會大廳（走進大門／櫃檯前／雷歐開口／席菈的選項／結尾的傍晚／二樓的巡察官）
+          shot 40-guild-enter 40 --level=guild_hall --locale=zh_TW
+          shot 41-guild-counter 40 --level=guild_hall --registered --at=-0.9,-5.4 --locale=zh_TW
+          shot 42-guild-leo 80 --level=guild_hall --registered --at=2.0,-6.6 --demo=leo --locale=zh_TW
+          shot 43-guild-sera 80 --level=guild_hall --quest-taken --demo=sera --talk-skip=3 --locale=zh_TW
+          shot 44-guild-return 40 --level=guild_hall --return --at=0.3,3.0 --locale=zh_TW
+          shot 45-guild-inspector 90 --level=guild_hall --return --at=0.2,-2.2 --talk-skip=8 --locale=zh_TW
           ls -la build/screens
           test -n "$(ls build/screens/*.png 2>/dev/null)"
           cd build && python3 -c "import shutil; shutil.make_archive('screens', 'zip', 'screens')"

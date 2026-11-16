@@ -91,6 +91,8 @@ const WEAPONS: Dictionary = {
 const DEFAULT_WEAPON: String = "rusty_sword"
 const WEAPON_FLAG: String = "noen.weapon"
 var weapon_id: String = DEFAULT_WEAPON
+## true＝這一關不能動手（公會大廳）：出手與釋放的按鍵沒有反應，閃避照常
+var peaceful: bool = false
 const SWORD_SCALE: float = 0.42
 const SWORD_GRIP: Vector3 = Vector3(0.0, 0.1, 0.0)
 
@@ -297,7 +299,7 @@ func _physics_process(delta: float) -> void:
 	if want == "" and not talking and _puppet.action == "":
 		if Settings.auto_attack:
 			_auto_foe = auto_target()
-		if _auto_foe != null or Input.is_action_pressed("attack"):
+		if _auto_foe != null or (Input.is_action_pressed("attack") and not peaceful):
 			want = "attack"
 	if talking:
 		pass
@@ -655,9 +657,9 @@ func _wanted_action(delta: float, locked: bool) -> String:
 	var now: String = ""
 	if Input.is_action_just_pressed("dodge"):
 		now = "dodge"
-	elif release_enabled() and Input.is_action_just_pressed("release"):
+	elif not peaceful and release_enabled() and Input.is_action_just_pressed("release"):
 		now = "release"
-	elif Input.is_action_just_pressed("attack"):
+	elif not peaceful and Input.is_action_just_pressed("attack"):
 		now = "attack"
 	if locked or health.is_dead():
 		_buffered = ""

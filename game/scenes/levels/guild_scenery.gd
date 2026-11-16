@@ -57,6 +57,8 @@ var evening: bool = false
 var crystal: Node3D
 var crystal_light: OmniLight3D
 var windows: Array[MeshInstance3D] = []
+## 莉莉絲拿出來的那張綠色委託單（放在櫃檯上；關卡在她拿出來的時候才讓它出現）
+var slip: Node3D
 var _root: Node3D
 var _crystal_glow: StandardMaterial3D
 
@@ -350,6 +352,22 @@ func _build_counter() -> void:
 	_prop("quaternius/Crate_Wooden", Vector3(7.1, 0.06, -10.1), 12.0)
 	for lx: float in [-3.9, 0.0, 3.9]:
 		_prop("quaternius/Lantern_Wall", Vector3(lx, 1.55, -HALF_L + 0.02))
+	# 綠色委託單：一張積了灰的綠紙，上面幾行字（程式拼的）
+	slip = Node3D.new()
+	slip.name = "QuestSlip"
+	slip.position = COUNTER_POS + Vector3(0.45, 1.165, 0.22)
+	slip.rotation_degrees = Vector3(0, -14, 0)
+	slip.visible = false
+	_root.add_child(slip)
+	var paper := StandardMaterial3D.new()
+	paper.albedo_color = Color(0.36, 0.62, 0.34)
+	paper.roughness = 1.0
+	var ink := StandardMaterial3D.new()
+	ink.albedo_color = Color(0.1, 0.2, 0.1)
+	ink.roughness = 1.0
+	_box(slip, Vector3(0.3, 0.008, 0.4), Vector3.ZERO, paper)
+	for row: int in 4:
+		_box(slip, Vector3(0.2 if row > 0 else 0.24, 0.004, 0.022 if row > 0 else 0.04), Vector3(0, 0.006, -0.13 + 0.075 * float(row)), ink)
 	_prop("quaternius/Book_Stack_1", COUNTER_POS + Vector3(-1.7, 1.0, 0.05), 20.0)
 	_prop("quaternius/Bottle_1", COUNTER_POS + Vector3(3.3, 1.0, 0.0))
 	_prop("quaternius/Bottle_1", COUNTER_POS + Vector3(3.5, 1.0, 0.08))

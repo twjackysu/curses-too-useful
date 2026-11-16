@@ -142,6 +142,7 @@ func _ready() -> void:
 	scenery = GuildScenery.build(self, is_epilogue())
 	_mark("GuildDoor", GuildScenery.DOOR_POS + Vector3(0, 0, -0.6))
 	_player.collision_mask |= GuildScenery.PEOPLE_LAYER
+	_player.peaceful = true
 	_player.global_position = ENTRANCE if stage() in [STAGE_REGISTER, STAGE_APTITUDE, STAGE_REPORT, ""] else COUNTER_FRONT
 	var at: PackedStringArray = str(args.get("at", "")).split(",")
 	if at.size() == 2:
@@ -155,6 +156,9 @@ func _ready() -> void:
 	Ambience.play(self, "market_murmur", MURMUR_DB, "HallMurmur")
 	if is_epilogue() and stage() == STAGE_REPORT:
 		_attach_core()
+	elif stage() == STAGE_REGISTER:
+		# 開場：這是哪裡、來做什麼
+		_hud.show_center_lines("CH1_GUILD_LINE1", "CH1_GUILD_LINE2", 6.5, Hud.CENTER_LINE2_COLOR)
 	# 連拍用（scripts/burst.sh）：`--registered --burst-on=alarm` 進場 1.2 秒後把手放上水晶，從那一刻開始拍。
 	# 截圖用：`--registered --demo=leo` 進場就摸水晶、雷歐直接站到旁邊開口（不等警報的那幾秒；配 `--talk-skip`）；
 	# `--quest-taken --demo=sera` 席菈一開始就站在幾步外（不等她從角落走過來）；`--return --demo=end` 直接停在「第一章　完」
@@ -299,7 +303,9 @@ func _build_interactables() -> void:
 	crystal_use.used.connect(func(_by: PlayerController) -> void: touch_crystal())
 	add_child(crystal_use)
 	lilith_use = Interactable.create("TalkLilith", Vector3(0.0, 0.0, GuildScenery.STAFF_LINE_Z), "HINT_TALK_LILITH", 2.6)
-	lilith_use.used.connect(func(_by: PlayerController) -> void: _talk(QUEST_DIALOGUE, ["SPK_NOEN", LILITH_KEY]))
+	lilith_use.used.connect(func(_by: PlayerController) -> void:
+		if _talk(QUEST_DIALOGUE, ["SPK_NOEN", LILITH_KEY]):
+			scenery.slip.visible = true)
 	add_child(lilith_use)
 	_refresh_interactables()
 
@@ -307,6 +313,8 @@ func _build_interactables() -> void:
 func _refresh_interactables() -> void:
 	crystal_use.enabled = stage() == STAGE_APTITUDE and _alarm_t < 0.0
 	lilith_use.enabled = stage() == STAGE_TAKE_QUEST
+	# 綠色委託單：莉莉絲拿出來之後就放在櫃檯上，到諾恩出發為止
+	scenery.slip.visible = Game.session.in_story() and _flag(FLAG_QUEST) and not is_epilogue()
 
 
 ## 把手放到水晶上：警報、畫面中間寫結果；之後的事照 _tick_alarm 的時間軸

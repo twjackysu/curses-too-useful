@@ -99,6 +99,12 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 			assert_eq(b.collision_layer, GuildScenery.PEOPLE_LAYER, "%s 只擋人" % b.name)
 	assert_true((player.collision_mask & GuildScenery.PEOPLE_LAYER) != 0, "諾恩會被牆與桌子擋住")
 	assert_eq(level.footstep_surface(Vector3.ZERO), "wood")
+	# 大廳裡不能動手：按出手鍵諾恩不會揮劍
+	assert_true(player.peaceful)
+	Input.action_press("attack")
+	await _frames(3)
+	Input.action_release("attack")
+	assert_ne(player.puppet().action, "attack", "在公會裡不揮劍")
 	# 走不出牆、進不去櫃檯裡面
 	assert_eq(GuildScenery.keep_inside(Vector3(0, 0, 3)), Vector3(0, 0, 3))
 	assert_true(GuildScenery.keep_inside(Vector3(30, 0, 0)).x < GuildScenery.HALF_W)
@@ -118,6 +124,8 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	assert_false(level.lilith_use.enabled)
 	var hud: Hud = level.get_node("Hud") as Hud
 	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_REGISTER")
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_GUILD_LINE1", "CH1_GUILD_LINE2"]), "一進來先說這是哪裡")
+	assert_false(level.scenery.slip.visible, "綠色委託單還沒拿出來")
 	assert_true(level.get_node_or_null("HallMurmur") != null or Sfx.stream("market_murmur") == null, "大廳的人聲")
 
 
@@ -208,6 +216,7 @@ func test_lilith_hands_over_the_green_request_then_sera_asks_to_come_along() -> 
 	assert_true(bool(_game().call("is_in_dialogue")))
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(runner.current_text(), "DLG_CH1_QUEST_001")
+	assert_true(level.scenery.slip.visible, "綠色委託單放到櫃檯上")
 	_finish_dialogue(0)
 	assert_eq(s.state.get_flag(GuildHall.FLAG_QUEST), true)
 	assert_eq(s.quests.stage_of("ch1_main"), "sera_asks")
