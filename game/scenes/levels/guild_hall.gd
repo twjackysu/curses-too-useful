@@ -17,7 +17,7 @@ const STAGE_SERA_ASKS: String = "sera_asks"
 const STAGE_LEAVE: String = "leave_guild"
 const STAGE_REPORT: String = "report"
 const OPENING_STAGES: PackedStringArray = [STAGE_REGISTER, STAGE_APTITUDE, STAGE_TAKE_QUEST, STAGE_SERA_ASKS, STAGE_LEAVE]
-## 劇情旗標：對話資料自己設的有 registered、leo_left、quest_taken、sera_asked、chapter_done；關卡設的是 crystal_tested、left_guild
+## 劇情旗標：對話資料自己設的有 registered、leo_left、quest_taken、sera_asked；關卡設的是 crystal_tested、left_guild、chapter_done
 const FLAG_REGISTERED: String = "ch1.registered"
 const FLAG_CRYSTAL: String = "ch1.crystal_tested"
 const FLAG_LEO_LEFT: String = "ch1.leo_left"
@@ -75,6 +75,9 @@ const SERA_TALK_DIST: float = 2.3
 const END_CARD_DELAY: float = 1.4
 const END_MUSIC_DB: float = -5.0
 const MURMUR_DB: float = -17.0
+const CORE_SHADER: Shader = preload("res://src/world/golem_core.gdshader")
+## 結尾席菈跟在諾恩左後方半步（玩家的鏡頭裡看得到她整個人）
+const SERA_FOLLOW_OFFSET: Vector3 = Vector3(-1.3, 0.0, 0.7)
 
 var scenery: GuildScenery
 var lilith: Npc
@@ -99,6 +102,7 @@ var _leaving: bool = false
 var _end_in: float = -1.0
 var _return_barked: bool = false
 var _burst_on: String = ""
+var _demo: String = ""
 
 @onready var _player: PlayerController = $Player
 @onready var _hud: Hud = $Hud
@@ -129,11 +133,12 @@ func _ready() -> void:
 			if args.has(str(spec[0])):
 				for i: int in int(spec[1]):
 					s.set_flag(OPENING_FLAGS[i], true)
+	# `--talk-skip=N`：對話一開始先按掉 N 句（遇到選項選第一個），拍第 N+1 句的鏡位
 	var talk_skip: int = int(str(args.get("talk-skip", "0")))
 	if talk_skip > 0:
 		Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
 			for i: int in talk_skip:
-				r.advance.call_deferred())
+				_skip_line.call_deferred(r))
 	scenery = GuildScenery.build(self, is_epilogue())
 	_mark("GuildDoor", GuildScenery.DOOR_POS + Vector3(0, 0, -0.6))
 	_player.collision_mask |= GuildScenery.PEOPLE_LAYER
@@ -150,12 +155,22 @@ func _ready() -> void:
 	Ambience.play(self, "market_murmur", MURMUR_DB, "HallMurmur")
 	if is_epilogue() and stage() == STAGE_REPORT:
 		_attach_core()
-	# 連拍用（scripts/burst.sh）：`--registered --burst-on=alarm` 進場 1.2 秒後把手放上水晶，從那一刻開始拍
+	# 連拍用（scripts/burst.sh）：`--registered --burst-on=alarm` 進場 1.2 秒後把手放上水晶，從那一刻開始拍。
+	# 截圖用：`--registered --demo=leo` 進場就摸水晶、雷歐直接站到旁邊開口（不等警報的那幾秒；配 `--talk-skip`）；
+	# `--quest-taken --demo=sera` 席菈一開始就站在幾步外（不等她從角落走過來）；`--return --demo=end` 直接停在「第一章　完」
 	_burst_on = str(args.get("burst-on", ""))
+	_demo = str(args.get("demo", ""))
 	if _burst_on == "alarm":
 		get_tree().create_timer(1.2).timeout.connect(func() -> void:
 			App.burst_start_in(1)
 			touch_crystal())
+	if _demo == "leo":
+		get_tree().create_timer(0.2).timeout.connect(touch_crystal)
+	elif _demo == "sera" and sera != null:
+		sera.position = _beside_player(Vector3(-3.0, 0, 0.6))
+	elif _demo == "end":
+		_play_end_card()
+		card.hold_still.call_deferred()
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
 
 
@@ -214,6 +229,13 @@ func _talk(dialogue_id: String, order: Array[String]) -> bool:
 	return Game.start_dialogue(dialogue_id)
 
 
+static func _skip_line(r: DialogueRunner) -> void:
+	if not r.visible_choices.is_empty():
+		r.choose(0)
+	else:
+		r.advance()
+
+
 func _speaker_node(key: String) -> Node3D:
 	match key:
 		"SPK_NOEN":
@@ -261,7 +283,7 @@ func _spawn_cast() -> void:
 		sera.collision_mask |= GuildScenery.PEOPLE_LAYER
 		if evening:
 			sera.target = _player
-			sera.position = _player.global_position + Vector3(-1.2, 0.0, 1.6)
+			sera.position = _player.global_position + SERA_FOLLOW_OFFSET
 		else:
 			sera.joined = false
 			sera.position = SERA_CORNER
@@ -298,6 +320,12 @@ func touch_crystal() -> void:
 	Sfx.play_flat(self, "crystal_alarm", -3.0)
 	_player.shake(0.35)
 	_hud.show_center_lines("CH1_CRYSTAL_LINE1", "CH1_CRYSTAL_LINE2", 7.0)
+	if _demo == "leo":
+		# 開發用：不等嘲笑與走路的那幾秒
+		var leo: Npc = party.get("Leo") as Npc
+		leo.global_position = _beside_player(Vector3(-1.5, 0, 1.3))
+		leo.face(_player.global_position)
+		_alarm_step = 4
 
 
 func is_alarm_ringing() -> bool:
@@ -411,6 +439,8 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 			get_tree().create_timer(1.6).timeout.connect(func() -> void:
 				_hud.show_bark(lilith, "BARK_LILITH_SIGH", 2.2, LILITH_KEY))
 		RETURN_DIALOGUE:
+			# 講完才算做完（不是最後一句一出來就算：巡察官那一句還在畫面上的時候，HUD 不要跳「未完待續」）
+			Game.session.set_flag(FLAG_CHAPTER_DONE, true)
 			_end_in = END_CARD_DELAY
 
 
@@ -444,26 +474,22 @@ func _attach_core() -> void:
 	core.name = "GolemCore"
 	var ball := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
-	sphere.radius = 0.27
-	sphere.height = 0.54
+	sphere.radius = 0.24
+	sphere.height = 0.48
 	sphere.radial_segments = 20
 	sphere.rings = 10
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.2, 0.22, 0.26)
-	mat.roughness = 0.6
-	mat.emission_enabled = true
-	mat.emission = Color(0.35, 1.0, 0.55)
-	mat.emission_energy_multiplier = 0.9
+	var mat := ShaderMaterial.new()
+	mat.shader = CORE_SHADER
 	sphere.material = mat
 	ball.mesh = sphere
 	core.add_child(ball)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.35, 1.0, 0.55)
-	glow.light_energy = 0.9
-	glow.omni_range = 2.6
+	glow.light_energy = 0.5
+	glow.omni_range = 2.2
 	glow.shadow_enabled = false
 	core.add_child(glow)
-	core.position = Vector3(-0.3, 1.62, 0.08)
+	core.position = Vector3(-0.3, 1.6, 0.1)
 	_player.get_node("Body").add_child(core)
 
 

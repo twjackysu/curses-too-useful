@@ -74,12 +74,7 @@
     },
     "l08": {
       "speaker": "SPK_UNKNOWN",
-      "text": "DLG_CH1_RETURN_008",
-      "do": {
-        "set": {
-          "ch1.chapter_done": true
-        }
-      }
+      "text": "DLG_CH1_RETURN_008"
     }
   }
 }
