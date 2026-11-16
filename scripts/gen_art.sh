@@ -19,12 +19,20 @@ declare -A SRC=(
   [noen]="art-inbox/tripo/noen_rank_f_v2/noen_rank_f_v2_rig.glb"
   [sheila]="art-inbox/tripo/sheila_rank_f/sheila_rank_f_rig.glb"
   [spore_treant]="art-inbox/tripo/enemy_spore_treant/enemy_spore_treant_rig.glb"
+  [plague_golem]="art-inbox/tripo/boss_plague_golem/boss_plague_golem_rig.glb"
+  [leo]="art-inbox/tripo/leo/leo_rig.glb"
+  [leo_mage]="art-inbox/tripo/leo_party_mage/leo_party_mage_rig.glb"
+  [leo_tank]="art-inbox/tripo/leo_party_tank/leo_party_tank_rig.glb"
 )
 # 給 tripo_character.py 的參數：--height 身高（m）
 declare -A ARGS=(
   [noen]="--height 1.74"
   [sheila]="--height 1.65"
   [spore_treant]="--height 2.60"
+  [plague_golem]="--height 3.60"
+  [leo]="--height 1.82"
+  [leo_mage]="--height 1.64"
+  [leo_tank]="--height 1.92"
 )
 
 todo=()

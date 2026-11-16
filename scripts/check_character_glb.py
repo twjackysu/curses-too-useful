@@ -8,7 +8,9 @@ import json
 from pathlib import Path
 import struct
 
-BUDGETS = {'noen': (15000, 40000), 'sheila': (15000, 40000), 'spore_treant': (15000, 40000)}
+BUDGETS = {'noen': (15000, 40000), 'sheila': (15000, 40000), 'spore_treant': (15000, 40000),
+           # 魔像是 Boss（場上只有一隻），Tripo 產的時候面數上限開到五萬
+           'plague_golem': (15000, 52000), 'leo': (15000, 40000), 'leo_mage': (15000, 40000), 'leo_tank': (15000, 40000)}
 
 
 def inspect(path, character):
