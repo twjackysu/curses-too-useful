@@ -137,6 +137,9 @@ Q_CH1_OBJ_SLIMES,Defeat the poison slimes in the glade,打倒空地上的劇毒�
 Q_CH1_OBJ_AFTER,Hear Sera out,聽席菈說完
 Q_CH1_OBJ_GATHER,Gather 5 glowing toxic mushrooms,採 5 朵夜光毒蕈
 Q_CH1_OBJ_SCREAM,Follow the scream to the altar,往慘叫聲傳來的祭壇走
+Q_CH1_OBJ_ALTAR,See what happened at the altar,去祭壇看看出了什麼事
+Q_CH1_OBJ_GOLEM,Bring down the Abyssal Plague Golem,打倒【深淵疫病魔像】
+Q_CH1_OBJ_AFTER_BOSS,Talk to Sera,跟席菈說話
 Q_CH1_LIST_MUSHROOMS,Gather glowing toxic mushrooms,採集夜光毒蕈
 Q_CH1_LIST_CAMP,Rest at the campfire,在營火旁休息
 Q_CH1_LIST_ANOMALY,Find the strange pulse deep in the bog,尋找毒沼深處的異常波動

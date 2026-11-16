@@ -125,7 +125,7 @@ static func build_forest(level: Node3D, rng: RandomNumberGenerator, keep_out: Ca
 		var p := Vector3(deep.randf_range(-62.0, 66.0), 0.0, deep.randf_range(-96.0, 40.0))
 		if Rect2(-30.0, -40.0, 60.0, 66.0).has_point(ForestMap.flat(p)) or not ForestMap.tree_ok(ForestMap.flat(p)) or bool(keep_out.call(p)):
 			continue
-		if minf(ForestMap.path_distance(ForestMap.flat(p)), ForestMap.clearing_distance(ForestMap.flat(p))) > DEEP_TREE_REACH or _crowded(trees, p, 3.2):
+		if minf(ForestMap.path_distance(ForestMap.flat(p)), ForestMap.clearing_distance(ForestMap.flat(p))) > DEEP_TREE_REACH or crowded(trees, p, 3.2):
 			continue
 		var size: float = deep.randf_range(0.85, 1.35)
 		forest.add_child(tree(p, size, deep.randf_range(0.0, TAU)))
@@ -144,7 +144,7 @@ static func _entrance_tree_ok(p: Vector3) -> bool:
 	return Vector2(p.x - ForestMap.GLADE.x, p.z - ForestMap.GLADE.y).length() >= ForestMap.GLADE.z + 1.5
 
 
-static func _crowded(trees: PackedVector3Array, p: Vector3, gap: float) -> bool:
+static func crowded(trees: PackedVector3Array, p: Vector3, gap: float) -> bool:
 	for t: Vector3 in trees:
 		if Vector2(t.x - p.x, t.z - p.z).length() < gap:
 			return true

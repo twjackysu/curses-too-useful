@@ -26,8 +26,6 @@ const GATE_DIALOGUE: String = "ch1_forest_gate"
 const AFTER_DIALOGUE: String = "ch1_after_slimes"
 ## 教學戰席菈拿錯的那一瓶（statuses.json 的來源）
 const PANIC_VIAL: String = "sera_panic_vial"
-const ASK_HINT: String = "HINT_ASK_SERA"
-const ASK_WAIT_HINT: String = "HINT_ASK_SERA_WAIT"
 ## 史萊姆都倒了之後隔多久席菈才開口（等最後一刀的停頓與橫幅）
 const AFTER_TALK_DELAY: float = 1.6
 ## 第一次反轉之後隔多久席菈才開口（等碎裂與金光演完）
@@ -162,7 +160,6 @@ func _physics_process(delta: float) -> void:
 		if _gate_talk_in < 0.0 and Game.start_dialogue(GATE_DIALOGUE):
 			Game.session.set_flag(FLAG_GATE_TALK, true)
 	_tick_misfire()
-	_refresh_ask_hint()
 	if not slimes.is_empty() and not bool(st.get_flag(FLAG_SLIMES, false)) and slimes_alive() == 0:
 		Game.session.set_flag(FLAG_SLIMES, true)
 		_hud.show_banner("CH1_SLIMES_CLEARED", 4.0)
@@ -215,26 +212,6 @@ func _tick_misfire() -> void:
 		_hud.show_center_lines("CH1_MISFIRE_LINE1", "CH1_MISFIRE_LINE2", 5.0, Hud.CENTER_LINE2_COLOR)
 
 
-## 玩家按鍵向她要藥：答應了喊一句，還在裝上一瓶也回一句（不然按了沒反應像壞掉）。
-func _on_sera_asked(ok: bool) -> void:
-	_hud.show_bark(sera, "BARK_SERA_ASK" if ok else "BARK_SERA_RELOADING", 2.2, Sera.NAME_KEY)
-
-
-## 下一瓶裝好了：她喊一聲（打架的時候不會去看左上那一行）。
-func _on_sera_reloaded() -> void:
-	_hud.show_bark(sera, "BARK_SERA_READY", 1.8, Sera.NAME_KEY)
-
-
-## 左上第二行：可以向席菈要藥的時候寫按哪個鍵；她還在裝的時候改寫還要等幾秒。
-func _refresh_ask_hint() -> void:
-	if not sera.ask_enabled:
-		_hud.set_extra_hint("")
-	elif sera.brain.ask_left > 0.0:
-		_hud.set_extra_hint(ASK_WAIT_HINT, {"sec": ceili(sera.brain.ask_left)})
-	else:
-		_hud.set_extra_hint(ASK_HINT)
-
-
 func slimes_alive() -> int:
 	var n: int = 0
 	for s: Slime in slimes:
@@ -253,8 +230,6 @@ func _spawn_sera() -> void:
 	sera.name = "Sera"
 	sera.target = _player
 	sera.mask_changed.connect(_on_sera_mask_changed)
-	sera.asked.connect(_on_sera_asked)
-	sera.reloaded.connect(_on_sera_reloaded)
 	if bool(Game.session.state.get_flag(FLAG_JOINED, false)):
 		sera.position = _player.global_position + SERA_START_OFFSET
 		# 面向諾恩（一進場看得到她的臉）
@@ -270,6 +245,7 @@ func _spawn_sera() -> void:
 	else:
 		sera.ask_enabled = true
 	add_child(sera)
+	SeraChatter.attach(self, sera, _hud)
 	# 對話時鏡頭帶到講話的人臉上；一開始的「？？？」也是她
 	talk_camera = TalkCamera.new()
 	talk_camera.name = "TalkCamera"

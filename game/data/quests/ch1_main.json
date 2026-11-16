@@ -90,11 +90,40 @@
       "done_when": {
         "flag": "ch1.altar_gate_reached"
       }
+    },
+    {
+      "id": "altar_arrive",
+      "objective": "Q_CH1_OBJ_ALTAR",
+      "hint": "Q_CH1_HINT_MOVE",
+      "checkpoint": "ch1_altar",
+      "marker": "node:AltarRuins",
+      "done_when": {
+        "flag": "ch1.altar_talked"
+      }
+    },
+    {
+      "id": "boss",
+      "objective": "Q_CH1_OBJ_GOLEM",
+      "hint": "Q_CH1_HINT_FIGHT",
+      "checkpoint": "ch1_boss",
+      "marker": "node:Golem",
+      "done_when": {
+        "flag": "ch1.golem_down"
+      }
+    },
+    {
+      "id": "after_boss",
+      "objective": "Q_CH1_OBJ_AFTER_BOSS",
+      "checkpoint": "ch1_boss_down",
+      "marker": "node:Sera",
+      "done_when": {
+        "flag": "ch1.altar_done"
+      }
     }
   ],
   "on_complete": {
     "set": {
-      "ch1.forest_done": true
+      "ch1.altar_cleared": true
     }
   }
 }

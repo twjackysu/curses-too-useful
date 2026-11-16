@@ -5,10 +5,13 @@ extends Node
 ## 劇情旗標：ch1.mushrooms（採了幾朵）、ch1.mushroom_<n>（第 n 朵採過了）、ch1.altar_gate_reached（走到祭壇路口）、
 ## ch1.campfire_talked（營火那段話講過了）、sera.duo_unlocked（連攜解鎖）、ch1.chest_opened（詛咒寶箱開了）、noen.weapon（手上是哪一把）、
 ## ch1.pack.<名字>（那一群敵人打倒了）、ch1.respawn（讀檔、倒下重來從哪裡開始："glade"／"camp"）。任務 data/quests/ch1_main.json 的 gather、to_altar 兩個階段看前兩個。
+## 走到祭壇路口就換到下一關（scenes/levels/ruined_altar.gd）。
 
 const QUEST: String = "ch1_main"
 const STAGE_GATHER: String = "gather"
 const STAGE_ALTAR: String = "to_altar"
+## 還不能往北逛的階段（""＝沒有開主線）
+const LOCKED_STAGES: PackedStringArray = ["", "meet_sera", "enter_miasma", "slimes", "after_fight"]
 const FLAG_MUSHROOMS: String = "ch1.mushrooms"
 const FLAG_ALTAR: String = "ch1.altar_gate_reached"
 const FLAG_RESPAWN: String = "ch1.respawn"
@@ -88,9 +91,9 @@ var _regrow: PackedFloat32Array = []
 var _gate_bark_in: float = 0.0
 
 
-## 自由探索開放了沒（教學戰與戰後那段話都過了）
+## 自由探索開放了沒（教學戰與戰後那段話都過了；之後的階段——祭壇那一關——也算）
 static func unlocked(state: GameState) -> bool:
-	return str(state.quests.get(QUEST, "")) in [STAGE_GATHER, STAGE_ALTAR, StoryLogic.QUEST_DONE]
+	return not str(state.quests.get(QUEST, "")) in LOCKED_STAGES
 
 
 ## 探索開放之後，讀檔、倒下重來從哪裡開始
@@ -162,7 +165,9 @@ func _physics_process(delta: float) -> void:
 			_gate_bark_in = GATE_BARK_EVERY
 			hud.show_bark(sera, "BARK_SERA_NOT_YET", 2.6, Sera.NAME_KEY)
 	if stage() == STAGE_ALTAR and ForestMap.flat(player.global_position).distance_to(Vector2(ForestMap.ALTAR_GATE.x, ForestMap.ALTAR_GATE.y)) < ALTAR_REACH:
+		# 下一個階段的檢查點在廢棄祭壇那一關：這裡存檔（生命、狀態、武器跟著走）、換關卡
 		Game.session.set_flag(FLAG_ALTAR, true)
+		Game.go_to_checkpoint_level()
 
 
 func stage() -> String:

@@ -18,6 +18,7 @@ const PLAYTIME_MAX_STEP: float = 0.25
 ## 關卡 id -> 場景
 const LEVELS: Dictionary = {
 	"corrupt_forest": "res://scenes/levels/corrupt_forest.tscn",
+	"ruined_altar": "res://scenes/levels/ruined_altar.tscn",
 	"benchmark": "res://scenes/bench/benchmark.tscn",
 }
 ## 檢查點 -> 關卡 id（沒列的都在 DEFAULT_LEVEL）
@@ -28,6 +29,9 @@ const CHECKPOINT_LEVELS: Dictionary = {
 	"ch1_after_slimes": "corrupt_forest",
 	"ch1_explore": "corrupt_forest",
 	"ch1_scream": "corrupt_forest",
+	"ch1_altar": "ruined_altar",
+	"ch1_boss": "ruined_altar",
+	"ch1_boss_down": "ruined_altar",
 }
 const DEFAULT_LEVEL: String = "corrupt_forest"
 ## `--level=…` 開發旗標用的存檔資料夾：不會蓋掉玩家真正的進度
@@ -35,6 +39,10 @@ const DEV_SAVE_DIR: String = "user://saves_dev"
 const TITLE_SCENE: String = "res://scenes/boot/boot.tscn"
 
 var session: GameSession
+## false＝go_to_level 只記下要去哪、不真的換場景（測試把關卡直接掛在 root 底下：真的換會多出一個沒人管的關卡）
+var change_scenes: bool = true
+## 最近一次要去的關卡（測試看這個）
+var last_level_request: String = ""
 var dialogues: DialogueDB
 ## 進行中的對話（沒有則為 null）
 var dialogue: DialogueRunner
@@ -65,14 +73,14 @@ func has_continue() -> bool:
 func new_game(load_level: bool = true) -> void:
 	session.new_game()
 	if load_level:
-		go_to_level(level_for_checkpoint(session.state.checkpoint))
+		go_to_checkpoint_level()
 
 
 func continue_game(load_level: bool = true) -> bool:
 	if session.load_slot(GameSession.AUTO_SLOT) != SaveCodec.Status.OK:
 		return false
 	if load_level:
-		go_to_level(level_for_checkpoint(session.state.checkpoint))
+		go_to_checkpoint_level()
 	return true
 
 
@@ -80,10 +88,18 @@ static func level_for_checkpoint(checkpoint_id: String) -> String:
 	return str(CHECKPOINT_LEVELS.get(checkpoint_id, DEFAULT_LEVEL))
 
 
+## 去「現在的檢查點」所在的關卡：新遊戲、繼續、倒下重來，還有劇情走到下一個關卡的時候（森林的祭壇路口 → 廢棄祭壇）。
+func go_to_checkpoint_level() -> void:
+	go_to_level(level_for_checkpoint(session.state.checkpoint))
+
+
 func go_to_level(level_id: String) -> void:
 	var path: String = str(LEVELS.get(level_id, ""))
 	if path == "":
 		push_error("Game: 沒有關卡 %s" % level_id)
+		return
+	last_level_request = level_id
+	if not change_scenes:
 		return
 	var err: Error = get_tree().change_scene_to_file(path)
 	if err != OK:
@@ -147,7 +163,7 @@ func retry(reload_level: bool = true) -> void:
 		session.new_game()
 	session.state.playtime_sec = maxf(session.state.playtime_sec, played)
 	if reload_level:
-		go_to_level(level_for_checkpoint(session.state.checkpoint))
+		go_to_checkpoint_level()
 
 
 ## 打擊停頓：短暫把時間放慢，用真實時間計時後恢復（重疊時以最後一次為準）。
