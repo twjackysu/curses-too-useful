@@ -23,7 +23,7 @@ SET_FULLSCREEN,Fullscreen,全螢幕
 SET_VSYNC,V-Sync,垂直同步
 SET_REDUCE_SHAKE,Reduce Camera Shake,減少鏡頭晃動
 SET_OBJECTIVE_MARKER,Objective Marker,目標指引
-SET_OBSERVE_CUE,Observation Cue Sound,觀察提示音
+SET_AUTO_ATTACK,Auto-Attack Nearby Enemies,自動攻擊（靠近敵人自己砍）
 SET_GROUP_GAME,Game,遊戲
 SET_GROUP_AUDIO,Audio,聲音
 SET_GROUP_DISPLAY,Display,畫面
@@ -144,12 +144,14 @@ Q_CH1_LIST_MUSHROOMS,Gather glowing toxic mushrooms,採集夜光毒蕈
 Q_CH1_LIST_CAMP,Rest at the campfire,在營火旁休息
 Q_CH1_LIST_ANOMALY,Find the strange pulse deep in the bog,尋找毒沼深處的異常波動
 Q_CH1_HINT_EXPLORE,{interact} Gather / use　{attack} Attack　{dodge} Dodge　{release} Burst the poison on you,{interact} 採集、互動　{attack} 攻擊　{dodge} 閃避　{release} 把身上的毒炸出去
+Q_CH1_HINT_EXPLORE_AUTO,{interact} Gather / use　Get close and Norn attacks on his own　{dodge} Dodge　{release} Burst the poison on you,{interact} 採集、互動　靠近敵人會自己砍　{dodge} 閃避　{release} 把身上的毒炸出去
 HUD_LIST_TITLE,CHECKLIST,委託清單
 HUD_LIST_COUNT,[{have}/{need}] {text},[{have}/{need}] {text}
 HUD_LIST_OPTIONAL,[Optional] {text},[可選] {text}
 HUD_LIST_DONE,[Done] {text},[完成] {text}
 Q_CH1_HINT_MOVE,{move} Move　{sprint} Run　{look} Look around,{move} 移動　{sprint} 跑　{look} 轉視角
 Q_CH1_HINT_FIGHT,{attack} Attack　{dodge} Dodge　{release} Burst the poison on you,{attack} 攻擊　{dodge} 閃避　{release} 把身上的毒炸出去
+Q_CH1_HINT_FIGHT_AUTO,Get close and Norn attacks on his own　{dodge} Dodge　{release} Burst the poison on you,靠近敵人會自己砍　{dodge} 閃避　{release} 把身上的毒炸出去
 CH1_REVERSAL_LINE1,Poisoned → Regenerating,中毒 → 回血
 CH1_REVERSAL_LINE2,Every ailment on you flips into a boon.,落在你身上的異常狀態，全都會反轉成增益。
 CH1_EXPLORE_LINE1,The Corrupt Forest is open to explore!,腐敗之森探索解鎖！

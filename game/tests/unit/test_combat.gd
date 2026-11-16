@@ -95,6 +95,77 @@ func test_player_swing_hits_target_with_hit_stop_and_shake() -> void:
 	await tree.process_frame
 
 
+## 自動攻擊（設定，預設開；Jacky 11/16：「一直點滑鼠感覺會點壞」）：身邊有活著的敵人諾恩就自己出手、轉向最近的那一隻（在背後也一樣），
+## 一刀接一刀砍到牠倒下；敵人離得遠、倒下了、設定關掉都不出手。按住出手鍵也是接著砍，不用一下一下點。
+func test_auto_attack_swings_at_the_nearest_enemy_and_holding_the_button_keeps_swinging() -> void:
+	var settings: Node = tree.root.get_node("Settings")
+	var root := Node3D.new()
+	tree.root.add_child(root)
+	var player: PlayerController = (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as PlayerController
+	root.add_child(player)
+	var slime := Slime.new()
+	root.add_child(slime)
+	slime.set_physics_process(false)
+	var forward: Vector3 = -player.get_node("Body").global_basis.z as Vector3
+	var reach: float = CombatTuning.num("noen.auto_attack_range")
+	assert_true(reach > CombatTuning.num("noen.strike_range") and reach < CombatTuning.num("noen.strike_range") + CombatTuning.num("noen.lunge_dist"), "出手的距離：往前滑一步剛好夠得到")
+	settings.set("auto_attack", true)
+	# 離得遠：不出手
+	slime.global_position = player.global_position + forward * 6.0
+	var swings: int = await _count_swings(player, 40)
+	assert_eq(swings, 0, "敵人離得遠不出手")
+	assert_true(player.auto_target() == null)
+	# 在背後、夠近：自己轉過去砍，一刀接一刀砍到牠倒下
+	slime.global_position = player.global_position - forward * 1.8
+	assert_true(player.auto_target() == slime, "挑到身邊最近的那一隻")
+	swings = 0
+	var faced: float = -1.0
+	for i: int in 240:
+		var was: bool = player.puppet().action == "attack"
+		await tree.physics_frame
+		if player.puppet().action == "attack" and not was:
+			swings += 1
+			var to: Vector3 = (slime.global_position - player.global_position).normalized()
+			faced = maxf(faced, (-(player.get_node("Body") as Node3D).global_basis.z).dot(to))
+		if slime.health.is_dead():
+			break
+	assert_true(slime.health.is_dead(), "不用按：自己把牠砍倒（%d 刀）" % swings)
+	assert_true(swings >= 2, "一刀接一刀")
+	assert_true(faced > 0.9, "出手的時候轉過去面向牠（%.2f）" % faced)
+	Engine.time_scale = 1.0
+	swings = await _count_swings(player, 50)
+	assert_eq(swings, 0, "倒下的不再砍")
+	# 設定關掉：站在敵人旁邊也不會自己出手
+	settings.set("auto_attack", false)
+	var second := Slime.new()
+	root.add_child(second)
+	second.set_physics_process(false)
+	second.global_position = player.global_position + forward * 1.6
+	swings = await _count_swings(player, 50)
+	assert_eq(swings, 0, "設定關掉就不自己出手")
+	assert_true(second.health.is_full())
+	# 按住出手鍵：接著砍
+	Input.action_press("attack")
+	swings = await _count_swings(player, 110)
+	Input.action_release("attack")
+	assert_true(swings >= 2, "按住出手鍵接著砍（%d 刀）" % swings)
+	assert_false(second.health.is_full(), "砍得到面前的敵人")
+	Engine.time_scale = 1.0
+	root.queue_free()
+	await tree.process_frame
+
+
+## 接下來 frames 幀裡諾恩出手了幾次（動作從別的變成出手算一次）
+func _count_swings(player: PlayerController, frames: int) -> int:
+	var n: int = 0
+	for i: int in frames:
+		var was: bool = player.puppet().action == "attack"
+		await tree.physics_frame
+		if player.puppet().action == "attack" and not was:
+			n += 1
+	return n
+
+
 ## 【瘴氣生鏽鐵劍】的三下連段：接著砍是 第一下 → 第二下 → 收尾（比較痛、側面也掃得到），再來從第一下重來；
 ## 停手超過 combo_window 就重來。每砍中一刀身上多一層流血（對諾恩＝出手變快，出手越快砍得越重）＋微弱中毒。
 func test_three_hit_combo_ends_in_a_wide_finisher_and_each_cut_stacks_bleed() -> void:

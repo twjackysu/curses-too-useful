@@ -50,6 +50,9 @@ func _run() -> void:
 				break
 			case.tree = self
 			case.current_test = "%s::%s" % [path.get_file(), name]
+			# 測試自己擺位置、自己叫諾恩出手：自動攻擊（設定，預設開）每個測試開始前都關掉——有的測試會重讀設定檔，把它讀回預設的「開」。
+			# 要測自動攻擊的測試自己打開
+			root.get_node("Settings").set("auto_attack", false)
 			case.before_each()
 			await case.call(name)
 			case.after_each()

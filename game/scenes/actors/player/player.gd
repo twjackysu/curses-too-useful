@@ -146,6 +146,8 @@ var _combo_left: float = 0.0
 var _lunge_left: float = 0.0
 var _lunge_dir: Vector3 = Vector3.ZERO
 var _lunge_target: Node3D
+## 這一幀自動攻擊挑到的敵人（沒有＝null；出手時對準牠）
+var _auto_foe: Node3D
 ## 滑過幾公尺（測試用）
 var lunge_moved: float = 0.0
 ## 挨打的硬直：被直接打中（不是狀態扣血）的那一下，出到一半的招沒了、`noen.hurt_stun` 秒內不能出手也不能閃、
@@ -290,6 +292,13 @@ func _physics_process(delta: float) -> void:
 	if not talking and Game.session.in_story() and Input.is_action_just_pressed("use_item") and not health.is_dead():
 		use_potion()
 	var want: String = _wanted_action(delta, talking)
+	# 不用一下一下點：按住出手鍵就接著砍；自動攻擊（設定）開著的話，身邊有活著的敵人就自己出手、對準最近的那一隻
+	_auto_foe = null
+	if want == "" and not talking and _puppet.action == "":
+		if Settings.auto_attack:
+			_auto_foe = auto_target()
+		if _auto_foe != null or Input.is_action_pressed("attack"):
+			want = "attack"
 	if talking:
 		pass
 	elif hurt_left > 0.0:
@@ -736,6 +745,29 @@ func release() -> Dictionary:
 	return last_release
 
 
+## 自動攻擊要打誰：身邊 `noen.auto_attack_range` 公尺內最近的、活著的敵人；沒有回傳 null。
+## 鎖定中只打鎖定的那一隻（夠得到才出手）。
+func auto_target() -> Node3D:
+	var reach: float = CombatTuning.num("noen.auto_attack_range", 2.3)
+	if lock_target != null and is_instance_valid(lock_target):
+		return lock_target if _flat_distance_to(lock_target) <= reach else null
+	var best: Node3D = null
+	var best_d: float = reach
+	for n: Node in get_tree().get_nodes_in_group("enemies"):
+		var e := n as EnemyActor
+		if e == null or e.health == null or e.health.is_dead() or not e.is_in_group("damageable"):
+			continue
+		var d: float = _flat_distance_to(e)
+		if d <= best_d:
+			best_d = d
+			best = e
+	return best
+
+
+func _flat_distance_to(n: Node3D) -> float:
+	return Vector2(n.global_position.x - global_position.x, n.global_position.z - global_position.z).length()
+
+
 func start_attack() -> void:
 	combo_step = (combo_step + 1) % COMBO_LEN if _combo_left > 0.0 else 0
 	_combo_left = CombatTuning.num("noen.combo_window", 0.0)
@@ -758,6 +790,9 @@ func _begin_lunge() -> void:
 	var foes: Array = get_tree().get_nodes_in_group("enemies").filter(func(n: Node) -> bool:
 		return not (n is EnemyActor and (n as EnemyActor).health.is_dead()))
 	var foe: Node3D = lock_target if lock_target != null and is_instance_valid(lock_target) else lunge_pick(global_position, -_body.global_basis.z, seek, foes)
+	# 自動攻擊挑好的那一隻（可能在背後）：直接對準牠，不看身體與鏡頭朝哪
+	if _auto_foe != null and is_instance_valid(_auto_foe) and (lock_target == null or not is_instance_valid(lock_target)):
+		foe = _auto_foe
 	if foe == null:
 		# 身體前面沒有人（例如正在往後退）：改看鏡頭前面——玩家看著誰就打誰
 		foe = lunge_pick(global_position, Basis(Vector3.UP, yaw) * Vector3.FORWARD, seek, foes)

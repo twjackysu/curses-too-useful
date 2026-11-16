@@ -28,8 +28,8 @@ var vsync: bool = true
 var reduce_camera_shake: bool = false
 ## 目標指引（HUD 上指向目前目標的小菱形＋距離；02-gameplay「目標指引」）
 var objective_marker: bool = true
-## 觀察提示音（第 3 章段落 2）：掛著的送葬者轉頭之前，鏈子先響一聲。關掉就只看動作。
-var observe_cue: bool = true
+## 自動攻擊（Jacky 2026-11-16：「一直點滑鼠感覺會點壞」）：身邊有敵人諾恩就自己出手，玩家只要移動、閃避。關掉＝自己按（按住也會接著砍）。
+var auto_attack: bool = true
 ## 目前的按鍵綁定（格式見 InputSetup）；存檔時只寫跟預設不同的動作到 [input]
 var input_bindings: Dictionary = InputSetup.defaults()
 
@@ -129,8 +129,8 @@ func set_option(option: String, value: bool) -> void:
 			reduce_camera_shake = value
 		"objective_marker":
 			objective_marker = value
-		"observe_cue":
-			observe_cue = value
+		"auto_attack":
+			auto_attack = value
 		_:
 			push_error("Settings: 沒有選項 %s" % option)
 			return
@@ -150,8 +150,8 @@ func get_option(option: String) -> bool:
 			return reduce_camera_shake
 		"objective_marker":
 			return objective_marker
-		"observe_cue":
-			return observe_cue
+		"auto_attack":
+			return auto_attack
 	return false
 
 
@@ -227,7 +227,7 @@ func load_settings(path: String = _config_path) -> void:
 	difficulty = normalize_difficulty(str(cfg.get_value("gameplay", "difficulty", DEFAULT_DIFFICULTY)))
 	reduce_camera_shake = bool(cfg.get_value("general", "reduce_camera_shake", false))
 	objective_marker = bool(cfg.get_value("general", "objective_marker", true))
-	observe_cue = bool(cfg.get_value("general", "observe_cue", true))
+	auto_attack = bool(cfg.get_value("gameplay", "auto_attack", true))
 	for bus_name: String in VOLUME_BUSES:
 		var key: String = bus_name.to_lower() + "_volume"
 		volumes[bus_name] = clampf(float(cfg.get_value("audio", key, volumes.get(bus_name, 1.0))), 0.0, 1.0)
@@ -248,7 +248,7 @@ func save_settings(path: String = _config_path) -> Error:
 	cfg.set_value("gameplay", "difficulty", difficulty)
 	cfg.set_value("general", "reduce_camera_shake", reduce_camera_shake)
 	cfg.set_value("general", "objective_marker", objective_marker)
-	cfg.set_value("general", "observe_cue", observe_cue)
+	cfg.set_value("gameplay", "auto_attack", auto_attack)
 	for bus_name: String in VOLUME_BUSES:
 		cfg.set_value("audio", bus_name.to_lower() + "_volume", volume(bus_name))
 	cfg.set_value("video", "quality", int(quality))

@@ -639,6 +639,47 @@ func _mash_until_clear(level: CorruptForest, player: PlayerController, max_frame
 	return -1
 
 
+## 自動攻擊開著（預設）：玩家只要走過去——往最近的史萊姆小跑，一次都不按出手，三隻照樣清得掉；左上的操作提示改寫「靠近敵人會自己砍」。
+func test_with_auto_attack_walking_up_to_the_slimes_is_enough() -> void:
+	var settings: Node = tree.root.get_node("Settings")
+	_new_game_joined()
+	_session().set_flag(CorruptForest.FLAG_REVERSAL, true)
+	_session().set_flag(CorruptForest.FLAG_MISFIRE, true)  # 席菈不插手：這裡只量諾恩自己
+	var level: CorruptForest = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	level.sera.set_physics_process(false)
+	assert_eq(hud.hint_key_now(), "Q_CH1_HINT_FIGHT", "自動攻擊關著：提示寫按哪個鍵攻擊")
+	var manual_hint: String = hud.hint_text()
+	settings.set("auto_attack", true)
+	settings.emit_signal("changed")
+	assert_eq(hud.hint_key_now(), "Q_CH1_HINT_FIGHT_AUTO", "開著：改寫「靠近敵人會自己砍」")
+	assert_ne(hud.hint_text(), manual_hint, "設定一改，畫面上的提示跟著換")
+	assert_false(hud.hint_text().contains("{"), "按鍵都換好了：%s" % hud.hint_text())
+	player.global_position = CorruptForest.GLADE_POS + Vector3(0, 0.05, 4.0)
+	var frames: int = -1
+	for f: int in 1800:
+		if level.slimes_alive() == 0:
+			frames = f
+			break
+		var nearest: Slime = null
+		for sl: Slime in level.slimes:
+			if is_instance_valid(sl) and not sl.health.is_dead() and (nearest == null or sl.global_position.distance_to(player.global_position) < nearest.global_position.distance_to(player.global_position)):
+				nearest = sl
+		var to: Vector3 = nearest.global_position - player.global_position
+		to.y = 0.0
+		if to.length() > 1.6 and player.hurt_left <= 0.0:
+			player.global_position += to.normalized() * (PlayerController.WALK_SPEED / 60.0)
+		await tree.physics_frame
+	Engine.time_scale = 1.0
+	print("    自動攻擊：只走過去、不按出手，三隻史萊姆 %d 幀清完" % frames)
+	assert_true(frames > 0, "只靠走位就清得掉")
+	assert_true(frames < 60 * 12, "不比自己按慢太多（%d 幀）" % frames)
+	assert_true(player.on_hit_applied > 0, "砍中照樣給自己流血＋中毒")
+	assert_false(player.health.is_dead())
+
+
 ## 劇本：超頻的諾恩一刀秒殺史萊姆群。吃了拿錯的那一瓶之後一直按出手：一刀一隻（出手越快砍得越重），三隻 2.5 秒內清掉，
 ## 而且明顯比沒吃的時候快、出的刀也少。
 ## （這個測試量出過一個真的問題：出手會自動轉向最近的敵人，以前連剛倒下的也算——打完第一隻之後一直砍屍體，旁邊活的打不到。）

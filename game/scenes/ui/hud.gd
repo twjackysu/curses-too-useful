@@ -110,6 +110,8 @@ func _ready() -> void:
 	_refresh_objective(false)
 	_saved.modulate.a = 0.0
 	Game.player_died.connect(_on_player_died)
+	# 設定改了（自動攻擊開／關）：操作提示跟著換
+	Settings.changed.connect(_refresh_hint)
 	# 截圖用：`--nohud` 整個 HUD 不顯示（Steam 膠囊圖替代版的背景、宣傳截圖）
 	if App.parse_user_args(OS.get_cmdline_user_args()).has("nohud"):
 		visible = false
@@ -575,6 +577,12 @@ func set_extra_hint(key: String, args: Dictionary = {}) -> void:
 	_refresh_hint()
 
 
+## 這個階段的操作提示現在用哪一句：自動攻擊開著、而且這一句有「_AUTO」的版本就用它（不寫「按哪個鍵攻擊」，改寫「靠近敵人會自己砍」）。
+func hint_key_now() -> String:
+	var auto_key: String = _hint_key + "_AUTO"
+	return auto_key if Settings.auto_attack and tr(auto_key) != auto_key else _hint_key
+
+
 ## 操作提示：翻譯好的字裡 {attack}、{dodge} 這類動作名換成現在裝置的按鍵；{move}、{look} 是移動與轉視角。
 func _refresh_hint() -> void:
 	_hint_device = App.last_device
@@ -592,7 +600,7 @@ func _refresh_hint() -> void:
 		keys[action] = InputGlyphs.label_for_action(action, _hint_device)
 	var lines: PackedStringArray = []
 	if _hint_key != "":
-		lines.append(tr(_hint_key).format(keys))
+		lines.append(tr(hint_key_now()).format(keys))
 	if _extra_hint_key != "":
 		keys.merge(_extra_hint_args)
 		lines.append(tr(_extra_hint_key).format(keys))
