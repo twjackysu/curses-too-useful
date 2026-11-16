@@ -29,7 +29,7 @@ func after_each() -> void:
 	_game().set("change_scenes", true)
 	_game().set("session", _old_session)
 	_game().set("dialogue", null)
-	Engine.time_scale = 1.0
+	_game().call("cancel_hit_stop")
 	if DirAccess.dir_exists_absolute(_dir):
 		for f: String in DirAccess.get_files_at(_dir):
 			DirAccess.remove_absolute(_dir.path_join(f))

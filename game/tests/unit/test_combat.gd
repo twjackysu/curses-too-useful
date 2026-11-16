@@ -226,6 +226,22 @@ func test_hit_stop_restores_time_scale() -> void:
 	assert_eq(Engine.time_scale, 1.0, "用真實時間計時並恢復")
 
 
+## 粉碎魔像核心的那一刀：先定格，再用慢動作演一段，最後才恢復；倒下重來／換關卡會把還沒演完的取消
+func test_hit_stop_can_trail_into_slow_motion_and_be_cancelled() -> void:
+	var game: Node = tree.root.get_node("Game")
+	game.call("hit_stop", 0.05, 0.15, 0.25)
+	assert_true(Engine.time_scale < 0.2, "先定格")
+	await tree.create_timer(0.1, true, false, true).timeout
+	assert_eq(Engine.time_scale, 0.25, "定格完：慢動作")
+	await tree.create_timer(0.2, true, false, true).timeout
+	assert_eq(Engine.time_scale, 1.0, "慢動作演完恢復")
+	game.call("hit_stop", 0.05, 0.3, 0.25)
+	game.call("cancel_hit_stop")
+	assert_eq(Engine.time_scale, 1.0, "取消：馬上恢復")
+	await tree.create_timer(0.15, true, false, true).timeout
+	assert_eq(Engine.time_scale, 1.0, "取消之後後面那一段慢動作不會再冒出來")
+
+
 func test_reduced_shake() -> void:
 	var settings: Node = tree.root.get_node("Settings")
 	var before: bool = bool(settings.get("reduce_camera_shake"))

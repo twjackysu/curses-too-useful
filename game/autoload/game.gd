@@ -105,6 +105,7 @@ func go_to_level(level_id: String) -> void:
 		push_error("Game: 沒有關卡 %s" % level_id)
 		return
 	last_level_request = level_id
+	cancel_hit_stop()
 	if not change_scenes:
 		return
 	var err: Error = get_tree().change_scene_to_file(path)
@@ -162,7 +163,7 @@ static func playtime_step(delta: float, time_scale: float) -> float:
 ## 遊戲時間不跟著退回檢查點（倒下重來的那幾分鐘也是玩的時間）。
 func retry(reload_level: bool = true) -> void:
 	_player_dead = false
-	Engine.time_scale = 1.0
+	cancel_hit_stop()
 	dialogue = null
 	var played: float = session.state.playtime_sec
 	if session.retry_from_checkpoint() != SaveCodec.Status.OK:
@@ -173,15 +174,28 @@ func retry(reload_level: bool = true) -> void:
 
 
 ## 打擊停頓：短暫把時間放慢，用真實時間計時後恢復（重疊時以最後一次為準）。
-func hit_stop(seconds: float) -> void:
+## 給了 tail_sec：停完之後再用 tail_scale 的慢動作演這麼久才恢復（粉碎魔像核心的那一刀：先定格、碎片再慢慢飛出來）。
+func hit_stop(seconds: float, tail_sec: float = 0.0, tail_scale: float = 1.0) -> void:
 	if seconds <= 0.0:
 		return
 	_hit_stop_token += 1
 	var token: int = _hit_stop_token
 	Engine.time_scale = CombatTuning.num("feel.hit_stop_time_scale", 0.05)
 	await get_tree().create_timer(seconds, true, false, true).timeout
-	if token == _hit_stop_token:
-		Engine.time_scale = 1.0
+	if token != _hit_stop_token:
+		return
+	if tail_sec > 0.0:
+		Engine.time_scale = tail_scale
+		await get_tree().create_timer(tail_sec, true, false, true).timeout
+		if token != _hit_stop_token:
+			return
+	Engine.time_scale = 1.0
+
+
+## 還沒演完的打擊停頓／慢動作不要了（倒下重來、回標題、換關卡：不然新的一關開頭會被它放慢）
+func cancel_hit_stop() -> void:
+	_hit_stop_token += 1
+	Engine.time_scale = 1.0
 
 
 func is_hit_stopped() -> bool:
@@ -208,7 +222,7 @@ func _on_dialogue_finished(dialogue_id: String) -> void:
 
 
 func back_to_title() -> void:
-	Engine.time_scale = 1.0
+	cancel_hit_stop()
 	_player_dead = false
 	dialogue = null
 	last_level_request = TITLE_REQUEST

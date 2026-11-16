@@ -692,6 +692,13 @@ func show_center_lines(key1: String, key2: String, seconds: float = 4.0, line1_c
 
 
 ## 中間兩行字現在的內容（測試用；沒顯示時是空的）
+## 中間那兩行字馬上收掉（收尾的鏡頭：畫面中間要乾淨）
+func hide_center_lines() -> void:
+	if _center_tween != null:
+		_center_tween.kill()
+	_center.modulate.a = 0.0
+
+
 func center_lines() -> PackedStringArray:
 	if _center.modulate.a <= 0.0 and (_center_tween == null or not _center_tween.is_running()):
 		return PackedStringArray()

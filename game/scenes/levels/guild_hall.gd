@@ -75,7 +75,6 @@ const SERA_TALK_DIST: float = 2.3
 const END_CARD_DELAY: float = 1.4
 const END_MUSIC_DB: float = -5.0
 const MURMUR_DB: float = -17.0
-const CORE_SHADER: Shader = preload("res://src/world/golem_core.gdshader")
 ## 結尾席菈跟在諾恩左後方半步（玩家的鏡頭裡看得到她整個人）
 const SERA_FOLLOW_OFFSET: Vector3 = Vector3(-1.3, 0.0, 0.7)
 
@@ -89,7 +88,7 @@ var party: Dictionary = {}
 var crowd: Dictionary = {}
 var crystal_use: Interactable
 var lilith_use: Interactable
-var core: Node3D
+var core: GolemCore
 var card: ChapterCard
 ## 警報響了幾秒（< 0＝沒有在響）
 var _alarm_t: float = -1.0
@@ -476,29 +475,10 @@ func _play_end_card() -> void:
 	card = ChapterCard.play(self, "CARD_END_SMALL", "CARD_END_TITLE", Game.back_to_title)
 
 
-## 魔像核心：一顆裂著病綠色光的石球，扛在諾恩的左肩上（程式拼的）
+## 魔像核心：扛在諾恩的左肩上（GolemCore：祭壇那一關從魔像胸口滾出來的那一顆）
 func _attach_core() -> void:
-	core = Node3D.new()
-	core.name = "GolemCore"
-	var ball := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.24
-	sphere.height = 0.48
-	sphere.radial_segments = 20
-	sphere.rings = 10
-	var mat := ShaderMaterial.new()
-	mat.shader = CORE_SHADER
-	sphere.material = mat
-	ball.mesh = sphere
-	core.add_child(ball)
-	var glow := OmniLight3D.new()
-	glow.light_color = Color(0.35, 1.0, 0.55)
-	glow.light_energy = 0.5
-	glow.omni_range = 2.2
-	glow.shadow_enabled = false
-	core.add_child(glow)
-	core.position = Vector3(-0.3, 1.6, 0.1)
-	_player.get_node("Body").add_child(core)
+	core = GolemCore.create()
+	core.carry_on(_player.get_node("Body") as Node3D)
 
 
 func _mark(node_name: String, at: Vector3) -> void:

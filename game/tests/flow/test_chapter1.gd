@@ -30,7 +30,7 @@ func after_each() -> void:
 	_game().set("change_scenes", true)
 	_game().set("session", _old_session)
 	_game().set("dialogue", null)
-	Engine.time_scale = 1.0
+	_game().call("cancel_hit_stop")
 	CombatTuning.load_tuning()
 	if DirAccess.dir_exists_absolute(_dir):
 		for f: String in DirAccess.get_files_at(_dir):
@@ -696,7 +696,7 @@ func test_with_auto_attack_walking_up_to_the_slimes_is_enough() -> void:
 		if to.length() > 1.6 and player.hurt_left <= 0.0:
 			player.global_position += to.normalized() * (PlayerController.WALK_SPEED / 60.0)
 		await tree.physics_frame
-	Engine.time_scale = 1.0
+	_game().call("cancel_hit_stop")
 	print("    自動攻擊：只走過去、不按出手，三隻史萊姆 %d 幀清完" % frames)
 	assert_true(frames > 0, "只靠走位就清得掉")
 	assert_true(frames < 60 * 12, "不比自己按慢太多（%d 幀）" % frames)
@@ -1495,7 +1495,7 @@ func test_walkthrough_from_new_game_to_the_end_of_chapter_one() -> void:
 			break
 	assert_true(golem.health.is_dead(), "粉碎核心")
 	assert_eq(s.quests.stage_of("ch1_main"), "after_boss")
-	Engine.time_scale = 1.0
+	_game().call("cancel_hit_stop")
 	# 戰後那段話講完：拿到核心，一張卡，換回公會大廳
 	await _until_dialogue(int(RuinedAltar.AFTER_TALK_DELAY * 60.0) + 90)
 	_finish_dialogue(0)
