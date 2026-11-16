@@ -5,6 +5,7 @@ extends CharacterBody3D
 ## 要做什麼由 SeraBrain 決定（純邏輯、有測試），這裡只管走路、轉身、舉弩、生出藥瓶。
 ## 不擋路、不會被打（collision_layer＝0）；樹與地形擋得住她。離太遠（被卡住）就直接出現在諾恩後面。
 ## 她沒有諾恩的體質：瘴氣對她是真的毒，所以靠近瘴氣就把防毒面具戴上（劇本節點 2），離開一下子才拿下來。
+## Boss 戰關卡可以叫她站到後排（hold_at）、指定射哪一瓶（shoot）；凝視打到她會被石化一陣子（petrify）。
 ## 還沒結伴（joined＝false）的時候等在原地：不跟、不射；關卡給了她在看的東西（hesitate_at＝瘴氣）就在它前面走近幾步又退回來，
 ## 諾恩走近才停下來、轉過來看他。
 
@@ -40,6 +41,8 @@ signal asked(ok: bool)
 signal reloaded
 ## 射出一瓶的那一刻（關卡接這個：第一次射某一種的時候讓她喊一句）
 signal fired(vial: SeraVial)
+## 石化解除的那一刻
+signal unpetrified
 
 var brain: SeraBrain = SeraBrain.new()
 ## 下一瓶射什麼（statuses.json 的來源）；關卡可以換（教學戰的第一瓶是她慌了拿錯的那一瓶）
@@ -61,6 +64,18 @@ var _wait_t: float = 0.0
 var masked: bool = false
 var _mask: Node3D
 var _mask_off_in: float = 0.0
+## 關卡叫她去某個地方站著、不跟諾恩（Boss 戰她退到後排裝禁藥）。Vector3.INF＝照平常跟著
+var hold_at: Vector3 = Vector3.INF
+## true＝手上在忙別的（裝禁藥）：不射平常的藥，玩家也要不到
+var hands_full: bool = false
+## 站在看不到邊的毒裡（Boss 的疫病光環）：關卡設成 true，她就戴著面具
+var force_mask: bool = false
+## 被石化還要幾秒（> 0＝整個人不動、身上蓋一層石頭的灰）
+var stoned_left: float = 0.0
+## 關卡指定要射的那一瓶（shoot）：還要舉弩瞄幾秒（< 0＝沒有）
+var _special_in: float = -1.0
+var _special_source: String = ""
+var _stone_mat: StandardMaterial3D
 var target: PlayerController
 var vials_fired: int = 0
 var last_vial: SeraVial
@@ -102,6 +117,16 @@ func _physics_process(delta: float) -> void:
 	to.y = 0.0
 	var dist: float = to.length()
 	_update_mask(delta)
+	if stoned_left > 0.0:
+		stoned_left -= delta
+		velocity = Vector3.ZERO
+		if stoned_left <= 0.0:
+			_set_stoned(false)
+			unpetrified.emit()
+		return
+	if hold_at.is_finite():
+		_go_hold(delta, to, dist)
+		return
 	if joined and dist > SNAP_DIST:
 		global_position = target.global_position + Vector3.BACK.rotated(Vector3.UP, target.yaw) * CombatTuning.num("sera.follow_near", 4.5)
 		return
@@ -118,6 +143,9 @@ func _physics_process(delta: float) -> void:
 		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
 	if locked:
 		return
+	_tick_special(delta)
+	if hands_full or _special_in >= 0.0:
+		return
 	if Input.is_action_just_pressed(ASK_ACTION):
 		ask()
 	var was_aiming: bool = brain.is_aiming()
@@ -128,6 +156,70 @@ func _physics_process(delta: float) -> void:
 		_puppet.play_action("shoot")
 	if was_loading and brain.ask_left <= 0.0:
 		reloaded.emit()
+
+
+## 關卡叫她站到 hold_at：跑過去、到了就面向諾恩站著。不跟、不射平常的藥；關卡指定的那一瓶（shoot）照樣舉弩射。
+func _go_hold(delta: float, to_target: Vector3, target_dist: float) -> void:
+	var step: Vector3 = hold_at - global_position
+	step.y = 0.0
+	var moving: bool = step.length() > 0.35 and _special_in < 0.0 and not Game.is_player_locked()
+	var dir: Vector3 = step.normalized() if moving else (to_target / target_dist if target_dist > 0.01 else Vector3.ZERO)
+	var speed: float = CombatTuning.num("sera.run_speed", 5.6) if moving else 0.0
+	velocity = Vector3(dir.x * speed, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, dir.z * speed) if moving else Vector3(0.0, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, 0.0)
+	move_and_slide()
+	_puppet.set_move_speed(speed)
+	if dir.length() > 0.01:
+		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
+	_tick_special(delta)
+
+
+## 關卡指定的那一瓶：舉弩瞄 aim_time 秒後擊發
+func _tick_special(delta: float) -> void:
+	if _special_in < 0.0 or Game.is_player_locked():
+		return
+	_special_in -= delta
+	if _special_in < 0.0:
+		_launch(_special_source)
+
+
+## 馬上舉弩射一瓶指定的藥（劇情用：Boss 戰的禁藥）。舉弩 aim_time 秒後擊發，一樣發 fired。被石化的時候不射。
+func shoot(source: String) -> void:
+	if stoned_left > 0.0:
+		return
+	_special_source = source
+	_special_in = CombatTuning.num("sera.aim_time", 0.6)
+	_puppet.play_action("shoot")
+
+
+## 石化（Boss 的凝視打到她）：seconds 秒內整個人不動，手上的事也停了。
+func petrify(seconds: float) -> void:
+	stoned_left = maxf(seconds, 0.0)
+	_special_in = -1.0
+	_set_stoned(stoned_left > 0.0)
+
+
+func is_petrified() -> bool:
+	return stoned_left > 0.0
+
+
+func _exit_tree() -> void:
+	# 蓋著石頭的灰被釋放的話，材質會比身上的網格先沒（引擎報「material is null」）：先拿掉
+	if _stone_mat != null:
+		_set_stoned(false)
+
+
+## 石頭的灰蓋在身上、動作停在那一格
+func _set_stoned(on: bool) -> void:
+	if _stone_mat == null:
+		_stone_mat = StandardMaterial3D.new()
+		_stone_mat.albedo_color = Color(0.56, 0.57, 0.62)
+		_stone_mat.roughness = 1.0
+	for n: Node in find_children("*", "GeometryInstance3D", true, false):
+		(n as GeometryInstance3D).material_overlay = _stone_mat if on else null
+	_puppet.set_move_speed(0.0)
+	_puppet.set_process(not on)
+	if _puppet.anim != null:
+		_puppet.anim.speed_scale = 0.0 if on else 1.0
 
 
 ## 還沒結伴、諾恩還沒走近：在原位與瘴氣之間來回（現在想站哪由 SeraBrain.hesitate_goal 決定）。
@@ -173,13 +265,19 @@ func ask() -> bool:
 
 ## 擊發：從弩口生一瓶藥飛向諾恩。玩家要的那一瓶射 ask_source，她自己射的是 vial_source（有 vial_cycle 就輪到下一種）。
 func fire() -> SeraVial:
-	vials_fired += 1
-	var from: Vector3 = _crossbow.global_position if _crossbow != null else global_position + Vector3.UP * 1.2
-	last_vial = SeraVial.launch(get_parent(), from, target, ask_source if _asked else vial_source)
+	var vial: SeraVial = _launch(ask_source if _asked else vial_source)
 	if not _asked and not vial_cycle.is_empty():
 		_cycle_i = (_cycle_i + 1) % vial_cycle.size()
 		vial_source = vial_cycle[_cycle_i]
 	_asked = false
+	return vial
+
+
+## 從弩口生一瓶 source 飛向諾恩
+func _launch(source: String) -> SeraVial:
+	vials_fired += 1
+	var from: Vector3 = _crossbow.global_position if _crossbow != null else global_position + Vector3.UP * 1.2
+	last_vial = SeraVial.launch(get_parent(), from, target, source)
 	Sfx.play_at(self, "whoosh", from, -6.0)
 	fired.emit(last_vial)
 	return last_vial
@@ -195,7 +293,7 @@ func near_miasma() -> bool:
 
 
 func _update_mask(delta: float) -> void:
-	if near_miasma():
+	if force_mask or near_miasma():
 		_mask_off_in = MASK_OFF_DELAY
 		_set_masked(true)
 	elif masked:

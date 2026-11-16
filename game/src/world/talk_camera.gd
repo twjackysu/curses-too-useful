@@ -22,6 +22,7 @@ const MAX_DETOUR: float = 1.6
 ## 鏡位被場景擋住（樹、岩石）就往講話的人拉近；角色不算
 const WORLD_MASK: int = 1 | 2
 const WALL_MARGIN: float = 0.25
+const DROP_META: String = "talk_drop"
 
 var cast: Dictionary[String, Node3D] = {}
 
@@ -35,17 +36,23 @@ var _blend: float = 0.0
 
 
 ## 這一句的鏡位。`speaker`、`listener` 是兩人腳下的位置，`home` 是玩家鏡頭的位置（決定站在兩人連線的哪一側）。
-static func shot(speaker: Vector3, listener: Vector3, home: Vector3) -> Transform3D:
+## `drop`＝講話的人比站著矮多少（倒在地上的人：鏡頭與對準的地方一起放低）。
+static func shot(speaker: Vector3, listener: Vector3, home: Vector3, drop: float = 0.0) -> Transform3D:
 	var flat := Vector3(listener.x - speaker.x, 0.0, listener.z - speaker.z)
 	var fwd: Vector3 = flat.normalized() if flat.length() > 0.05 else Vector3.BACK
 	var right: Vector3 = fwd.cross(Vector3.UP)
 	var side: float = 1.0 if (home - speaker).dot(right) >= 0.0 else -1.0
-	var eye: Vector3 = speaker + fwd * DIST + right * side * SIDE + Vector3.UP * EYE_HEIGHT
-	return Transform3D(Basis.looking_at(aim_point(speaker) - eye, Vector3.UP), eye)
+	var eye: Vector3 = speaker + fwd * DIST + right * side * SIDE + Vector3.UP * (EYE_HEIGHT - drop * 0.8)
+	return Transform3D(Basis.looking_at(aim_point(speaker, drop) - eye, Vector3.UP), eye)
 
 
-static func aim_point(speaker: Vector3) -> Vector3:
-	return speaker + Vector3.UP * AIM_HEIGHT
+static func aim_point(speaker: Vector3, drop: float = 0.0) -> Vector3:
+	return speaker + Vector3.UP * (AIM_HEIGHT - drop)
+
+
+## 這個人比站著矮多少（關卡在倒地的人身上設 meta "talk_drop"）
+static func drop_of(who: Node3D) -> float:
+	return float(who.get_meta(DROP_META, 0.0))
 
 
 ## 從 from 滑到 to 的路上要往旁邊繞多少（水平的向量）：加在位置上的是「它 × sin(π × 走了幾成)」，所以兩端不動、中間鼓出去。
@@ -177,8 +184,9 @@ func _frame(who: Node3D) -> Transform3D:
 	var other: Node3D = _listener(who)
 	var home: Vector3 = _home.global_position
 	var from: Vector3 = who.global_position
-	var s: Transform3D = shot(from, other.global_position if other != null else home, home)
-	var aim: Vector3 = aim_point(from)
+	var drop: float = drop_of(who)
+	var s: Transform3D = shot(from, other.global_position if other != null else home, home, drop)
+	var aim: Vector3 = aim_point(from, drop)
 	var query := PhysicsRayQueryParameters3D.create(aim, s.origin, WORLD_MASK)
 	var skip: Array[RID] = []
 	for key: String in cast:

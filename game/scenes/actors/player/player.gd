@@ -1078,7 +1078,7 @@ func weapon() -> Node3D:
 
 
 ## 霸體無敵（石化被反轉）的時候整個人蓋一層金光：看得出「現在打不動他」。劍有自己的那一層，不蓋。
-const BODY_GLOW_FILL: float = 0.28
+const BODY_GLOW_FILL: float = 0.1
 const BODY_GLOW_RIM: float = 2.4
 var _body_glow_mat: ShaderMaterial
 var _body_glow_on: bool = false
@@ -1089,7 +1089,15 @@ func is_body_glowing() -> bool:
 
 
 func _update_body_glow() -> void:
-	var on: bool = status_effects.is_unstoppable()
+	_set_body_glow(status_effects.is_unstoppable())
+
+
+func _exit_tree() -> void:
+	# 蓋著金光被釋放的話，材質會比身上的網格先沒（引擎報「material is null」）：先拿掉
+	_set_body_glow(false)
+
+
+func _set_body_glow(on: bool) -> void:
 	if on == _body_glow_on:
 		return
 	_body_glow_on = on
