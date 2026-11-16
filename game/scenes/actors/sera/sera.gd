@@ -32,6 +32,8 @@ const NOTICE_DIST: float = 9.0
 ## 猶豫時轉身的速度（比平常慢：看得出她轉過去、又回頭）；還沒轉到這個程度（面向與要走的方向的內積）先不邁步
 const HESITATE_TURN_SPEED: float = 5.0
 const HESITATE_FACING: float = 0.6
+## 被石化時蓋在身上的灰、掉下來的碎屑的顏色
+const STONE_COLOR: Color = Color(0.56, 0.57, 0.62)
 
 ## 面具戴上／拿下來的那一刻（關卡接這個讓她喊一句）
 signal mask_changed(on: bool)
@@ -124,6 +126,8 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		if stoned_left <= 0.0:
 			_set_stoned(false)
+			_stone_bits(18, Vector2(1.5, 4.5))
+			Sfx.play_at(get_parent(), "rubble_scrape", global_position + Vector3.UP, -4.0, 0.08, 6.0)
 			unpetrified.emit()
 		return
 	if hold_at.is_finite():
@@ -198,6 +202,14 @@ func petrify(seconds: float) -> void:
 	stoned_left = maxf(seconds, 0.0)
 	_special_in = -1.0
 	_set_stoned(stoned_left > 0.0)
+	if stoned_left > 0.0:
+		_stone_bits(8, Vector2(0.6, 1.8))
+
+
+## 石頭的碎屑從身上掉下來：變成石頭的那一刻掉幾塊、解除的時候整層殼剝落
+func _stone_bits(amount: int, speed: Vector2) -> void:
+	if is_inside_tree():
+		RockDebris.burst(get_parent(), global_position + Vector3.UP * 1.1, Vector3.UP, amount, 0.1, STONE_COLOR, speed)
 
 
 func is_petrified() -> bool:
@@ -214,7 +226,7 @@ func _exit_tree() -> void:
 func _set_stoned(on: bool) -> void:
 	if _stone_mat == null:
 		_stone_mat = StandardMaterial3D.new()
-		_stone_mat.albedo_color = Color(0.56, 0.57, 0.62)
+		_stone_mat.albedo_color = STONE_COLOR
 		_stone_mat.roughness = 1.0
 	for n: Node in find_children("*", "GeometryInstance3D", true, false):
 		(n as GeometryInstance3D).material_overlay = _stone_mat if on else null

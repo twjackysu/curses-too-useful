@@ -44,6 +44,20 @@ const AFTER_TALK_RELOAD: float = 1.4
 const RETURN_DELAY: float = 2.6
 ## 席菈裝禁藥的時候退到石板邊上的這一圈（八個方向挑離魔像最遠的）
 const HOLD_RING: float = 12.0
+## 粉碎核心的那一刀：先定格多久、再用幾倍速的慢動作演多久（真實時間）；鏡頭切到兩人的側面停多久才滑回來（停到魔像倒地）、
+## 離兩人多遠、多高、看著多高的地方（放低往上看：魔像才顯得大）
+const FINISH_STOP_SEC: float = 0.35
+const FINISH_SLOW_SEC: float = 1.1
+const FINISH_SLOW_SCALE: float = 0.25
+const FINISH_HOLD_SEC: float = 3.5
+const FINISH_CAM_DIST: float = 5.4
+const FINISH_CAM_HEIGHT: float = 1.3
+const FINISH_AIM_HEIGHT: float = 1.8
+## 魔像已經倒了的存檔讀回來：核心躺在石板上的這裡；戰後那段話講完，核心飛到諾恩肩上要多久
+const CORE_REST: Vector3 = Vector3(-1.6, 0.24, 1.2)
+const CORE_TAKE_SEC: float = 0.7
+## 第一次走進光環的那兩行說明出來之後，隔多久席菈才喊面具的那一句（開打的頭幾秒字太多：說明、雷歐的一句、魔像的第一拳都擠在這時候）
+const AURA_BARK_GAP: float = 7.0
 const GOLD: Color = Color(1.0, 0.84, 0.4)
 
 var scenery: AltarScenery
@@ -54,6 +68,9 @@ var talk_camera: TalkCamera
 var chatter: SeraChatter
 ## 換到公會大廳之前的那張卡（還沒到那一拍是 null）
 var card: ChapterCard
+## 魔像倒地之後滾出來的核心（還沒倒是 null）；粉碎那一刀的側面鏡頭（演完自己收掉）
+var core: GolemCore
+var finisher: FinisherCamera
 ## 雷歐小隊：節點名 → 那個人
 var party: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
@@ -65,6 +82,7 @@ var _return_in: float = -1.0
 var _chaos_vial: SeraVial
 var _plague_level: float = 0.0
 var _pulse_t: float = 0.0
+var _aura_bark_in: float = 0.0
 ## 開發用（連拍）：凝視一開始就把諾恩放到那道光上、核心一開就去砍
 var _demo: String = ""
 var _burst_on: String = ""
@@ -99,6 +117,8 @@ func _ready() -> void:
 		Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
 			for i: int in talk_skip:
 				r.advance.call_deferred())
+	_burst_on = str(args.get("burst-on", ""))
+	_demo = str(args.get("demo", ""))
 	scenery = AltarScenery.build(self, _rng)
 	_spores = ForestScenery.build_spores(self)
 	_mark("AltarRuins", Vector3(0, 0, 6.0))
@@ -121,18 +141,22 @@ func _ready() -> void:
 			golem.health.hp = golem.health.max_hp * golem.phases.enrage_at
 	elif stage() == STAGE_AFTER:
 		_after_talk_in = AFTER_TALK_RELOAD  # 魔像倒了、話還沒講就離開的存檔：讀回來接著講
+		core = GolemCore.create()
+		core.position = CORE_REST
+		add_child(core)
 	Game.dialogue_ended.connect(_on_dialogue_ended)
-	# 連拍用（scripts/burst.sh）：`--burst-on=enrage|gaze|fire|chaos|shatter` 那一刻開始拍；`--demo=block` 凝視一開始就把諾恩放到那道光上、
-	# 核心一開就走過去砍（拍「擋住 → 禁藥 → 粉碎」那一串，不用真的打）
-	_burst_on = str(args.get("burst-on", ""))
-	_demo = str(args.get("demo", ""))
+	# 連拍用（scripts/burst.sh）：`--burst-on=hit|enrage|gaze|fire|chaos|shatter|down` 那一刻開始拍（hit＝魔像第一次被砍中、down＝魔像倒下）；`--demo=block` 凝視一開始就把諾恩放到那道光上、
+	# 核心一開就走過去砍（拍「擋住 → 禁藥 → 粉碎」那一串，不用真的打）；`--demo=miss` 只把凝視的前兆縮短（拍沒擋到的那一次）
 	if (_burst_on != "" or _demo != "") and golem != null:
 		# 拍的時候諾恩站著不閃：不要讓他倒下（倒下會重來，等的那一拍永遠等不到）。
 		# 吼與狂暴的那一段縮短（軟體算圖一幀要半秒，等十幾秒的遊戲時間要十分鐘）；`--demo=block` 連凝視的前兆也縮短
 		_player.health.min_hp = 1.0
+		# 第一次走進光環的那幾行字當成看過了（不然會蓋在要拍的東西上）
+		Game.session.state.grant_once("ch1.aura_seen")
+		Game.session.state.grant_once("ch1.aura_mask_bark")
 		golem.phases.roar_sec = 0.4
 		golem.phases.rage_sec = 0.5
-		if _demo == "block":
+		if _demo in ["block", "miss"]:
 			golem.phases.gaze_sec = 1.2
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
 
@@ -186,8 +210,10 @@ func _tick_fight(delta: float) -> void:
 		return
 	var st: GameState = Game.session.state
 	if _demo == "block" and golem.phases.phase == GolemPhases.Phase.GAZE:
-		# 開發用：凝視的前兆中一直站在那道光上（席菈還在跑也跟著）
+		# 開發用：凝視的前兆中一直站在那道光上（席菈還在跑也跟著），鏡頭斜斜地看著魔像
 		_player.global_position = golem.global_position.lerp(sera.global_position, 0.6) + Vector3(0, 0.05, 0)
+		var to_eye: Vector3 = golem.global_position - _player.global_position
+		_player.yaw = atan2(-to_eye.x, -to_eye.z) + deg_to_rad(25.0)
 	if not golem.awake:
 		if _wake_in < 0.0:
 			_wake_in = WAKE_DELAY
@@ -199,7 +225,9 @@ func _tick_fight(delta: float) -> void:
 	if _player.status_effects.has(StatusEffects.PLAGUE) and st.grant_once("ch1.aura_seen"):
 		_hud.show_center_lines("CH1_AURA_LINE1", "CH1_AURA_LINE2", 6.0)
 		_hud.show_bark(party["Leo"] as Node3D, "BARK_LEO_AURA", 3.2, LEO_KEY, Hud.BARK_COLOR, 0.9)
-	if sera.masked and sera.force_mask and st.grant_once("ch1.aura_mask_bark"):
+		_aura_bark_in = AURA_BARK_GAP
+	_aura_bark_in = maxf(_aura_bark_in - delta, 0.0)
+	if _aura_bark_in <= 0.0 and sera.masked and sera.force_mask and st.grant_once("ch1.aura_mask_bark"):
 		_hud.show_bark(sera, "BARK_SERA_AURA", 3.2, Sera.NAME_KEY)
 	# 生命扣到底線就扣不下去了（核心還在）：第一次的時候席菈喊一聲，不然像壞掉
 	if golem.health.min_hp > 0.0 and golem.health.hp <= golem.health.min_hp + 0.5 and st.grant_once("ch1.core_bark"):
@@ -278,7 +306,10 @@ func _spawn_golem() -> void:
 	golem.gaze_started.connect(_on_gaze_started)
 	golem.gaze_fired.connect(_on_gaze_fired)
 	golem.core_shattered.connect(_on_core_shattered)
+	golem.core_dropped.connect(func(dropped: GolemCore) -> void: core = dropped)
 	golem.health.died.connect(_on_golem_down)
+	if _burst_on == "hit":
+		golem.health.damaged.connect(func(_amount: float, _info: Dictionary) -> void: App.burst_start_in(1), CONNECT_ONE_SHOT)
 
 
 ## 狂暴：席菈退到離魔像最遠的石板邊上，開始裝禁藥（不跟、不射平常的藥、玩家也要不到）
@@ -313,6 +344,9 @@ static func hold_spot(from: Vector3) -> Vector3:
 func _on_gaze_started() -> void:
 	_hud.show_center_lines("CH1_GAZE_LINE1", "CH1_GAZE_LINE2", golem.phases.gaze_sec + 0.5)
 	_hud.set_extra_hint("HINT_GAZE")
+	if _demo == "miss":
+		# 開發用：前兆縮短了，席菈來不及跑到後面——直接放過去，諾恩才不會剛好站在線上
+		sera.global_position = sera.hold_at
 	if _burst_on == "gaze":
 		App.burst_start_in(1)
 
@@ -341,14 +375,19 @@ func _on_sera_freed() -> void:
 		_hud.show_bark(sera, "BARK_SERA_FREED", 2.8, Sera.NAME_KEY)
 
 
-## 核心被粉碎的那一刀：停久一點
+## 核心被粉碎的那一刀：定格 → 碎片用慢動作飛出來；鏡頭切到兩人的側面（過肩鏡頭裡這一刻只看得到魔像的肚子），看牠跪下、往後倒，再還給玩家
 func _on_core_shattered() -> void:
-	Game.hit_stop(0.35)
+	Game.hit_stop(FINISH_STOP_SEC, FINISH_SLOW_SEC, FINISH_SLOW_SCALE)
 	_player.shake(0.8)
+	_hud.hide_center_lines()
+	finisher = FinisherCamera.play(self, _player.global_position, golem.global_position, FINISH_HOLD_SEC,
+		FINISH_CAM_DIST, FINISH_CAM_HEIGHT, FINISH_AIM_HEIGHT, [_player.get_rid(), golem.get_rid()])
 
 
 ## 魔像倒了：光環消失、席菈回到諾恩身邊，隔一下三個人講話
 func _on_golem_down() -> void:
+	if _burst_on == "down":
+		App.burst_start_in(1)
 	Game.session.set_flag(FLAG_GOLEM_DOWN, true)
 	_hud.show_banner("CH1_GOLEM_DOWN", 4.0)
 	_hud.set_extra_hint("")
@@ -363,6 +402,9 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 	if dialogue_id == AFTER_DIALOGUE:
 		_hud.show_banner("CH1_GOT_CORE", 4.0)
 		_return_in = RETURN_DELAY
+		# 地上的核心飛到諾恩的左肩旁邊（結尾他就是這樣扛回公會的）
+		if core != null and is_instance_valid(core):
+			core.carry_on(_player.get_node("Body") as Node3D, CORE_TAKE_SEC)
 
 
 func _mark(node_name: String, at: Vector3) -> void:

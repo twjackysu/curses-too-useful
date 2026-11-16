@@ -27,7 +27,7 @@ func after_each() -> void:
 	_game().set("change_scenes", true)
 	_game().set("session", _old_session)
 	_game().set("dialogue", null)
-	Engine.time_scale = 1.0
+	_game().call("cancel_hit_stop")
 	CombatTuning.load_tuning()
 	if DirAccess.dir_exists_absolute(_dir):
 		for f: String in DirAccess.get_files_at(_dir):
@@ -71,6 +71,15 @@ func _load_fight() -> RuinedAltar:
 func _frames(n: int) -> void:
 	for i: int in n:
 		await tree.physics_frame
+
+
+## 關卡底下名字以 prefix 開頭的節點有幾個（特效掛在關卡上，同名的會被編成 名字2、名字3）
+func _named(level: Node, prefix: String) -> int:
+	var n: int = 0
+	for c: Node in level.get_children():
+		if String(c.name).begins_with(prefix):
+			n += 1
+	return n
 
 
 func _finish_dialogue(pick: int) -> void:
@@ -196,7 +205,10 @@ func test_arriving_finds_leos_party_down_then_the_golem_wakes_and_its_plague_fee
 	level.sera.global_position = golem.global_position + Vector3(4.0, 0.0, 3.0)
 	await _frames(4)
 	assert_true(level.sera.masked, "席菈在光環裡戴著防毒面具")
-	assert_true(hud.bark_keys().has("BARK_SERA_AURA"))
+	assert_false(hud.bark_keys().has("BARK_SERA_AURA"), "她的那一句先等一下：光環的說明與雷歐的那一句還在畫面上")
+	level.set("_aura_bark_in", 0.05)
+	await _frames(6)
+	assert_true(hud.bark_keys().has("BARK_SERA_AURA"), "說明收掉之後她才喊面具撐不久")
 
 
 ## 魔像的兩招：重拳（前方一塊）與震地（身邊一大圈）輪流出；核心被粉碎之前生命扣到底線就扣不下去。
@@ -237,8 +249,26 @@ func test_golem_punches_and_slams_and_cannot_die_while_its_core_holds() -> void:
 	golem.set_physics_process(true)
 	golem.health.hp = golem.health.max_hp * 0.45
 	await _frames(4)
+	var debris_before: int = _named(level, "RockDebris")
 	assert_true(golem.health.apply_damage(999999.0, {"source": player, "cut": Vector3.RIGHT}), "照樣算打中")
 	assert_false(golem.health.is_dead(), "核心還在，打不死")
+	# 被砍有反應（不是後仰——牠打不斷）：整個身體頓一下、掉幾塊石屑；扣到底線了：胸口的核心閃一圈
+	assert_eq(golem.jolt_count, 1)
+	assert_eq(_named(level, "RockDebris"), debris_before + 1, "掉石屑")
+	assert_eq(golem.ward_count, 1, "打不下去：核心閃一圈")
+	assert_true(_named(level, "GolemRing") >= 1)
+	await tree.physics_frame
+	var shoved: Vector3 = golem.puppet().position
+	assert_true(Vector2(shoved.x, shoved.z).length() > 0.05, "身體往後頓（%.2f m）" % Vector2(shoved.x, shoved.z).length())
+	assert_true(golem.core_strength() > 1.0, "核心那片光亮一下（%.2f）" % golem.core_strength())
+	assert_false(golem.is_core_marked(), "核心還沒開：沒有「砍這裡」的那一圈")
+	var bar: BossBar = (level.get_node("Hud") as Hud).boss_bar
+	bar.refresh(golem)
+	assert_true(absf(bar.floor_ratio - golem.phases.hp_floor) < 0.001 and not bar.core_open, "生命條在底線那裡有一道刻痕")
+	assert_eq(golem.flinch_count, 0, "還是不會後仰")
+	await _frames(30)
+	assert_true(Vector2(golem.puppet().position.x, golem.puppet().position.z).length() < 0.01, "頓完回到原位")
+	assert_true(golem.core_strength() < 0.6, "核心的光退回平常")
 	assert_true(absf(golem.health.ratio() - golem.phases.hp_floor) < 0.001, "生命停在 %.0f%%" % (golem.health.ratio() * 100.0))
 	level.sera.set_physics_process(true)
 	await _frames(3)
@@ -322,6 +352,8 @@ func test_enraged_golem_gazes_and_an_unshielded_sera_turns_to_stone() -> void:
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_GAZE_LINE1", "CH1_GAZE_LINE2"]))
 	assert_eq(str(hud.get("_extra_hint_key")), "HINT_GAZE", "左上多一行：擋在席菈前面")
 	assert_true(golem.is_beam_shown(), "地上有一道光從魔像連到席菈")
+	var eye: MeshInstance3D = golem.get_node("EyeFlare") as MeshInstance3D
+	assert_true(eye.visible and eye.global_position.y > 2.8, "眼睛亮起來（在頭上：y=%.1f）" % eye.global_position.y)
 	# 諾恩站在線外面
 	player.global_position = golem.global_position + (sera.global_position - golem.global_position).normalized().rotated(Vector3.UP, PI * 0.5) * 6.0 + Vector3(0, 0.05, 0)
 	assert_false(golem.is_gaze_blocked())
@@ -332,6 +364,14 @@ func test_enraged_golem_gazes_and_an_unshielded_sera_turns_to_stone() -> void:
 		if events.size() >= 3:
 			break
 	assert_eq(events[2], "fire:false", "凝視打出去，沒擋到")
+	var ray: MeshInstance3D = level.get_node_or_null("GazeRay") as MeshInstance3D
+	assert_not_null(ray, "一道光從眼睛射出去")
+	if ray != null:
+		var tip: Vector3 = ray.global_transform * Vector3(0.0, 0.0, 0.5)
+		assert_true(tip.distance_to(sera.global_position + Vector3.UP * 1.1) < 0.3, "打在席菈身上")
+		assert_true((ray.global_transform * Vector3(0.0, 0.0, -0.5)).distance_to(golem.eye_point()) < 0.5, "從牠的眼睛出發")
+	assert_true(_named(level, "GolemRing") >= 2, "一圈掃過全場＋打中的那一圈")
+	assert_false(eye.visible and golem.phases.gaze_progress() > 0.0, "打出去之後眼睛不再蓄")
 	assert_true(golem.global_position.distance_to(moved_from) < 0.05, "擺凝視的時候站著不動")
 	assert_true(sera.is_petrified(), "席菈被石化")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_STONED_LINE1", "CH1_STONED_LINE2"]))
@@ -348,6 +388,10 @@ func test_enraged_golem_gazes_and_an_unshielded_sera_turns_to_stone() -> void:
 	sera.stoned_left = 0.05
 	await _frames(6)
 	assert_false(sera.is_petrified())
+	var shed: bool = false
+	for c: Node in level.get_children():
+		shed = shed or (c is CPUParticles3D and String(c.name).contains("RockDebris") and (c as CPUParticles3D).amount == 18)
+	assert_true(shed, "石化解開：身上的石殼剝落")
 	assert_true(hud.bark_keys().has("BARK_SERA_FREED"), "她喊：能動了")
 	for i: int in 300:
 		await tree.physics_frame
@@ -390,6 +434,10 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 		if not fired.is_empty():
 			break
 	assert_eq(fired, [true] as Array[bool], "凝視被擋下來")
+	var ray: MeshInstance3D = level.get_node_or_null("GazeRay") as MeshInstance3D
+	assert_not_null(ray, "一道光從眼睛射出去")
+	if ray != null:
+		assert_true((ray.global_transform * Vector3(0.0, 0.0, 0.5)).distance_to(player.global_position + Vector3.UP * 1.1) < 0.3, "停在諾恩身上——沒有到席菈那裡")
 	assert_false(sera.is_petrified(), "席菈沒事")
 	assert_true(player.status_effects.is_unstoppable(), "諾恩：石化 → 霸體無敵")
 	assert_eq(golem.brain.state, EnemyBrain.State.STAGGERED, "魔像力竭跪下")
@@ -397,12 +445,19 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_BLOCKED_LINE1", "CH1_BLOCKED_LINE2"]))
 	assert_true(hud.bark_keys().has("BARK_SERA_CHAOS"))
 	assert_false(golem.phases.core_open, "禁藥還在路上")
+	assert_false(golem.is_core_marked())
 	# 她舉弩、射出禁藥、砸中
 	for i: int in 180:
 		await tree.physics_frame
 		if golem.phases.core_open:
 			break
 	assert_true(golem.phases.core_open, "禁藥砸中：核心可以粉碎了")
+	assert_true(golem.is_core_marked(), "胸口的核心變成金色、一圈一圈往中心收：砍這裡")
+	hud.boss_bar.refresh(golem)
+	assert_true(hud.boss_bar.core_open and hud.boss_bar.floor_ratio == 0.0, "生命條：刻痕拿掉、變成金色")
+	var chest: Vector3 = golem.puppet().joint("chest").global_position
+	assert_true(golem.core_point().distance_to(chest) < 1.2 and (golem.core_point() - chest).dot(golem.forward()) > 0.5,
+		"那片光在胸口前面（核心 %s、胸口 %s、正面 %s）" % [golem.core_point(), chest, golem.forward()])
 	assert_eq(sera.last_vial.source if is_instance_valid(sera.last_vial) else RuinedAltar.CHAOS_SOURCE, RuinedAltar.CHAOS_SOURCE)
 	for id: String in ["paralysis", "defense_zero", "blind", "weakness", "slow", "bleed", "petrify"]:
 		assert_true(player.status_effects.has(id), "身上有 %s" % id)
@@ -421,13 +476,35 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 			break
 	assert_true(golem.health.is_dead(), "一刀粉碎核心")
 	assert_eq(shattered, [true] as Array[bool])
+	# 那一刀的演出：定格、鏡頭切到兩人的側面、核心炸成碎片（晶片兩把＋石塊）
+	assert_true(Engine.time_scale < 1.0, "定格，接著慢動作")
+	assert_not_null(level.finisher, "鏡頭切到側面")
+	if level.finisher != null:
+		assert_true(level.finisher.current and level.finisher.is_holding(), "側面的鏡頭正在用")
+		var side: Vector3 = level.finisher.global_position - player.global_position
+		assert_true(side.length() > 3.0 and level.finisher.global_position.y < 2.0, "在旁邊、放低往上看")
+	assert_true(_named(level, "RockDebris") >= 3, "核心炸成碎片（%d 把）" % _named(level, "RockDebris"))
+	assert_true(level.core == null, "核心還在牠身上（倒地才滾出來）")
 	assert_eq(s.state.get_flag(RuinedAltar.FLAG_GOLEM_DOWN), true)
 	assert_eq(s.quests.stage_of("ch1_main"), "after_boss")
 	assert_eq(s.state.checkpoint, "ch1_boss_down")
 	assert_false(level.aura.active, "光環消失")
 	assert_true(not sera.hold_at.is_finite() and not sera.hands_full, "席菈回到諾恩身邊")
 	assert_eq(hud.banner_text(), "CH1_GOLEM_DOWN")
-	Engine.time_scale = 1.0
+	_game().call("cancel_hit_stop")
+	# 倒地的那一下核心滾出來，停在牠旁邊的地上
+	for i: int in 240:
+		await tree.physics_frame
+		if golem.has_fallen:
+			break
+	assert_true(golem.has_fallen, "魔像倒地")
+	assert_not_null(level.core, "核心滾出來了")
+	await _frames(100)
+	assert_true(absf(level.core.global_position.y - GolemCore.RADIUS - golem.global_position.y) < 0.05, "停在地上")
+	var rolled: float = Vector2(level.core.global_position.x - golem.global_position.x, level.core.global_position.z - golem.global_position.z).length()
+	assert_true(rolled > 2.0 and rolled < 5.0, "在牠旁邊（%.1f m）" % rolled)
+	assert_true(level.core.global_position.distance_to(player.global_position) > 0.8, "不會滾到諾恩腳下")
+	assert_eq(level.core.get_parent(), level, "掛在關卡上：魔像沉下去之後它還在")
 	# 隔一下三個人講話；兩個回答
 	for i: int in int(RuinedAltar.AFTER_TALK_DELAY * 60.0) + 60:
 		await tree.physics_frame
@@ -445,6 +522,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	await _frames(3)
 	assert_eq(hud.banner_text(), "CH1_GOT_CORE")
 	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_REPORT")
+	assert_eq(level.core.get_parent(), player.get_node("Body"), "核心飛到諾恩身上（結尾就是這樣扛回公會）")
 	assert_false(player.health.is_dead())
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
@@ -460,6 +538,9 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	# 打完繼續待在這一關：魔像沉下去、被釋放之後關卡照樣跑（光環跟著牠一起沒了）
 	await _frames(600)
 	assert_false(is_instance_valid(golem), "魔像沉進地面、不在了")
+	assert_true(is_instance_valid(level.core) and level.core.position.distance_to(GolemCore.CARRY_POS) < 0.01, "核心在他的左肩旁邊")
+	assert_false(is_instance_valid(level.finisher), "側面的鏡頭收掉了")
+	assert_true((player.get_node("CameraRig/Pitch/SpringArm3D/Camera3D") as Camera3D).current, "鏡頭還給玩家")
 	assert_true(level.plague_level() < 0.05, "石板的縫不亮了")
 	assert_false(sera.masked, "席菈把面具拿下來")
 	assert_true(sera.global_position.distance_to(player.global_position) < 9.0, "她跟在諾恩旁邊")
@@ -493,13 +574,14 @@ func test_retry_restarts_the_fight_and_a_save_after_the_golem_fell_resumes_the_t
 	level.golem.health.apply_damage(999999.0, {"source": player, "cut": Vector3.RIGHT})
 	await _frames(2)
 	assert_eq(s.quests.stage_of("ch1_main"), "after_boss")
-	Engine.time_scale = 1.0
+	_game().call("cancel_hit_stop")
 	level.free()
 	_game().set("session", GameSession.new(QuestDB.load_default(), _dir))
 	assert_eq(_session().load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
 	assert_eq(str(_game().call("level_for_checkpoint", _session().state.checkpoint)), "ruined_altar")
 	level = _load_level()
 	assert_true(level.golem == null, "魔像不在了")
+	assert_true(level.core != null and level.core.position.distance_to(RuinedAltar.CORE_REST) < 0.01, "牠的核心躺在石板上")
 	assert_not_null(level.party.get("Leo"), "雷歐小隊還在")
 	for i: int in int(RuinedAltar.AFTER_TALK_RELOAD * 60.0) + 30:
 		await tree.physics_frame
@@ -508,6 +590,7 @@ func test_retry_restarts_the_fight_and_a_save_after_the_golem_fell_resumes_the_t
 	assert_true(bool(_game().call("is_in_dialogue")), "戰後那段話接著講")
 	_finish_dialogue(0)
 	assert_eq(_session().quests.stage_of("ch1_main"), "report")
+	assert_eq(level.core.get_parent(), level.get_node("Player/Body"), "講完：核心到諾恩的肩上")
 
 
 ## 整場照真的時間打一遍（階段不縮短）：一個不會閃的「玩家」——平常站在魔像面前一直砍；凝視的前兆一開始就跑到那道光上站著；
@@ -547,7 +630,7 @@ func test_a_player_who_never_dodges_can_still_win_the_whole_fight_in_real_time()
 			else:
 				player.start_attack()
 		await tree.physics_frame
-	Engine.time_scale = 1.0
+	_game().call("cancel_hit_stop")
 	print("    整場照真的時間打（不閃、只靠光環＋鐵劍＋席菈的藥）：%d 幀（%.0f 秒）打倒魔像；第 %.0f 秒狂暴；凝視 %d 次；諾恩最低剩 %.0f 點生命" % [frames, float(frames) / 60.0, float(enraged_at) / 60.0, golem.phases.gazes, low])
 	assert_false(player.health.is_dead(), "不閃也不會死")
 	assert_true(frames > 0, "打得贏")

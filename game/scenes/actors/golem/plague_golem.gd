@@ -7,12 +7,16 @@ extends EnemyActor
 ## 核心（胸口）在席菈的禁藥落到諾恩身上之前打不碎：生命扣到 hp_floor 就扣不下去；之後諾恩的下一刀直接粉碎核心。
 ## 外型：Tripo 的雙足模型，跟人物走同一條轉檔（scripts/gen_art.sh，Puppet 的 character_id＝plague_golem，3.6 m 高）；模型不在時是放大的程式人偶。
 ## 動作用 Puppet 現成的：走路、出手的第一段（重拳）與第三段（震地）；吼、凝視、跪下是整個人前後仰。
+## 演出（都是看得到的回饋，不改規則）：被諾恩砍中整個身體頓一下、掉石屑、身上的光亮一下；胸口的核心一直有一點光，
+## 生命扣到底線打不下去的時候閃一圈（「核心還在」），open_core() 之後變成金色、一圈一圈往中心收（「砍這裡」）；
+## 凝視的前兆眼睛越來越亮，打出去是一道從眼睛射出去的光＋掃過全場的一圈；粉碎的那一刀核心炸成碎片；倒地之後核心滾出來。
 
-## 開始吼（狂暴）、開始擺凝視的前兆、凝視打出去（blocked＝諾恩擋住了）、核心被粉碎的那一刀
+## 開始吼（狂暴）、開始擺凝視的前兆、凝視打出去（blocked＝諾恩擋住了）、核心被粉碎的那一刀、倒地之後核心滾出來（掛在關卡上的那一顆）
 signal enraged
 signal gaze_started
 signal gaze_fired(blocked: bool)
 signal core_shattered
+signal core_dropped(core: GolemCore)
 
 const CHARACTER_ID: String = "plague_golem"
 const NAME_KEY: String = "BOSS_PLAGUE_GOLEM"
@@ -34,6 +38,27 @@ const EYE_HEIGHT: float = 3.25
 const BEAM_WIDTH: float = 2.2
 const BEAM_Y: float = 0.07
 const BEAM_SHADER: Shader = preload("res://src/world/gaze_beam.gdshader")
+const FLARE_SHADER: Shader = preload("res://src/world/core_flare.gdshader")
+## 眼睛在頭的骨頭前面多遠、上面多高
+const EYE_OFFSET: Vector3 = Vector3(0.0, 0.15, -0.55)
+## 凝視打出去的那道光：多粗、多久收掉；掃過全場的那一圈擴到多大
+const RAY_WIDTH: float = 1.3
+const RAY_SEC: float = 0.4
+const GAZE_WAVE_RADIUS: float = 30.0
+## 胸口的核心（模型上那顆紫色的晶石）：在胸口的骨頭前面多遠（模型的胸口很厚）；沒有模型時離地多高
+const CORE_FORWARD: float = 0.95
+const CORE_HEIGHT: float = 2.35
+## 那片光多大（公尺）：平常、可以粉碎了
+const CORE_SIZE: float = 1.6
+const CORE_OPEN_SIZE: float = 2.4
+const CORE_COLOR: Color = Color(0.72, 0.42, 1.0)
+const CORE_OPEN_COLOR: Color = Color(1.0, 0.8, 0.35)
+const STONE_COLOR: Color = Color(0.4, 0.43, 0.4)
+## 被諾恩砍中的那一下（不是後仰——牠打不斷）：整個身體往後頓多遠、仰多少、身上的光多亮幾倍，多久退掉
+const JOLT_SEC: float = 0.22
+const JOLT_PUSH: float = 0.2
+const JOLT_LEAN: float = 0.08
+const JOLT_GLOW: float = 2.4
 
 var phases: GolemPhases
 ## false＝還沒醒（抵達的那段話講完之前）：舉著拳頭站在原地，不追人、不出招、不扣血
@@ -48,6 +73,23 @@ var _eye: OmniLight3D
 var _beam: MeshInstance3D
 var _beam_mat: ShaderMaterial
 var _raged: bool = false
+var _eye_flare: MeshInstance3D
+var _eye_mat: ShaderMaterial
+var _core: MeshInstance3D
+var _core_mat: ShaderMaterial
+var _core_light: OmniLight3D
+var _core_t: float = 0.0
+## 核心閃一下（打不下去、剛開）：1 → 0 很快退掉
+var _core_kick: float = 0.0
+## 被砍的那一下：1 → 0；往哪邊頓（世界座標，水平）
+var _jolt: float = 0.0
+var _jolt_dir: Vector3 = Vector3.ZERO
+var _lean: float = 0.0
+## 打不下去的那一圈閃過幾次、被砍頓過幾次（測試用）
+var ward_count: int = 0
+var jolt_count: int = 0
+## 倒下那一刻面向哪裡（水平；倒地之後身體是躺平的，forward() 朝天）
+var _fall_fwd: Vector3 = Vector3.FORWARD
 
 
 func tuning_id() -> String:
@@ -109,6 +151,7 @@ func _build_body() -> void:
 	_eye.position = Vector3(0, EYE_HEIGHT, -0.9)
 	_body.add_child(_eye)
 	_build_beam()
+	_build_flares()
 
 
 ## 醒過來，開始追諾恩（關卡在抵達的那段話講完時叫）
@@ -168,6 +211,7 @@ func _fire_gaze() -> void:
 	var blocked: bool = is_gaze_blocked()
 	phases.resolve_gaze(blocked)
 	_flash(GAZE_COLOR, 14.0, 0.5)
+	_gaze_fx(blocked)
 	Sfx.play_at(self, "curse_sting", global_position + Vector3.UP * EYE_HEIGHT, 3.0, 0.03, 14.0)
 	if _player != null and is_instance_valid(_player) and not _player.health.is_dead():
 		_player.status_effects.apply_source(GAZE_SOURCE)
@@ -189,6 +233,14 @@ func is_gaze_blocked() -> bool:
 func open_core() -> void:
 	phases.core_open = true
 	health.min_hp = 0.0
+	_core_mat.set_shader_parameter("flare_color", CORE_OPEN_COLOR)
+	_core_mat.set_shader_parameter("open", 1.0)
+	_core.scale = Vector3.ONE * CORE_OPEN_SIZE
+	_core_light.light_color = CORE_OPEN_COLOR
+	_core_kick = 1.0
+	if is_inside_tree():
+		_ring(core_point(), _toward_viewer(core_point()), CORE_OPEN_COLOR, 0.4, 3.0, 0.45, 0.04)
+		Sfx.play_at(get_parent(), "glass_clink", core_point(), 2.0, 0.02, 12.0)
 
 
 ## 諾恩的劍砍在開了的核心上：這一刀直接粉碎（不管原本多痛）。其他照共用的算（Boss 不會硬撐）。
@@ -203,9 +255,39 @@ func _damage_scale(info: Dictionary) -> float:
 
 func _on_damaged(amount: float, info: Dictionary) -> void:
 	super._on_damaged(amount, info)
+	var src: Node3D = info.get("source") as Node3D
+	if src is PlayerController and is_inside_tree():
+		_on_cut(src.global_position)
 	if bool(info.get("shatter", false)):
-		_flash(BLOCKED_COLOR, 18.0, 0.8)
+		_flash(BLOCKED_COLOR, 10.0, 0.8, 0.5)
+		_shatter_fx(src.global_position if src != null and is_instance_valid(src) else global_position + forward())
 		core_shattered.emit()
+
+
+## 被諾恩砍中的那一下：身體頓一下、掉幾塊石屑。生命已經在底線（核心還在、扣不下去）：胸口的核心閃一圈、一聲鐵響——「這樣打不死」。
+func _on_cut(from: Vector3) -> void:
+	jolt_count += 1
+	_jolt = 1.0
+	_jolt_dir = -hit_dir(from)
+	RockDebris.burst(get_parent(), hit_point(from), hit_dir(from) + Vector3.UP * 0.7, 8, 0.18, STONE_COLOR, Vector2(3.0, 6.5))
+	if not phases.core_open and health.min_hp > 0.0 and health.hp <= health.min_hp + 0.5:
+		ward_count += 1
+		_core_kick = 1.0
+		_ring(core_point(), _toward_viewer(core_point()), CORE_COLOR, 0.3, 1.9, 0.3, 0.05)
+		Sfx.play_at(get_parent(), ARMOR_SFX, core_point(), -4.0, 0.08, 8.0)
+
+
+## 粉碎核心的那一刀：胸口那片光炸掉——紫色與金色的晶片、石塊往出手的人那一側噴，一圈金色的環往外擴。
+func _shatter_fx(from: Vector3) -> void:
+	var at: Vector3 = core_point()
+	var out: Vector3 = hit_dir(from)
+	var parent: Node = get_parent()
+	RockDebris.burst(parent, at, out + Vector3.UP * 0.5, 30, 0.2, CORE_COLOR, Vector2(4.0, 11.0), 3.0)
+	RockDebris.burst(parent, at, out + Vector3.UP * 0.8, 16, 0.14, CORE_OPEN_COLOR, Vector2(5.0, 12.0), 4.0)
+	RockDebris.burst(parent, at, out * 0.4 + Vector3.UP, 22, 0.34, STONE_COLOR, Vector2(3.0, 8.0))
+	_ring(at, out, CORE_OPEN_COLOR, 0.5, 6.0, 0.55, 0.04)
+	_ring(global_position + Vector3.UP * 0.12, Vector3.UP, CORE_OPEN_COLOR, 1.0, 9.0, 0.6)
+	Sfx.play_at(parent, "reversal_shatter", at, 3.0, 0.02, 16.0)
 
 
 func _on_strike() -> void:
@@ -217,7 +299,7 @@ func _on_strike() -> void:
 		var radius: float = brain.move_num(id, "radius", 5.4)
 		Sfx.play_at(self, "blunt_weak", origin + fwd * 1.5 + Vector3.UP * 0.3, 2.0)
 		_ground_puff(origin + fwd * 1.6, Vector3(1.6, 0.05, 1.6), 40, Color(0.6, 0.62, 0.66, 0.6))
-		_shockwave(radius)
+		_ring(origin + Vector3.UP * 0.1, Vector3.UP, RAGE_COLOR if _raged else RIM_COLOR, 1.0, radius, 0.35)
 		hit_heartbeats(damage, "slam", func(p: Vector3) -> bool: return Vector2(p.x - origin.x, p.z - origin.z).length() <= radius)
 	else:
 		var reach: float = brain.move_num(id, "reach", 4.6)
@@ -233,6 +315,8 @@ func _on_strike() -> void:
 func _update_look() -> void:
 	if _puppet == null:
 		return
+	var dt: float = get_physics_process_delta_time()
+	_update_flares(dt)
 	if not awake:
 		# 舉著拳頭等在那裡（劇本：雷歐等人絕望地看著魔像舉起巨拳）
 		if _puppet.action == "":
@@ -268,19 +352,34 @@ func _update_look() -> void:
 			glow = GLOW_WINDUP
 	_eye.light_energy = 9.0 * gaze
 	_update_beam(gaze)
-	_puppet.rotation.x = lerp_angle(_puppet.rotation.x, lean, 0.16)
-	_puppet.position.y = lerpf(_puppet.position.y, drop, 0.16)
+	# 被砍的那一下疊在上面（不經過下面那個慢慢跟上的 lerp，不然看不出來）：往後頓、仰一點、身上的光亮一下
+	_jolt = move_toward(_jolt, 0.0, dt / JOLT_SEC)
+	var jolt: float = _jolt * _jolt
+	var push: Vector3 = _body.global_basis.inverse() * _jolt_dir * (JOLT_PUSH * jolt)
+	_lean = lerp_angle(_lean, lean, 0.16)
+	_puppet.rotation.x = _lean + JOLT_LEAN * jolt
+	_puppet.position = Vector3(push.x, lerpf(_puppet.position.y, drop, 0.16), push.z)
 	if not health.is_dead():
-		_set_glow(glow)
+		_set_glow(glow + JOLT_GLOW * jolt)
 
 
 ## 倒下：先跪、胸口炸開一團光，再往後仰倒（不往前趴——諾恩就站在牠面前）、躺一下、最後沉進地面。比一般敵人久。
 ## 垮完之前照樣擋路：粉碎核心的那一刀會往前滑一步，不擋的話諾恩會滑進牠的身體裡。
 func _on_died() -> void:
+	var f: Vector3 = forward()
+	_fall_fwd = Vector3(f.x, 0.0, f.z).normalized() if Vector2(f.x, f.z).length() > 0.01 else Vector3.FORWARD
 	_begin_death()
 	collision_layer = 1
 	_beam.visible = false
 	_eye.light_energy = 0.0
+	_eye_flare.visible = false
+	# 胸口那片光：粉碎的那一刀亮一下，很快熄掉（之後 _update_look 不跑了，自己收）
+	_core_mat.set_shader_parameter("strength", 2.0)
+	var out: Tween = _core.create_tween()
+	out.tween_method(func(v: float) -> void:
+		_core_mat.set_shader_parameter("strength", v)
+		_core_light.light_energy = v * 2.0, 2.0, 0.0, 0.3)
+	out.tween_callback(_core.hide)
 	if aura != null:
 		aura.active = false
 	_ground_puff(global_position + Vector3.UP * _hit_height(), Vector3(0.8, 0.8, 0.8), 60, Color(0.75, 1.0, 0.6, 0.8))
@@ -301,13 +400,42 @@ func _on_fall_impact() -> void:
 	has_fallen = true
 	if is_inside_tree():
 		Sfx.play_at(get_parent(), "blunt", global_position, 0.0, 0.03)
-	_ground_puff(global_position - forward() * 1.6, Vector3(1.8, 0.05, 1.8), 50, Color(0.6, 0.62, 0.66, 0.65))
+		RockDebris.burst(get_parent(), global_position - _fall_fwd * 1.8 + Vector3.UP * 0.6, Vector3.UP, 18, 0.3, STONE_COLOR, Vector2(2.0, 6.0))
+		_drop_core()
+	_ground_puff(global_position - _fall_fwd * 1.6, Vector3(1.8, 0.05, 1.8), 50, Color(0.6, 0.62, 0.66, 0.65))
 	if _player != null and is_instance_valid(_player):
 		_player.shake(0.6)
 
 
-## 很短的一盞強光（凝視打出去、核心粉碎）：掛在關卡上，自己收掉
-func _flash(color: Color, energy: float, seconds: float) -> void:
+## 倒地的那一下，核心從胸口彈出來：拋到牠腳邊的左前方、滾一小段停住（掛在關卡上——魔像沉下去之後它還在；關卡接 core_dropped）。
+func _drop_core() -> void:
+	var core: GolemCore = GolemCore.create()
+	var level: Node = get_parent()
+	level.add_child(core)
+	# 往牠的左手邊滾＝站在牠面前的諾恩的右手邊：過肩鏡頭在諾恩右後方，畫面右邊是空的（左邊是狀態列）
+	var side: Vector3 = -_fall_fwd.cross(Vector3.UP)
+	var floor_y: float = global_position.y + GolemCore.RADIUS
+	var from: Vector3 = global_position - _fall_fwd * 1.6 + Vector3.UP * 1.3
+	var land: Vector3 = global_position + _fall_fwd * 0.9 + side * 1.7
+	land.y = floor_y
+	var rest: Vector3 = global_position + _fall_fwd * 1.5 + side * 2.9
+	rest.y = floor_y
+	core.global_position = from
+	var t: Tween = core.create_tween()
+	t.tween_method(func(k: float) -> void:
+		core.global_position = from.lerp(land, k) + Vector3.UP * (4.0 * 1.6 * k * (1.0 - k)), 0.0, 1.0, 0.6)
+	t.tween_callback(func() -> void:
+		Sfx.play_at(level, "step_stone", land, 2.0, 0.05, 8.0))
+	t.tween_property(core, "global_position", rest, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# 滾：繞著跟前進方向垂直的水平軸轉
+	var roll_axis: Vector3 = Vector3.UP.cross((rest - land).normalized()).normalized()
+	t.parallel().tween_method(func(a: float) -> void:
+		core.ball.basis = Basis(roll_axis, a), 0.0, land.distance_to(rest) / GolemCore.RADIUS, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	core_dropped.emit(core)
+
+
+## 很短的一盞強光（凝視打出去、核心粉碎）：掛在關卡上，自己收掉。fog＝照亮霧的程度（粉碎那一刀調低：整個畫面被霧洗白就看不到碎片了）
+func _flash(color: Color, energy: float, seconds: float, fog: float = 3.0) -> void:
 	if not is_inside_tree():
 		return
 	var light := OmniLight3D.new()
@@ -315,7 +443,7 @@ func _flash(color: Color, energy: float, seconds: float) -> void:
 	light.light_energy = energy
 	light.omni_range = 26.0
 	light.shadow_enabled = false
-	light.light_volumetric_fog_energy = 3.0
+	light.light_volumetric_fog_energy = fog
 	get_parent().add_child(light)
 	light.global_position = global_position + Vector3.UP * 2.6
 	var t: Tween = light.create_tween()
@@ -323,13 +451,15 @@ func _flash(color: Color, energy: float, seconds: float) -> void:
 	t.tween_callback(light.queue_free)
 
 
-## 震地：腳邊一圈往外擴的環（擴到打得到的那麼大）
-func _shockwave(radius: float) -> void:
+## 一圈往外擴、邊擴邊淡掉的環（加法混色）：axis＝環面朝哪（Vector3.UP＝平貼地面：震地、掃過全場的凝視；朝鏡頭＝立著的一圈：核心）。
+## from、to＝半徑（公尺）；thick＝環有多粗（半徑的幾成：立著的環正對著鏡頭，要細一點）。掛在關卡上，自己收掉。
+func _ring(at: Vector3, axis: Vector3, color: Color, from: float, to: float, seconds: float, thick: float = 0.1) -> void:
 	if not is_inside_tree():
 		return
 	var ring := MeshInstance3D.new()
+	ring.name = "GolemRing"
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.9
+	torus.inner_radius = 1.0 - thick
 	torus.outer_radius = 1.0
 	torus.rings = 48
 	torus.ring_segments = 6
@@ -338,17 +468,142 @@ func _shockwave(radius: float) -> void:
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	var c: Color = RAGE_COLOR if _raged else RIM_COLOR
-	mat.albedo_color = Color(c.r * 2.0, c.g * 2.0, c.b * 2.0, 1.0)
+	mat.albedo_color = Color(color.r * 2.0, color.g * 2.0, color.b * 2.0, 1.0)
 	ring.material_override = mat
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	ring.scale = Vector3(1.0, 0.3, 1.0)
-	get_parent().add_child(ring)
-	ring.global_position = global_position + Vector3.UP * 0.1
+	# 同名的兄弟節點要引擎編成 GolemRing2、GolemRing3（不要 @MeshInstance3D@123 那種看不懂的名字）
+	get_parent().add_child(ring, true)
+	# 環的軸（網格的 Y）對著 axis；壓扁成一片
+	var y: Vector3 = axis.normalized() if axis.length() > 0.01 else Vector3.UP
+	var x: Vector3 = y.cross(Vector3.FORWARD if absf(y.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
+	ring.global_transform = Transform3D(Basis(x, y, x.cross(y)), at)
+	ring.scale = Vector3(from, 0.3, from)
 	var t: Tween = ring.create_tween()
-	t.tween_property(ring, "scale", Vector3(radius, 0.3, radius), 0.35).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	t.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.4).set_ease(Tween.EASE_IN)
+	t.tween_property(ring, "scale", Vector3(to, 0.3, to), seconds).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	t.parallel().tween_property(mat, "albedo_color:a", 0.0, seconds * 1.15).set_ease(Tween.EASE_IN)
 	t.tween_callback(ring.queue_free)
+
+
+## 從 at 指向玩家的鏡頭（立著的環要面向看的人）；沒有鏡頭就朝牠的正面
+func _toward_viewer(at: Vector3) -> Vector3:
+	var cam: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	return cam.global_position - at if cam != null else forward()
+
+
+## 胸口的核心與眼睛：各一片面向鏡頭的光（core_flare.gdshader）。跟著骨頭走（每一幀擺到 core_point()／eye_point()），不掛在骨頭底下——
+## 模型有縮放，掛上去大小會跟著變。
+func _build_flares() -> void:
+	_core = _flare("CoreFlare", CORE_COLOR, CORE_SIZE)
+	_core_mat = _core.material_override as ShaderMaterial
+	_core_light = OmniLight3D.new()
+	_core_light.light_color = CORE_COLOR
+	_core_light.light_energy = 0.0
+	_core_light.omni_range = 5.0
+	_core_light.shadow_enabled = false
+	_core.add_child(_core_light)
+	_eye_flare = _flare("EyeFlare", GAZE_COLOR, 1.0)
+	_eye_mat = _eye_flare.material_override as ShaderMaterial
+	_eye_flare.visible = false
+
+
+func _flare(node_name: String, color: Color, size: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = node_name
+	mi.mesh = QuadMesh.new()
+	var mat := ShaderMaterial.new()
+	mat.shader = FLARE_SHADER
+	mat.set_shader_parameter("flare_color", color)
+	mat.set_shader_parameter("strength", 0.0)
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.top_level = true
+	mi.scale = Vector3.ONE * size
+	add_child(mi)
+	return mi
+
+
+## 核心這一刻在世界的哪裡（胸口的晶石前面）
+func core_point() -> Vector3:
+	var chest: Node3D = _puppet.joint("chest") if _puppet != null else null
+	# 往前的方向用整個身體的（Puppet 的 −Z）：骨頭掛點自己的軸每個模型不一樣
+	if chest != null and chest.is_inside_tree():
+		return chest.global_position + _puppet.global_basis.orthonormalized() * Vector3(0.0, 0.0, -CORE_FORWARD)
+	return global_transform * (_body.transform * Vector3(0.0, CORE_HEIGHT, -CORE_FORWARD)) if _body != null else global_position
+
+
+## 眼睛這一刻在世界的哪裡
+func eye_point() -> Vector3:
+	var head: Node3D = _puppet.joint("head") if _puppet != null else null
+	if head != null and head.is_inside_tree():
+		return head.global_position + _puppet.global_basis.orthonormalized() * EYE_OFFSET
+	return global_transform * (_body.transform * Vector3(0.0, EYE_HEIGHT, -0.9)) if _body != null else global_position
+
+
+## 核心現在多亮（測試用）；可以粉碎了＝金色、一圈一圈往中心收
+func core_strength() -> float:
+	return float(_core_mat.get_shader_parameter("strength"))
+
+
+func is_core_marked() -> bool:
+	return _core.visible and phases.core_open
+
+
+func _update_flares(delta: float) -> void:
+	_core_t += delta
+	_core_kick = move_toward(_core_kick, 0.0, delta / 0.3)
+	var open: bool = phases.core_open
+	var pulse: float = 0.5 + 0.5 * sin(_core_t * (10.0 if open else 2.2))
+	var level: float = (0.9 + 0.5 * pulse if open else 0.28 + 0.12 * pulse) + _core_kick * 1.2
+	_core.global_position = core_point()
+	_core_mat.set_shader_parameter("strength", level)
+	_core_light.light_energy = level * (2.4 if open else 1.2)
+	var gaze: float = phases.gaze_progress()
+	_eye_flare.visible = gaze > 0.0
+	if gaze > 0.0:
+		_eye_flare.global_position = eye_point()
+		_eye_flare.scale = Vector3.ONE * lerpf(0.9, 2.6, gaze)
+		_eye_mat.set_shader_parameter("strength", lerpf(0.5, 2.2, gaze))
+
+
+## 凝視打出去：一道光從眼睛射到凝視的人身上——諾恩擋住了就停在他身上、炸一圈金色；沒擋住就打到席菈。
+## 同時一圈蒼白的紫從牠腳下掃過全場（「全場石化」）。
+func _gaze_fx(blocked: bool) -> void:
+	if not is_inside_tree():
+		return
+	# 掃過全場的那一圈：細、暗一點（擴到 30 m 的環照平常的粗細與亮度，是一條蓋掉半個畫面的白帶子）
+	_ring(global_position + Vector3.UP * 0.12, Vector3.UP, GAZE_COLOR * 0.45, 1.5, GAZE_WAVE_RADIUS, 0.7, 0.025)
+	var hit: Node3D = _player if blocked else gaze_target
+	if hit == null or not is_instance_valid(hit):
+		return
+	var from: Vector3 = eye_point()
+	var to: Vector3 = hit.global_position + Vector3.UP * 1.1
+	var along: Vector3 = to - from
+	if along.length() < 0.3:
+		return
+	var ray := MeshInstance3D.new()
+	ray.name = "GazeRay"
+	var quad := PlaneMesh.new()
+	quad.size = Vector2(1.0, 1.0)
+	ray.mesh = quad
+	var mat := ShaderMaterial.new()
+	mat.shader = BEAM_SHADER
+	mat.set_shader_parameter("beam_color", GAZE_COLOR)
+	mat.set_shader_parameter("charge", 1.0)
+	mat.set_shader_parameter("solid", 1.0)
+	ray.material_override = mat
+	ray.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	get_parent().add_child(ray, true)
+	# 面片的 Z 沿著那道光、X 是寬（跟「往鏡頭」垂直：光帶正對著看的人）
+	var z: Vector3 = along.normalized()
+	var x: Vector3 = z.cross(_toward_viewer(from.lerp(to, 0.5))).normalized()
+	if x.length() < 0.01:
+		x = z.cross(Vector3.UP).normalized()
+	ray.global_transform = Transform3D(Basis(x, z.cross(x), z), from.lerp(to, 0.5))
+	ray.scale = Vector3(RAY_WIDTH, 1.0, along.length())
+	var t: Tween = ray.create_tween()
+	t.tween_property(ray, "scale:x", 0.05, RAY_SEC).set_ease(Tween.EASE_IN)
+	t.tween_callback(ray.queue_free)
+	_ring(to, -along, BLOCKED_COLOR if blocked else GAZE_COLOR, 0.3, 2.4 if blocked else 1.6, 0.4, 0.05)
 
 
 ## 凝視的前兆：地上一道光從魔像連到席菈（「站到這道光上」）。諾恩擋住的時候變成金色。
