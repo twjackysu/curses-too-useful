@@ -4,14 +4,20 @@ Jacky 2026-11-15 定的方向（D-290）：**先把第一章鋪到公會大廳�
 
 ## ★ 現在做的這一段：④ 公會大廳（劇本節點 1＋章節結尾）
 
-範圍（里程碑下一輪開工時拆 8～15 個，寫在這裡）：新遊戲改從奧爾德公會大廳開始——諾恩登錄，測試水晶發出警報、顯示「全屬性：無」，大廳一陣嘲笑 → 雷歐當眾羞辱諾恩與縮在角落的席菈（「一個沒用的廢柴、一個移動毒氣彈」），帶隊離開 → 櫃檯小姐莉莉絲拿出積灰的綠色委託單《腐敗之森外圍：採集「夜光毒蕈」》 → 諾恩接下，席菈鼓起勇氣問能不能一起去 → 演完直接接到森林入口（城鎮是 ⑤）。森林口相遇那段對話跟著改短（兩人已經認識了，D-280）。**章節結尾也在這一段**：打倒魔像之後回到公會——雷歐小隊狼狽逃回來、諾恩扛著魔像核心走進大廳、席菈第一次抬起頭、莉莉絲「撿到寶」的笑容、二樓陰影裡的王都巡察官——然後才是「第一章完」。「做完」的標準同前：每一拍玩得到、從新遊戲一路玩得到、流程測試走得到、用現有的 Tripo 模型。
+範圍：新遊戲改從奧爾德公會大廳開始（登錄、水晶警報、雷歐羞辱、綠色委託單、席菈開口）→ 演完接森林入口；森林口的相遇改短；章節結尾（傍晚回公會、巡察官、「第一章完」）。
 
-開工前要知道的：
-- **從哪裡接**：新遊戲現在的第一個檢查點是 `ch1_forest_gate`（`GameSession.FIRST_CHECKPOINT`）、主線第一個階段 `meet_sera`。大廳要在它前面加階段（檢查點登記在新關卡，`Game.CHECKPOINT_LEVELS`），演完設旗標、`Game.go_to_checkpoint_level()` 換到森林（森林 → 祭壇已經是這個做法，看 `ForestExplore` 走到祭壇路口那一段）。結尾：祭壇那一關戰後那段話講完（`ch1.altar_done`）現在主線就完成了——改成後面再接一個階段回公會。主線後面再接階段時，停在「做完」的舊存檔要遷移一次（`SaveCodec` v4 → v5 就是做這件事，照著加 v5 → v6）。
-- **模型**（都還沒接）：人物 `lilith`、`guild_adventurer_a/b`、`royal_inspector` 走 `gen_art.sh`（加 `SRC`／`ARGS`、`import_characters.py` 的 `KNOWN`、`check_character_glb.py` 的 `BUDGETS`）；雷歐小隊三人（`leo`、`leo_mage`、`leo_tank`）這一輪接好了。物件 `prop_guild_counter_v2`、`prop_aptitude_crystal`、`prop_guild_quest_board`、`prop_guild_signboard` 已經擺正（`gen_props.sh`），接之前先看顏色貼圖是不是灰的。牆、地板、桌椅用 `art-inbox/props/` 的 CC0 套件或程式拼（祭壇的斷柱與台階是程式拼的圓柱＋`ruin_stone.gdshader`，可以參考）。
-- **室內是第一次做**：現在兩關都是戶外（`ForestScenery.build_environment` 的天空、月光、體積霧）。大廳要自己的光（窗、火把／吊燈）；過肩鏡頭的 `SpringArm` 會被牆與天花板擋（`CAMERA_WALL_LAYER`），先確認在室內不會一直被推到諾恩背上。
-- **這一段大多是對話**：用現成的 `DialogueRunner`＋`TalkCamera`（多人：每個說話者在 `cast` 登記一筆）。站著的 NPC 用 `Puppet`（`character_id`）；倒在地上的做法看 `RuinedAltar._spawn_party`。席菈在大廳還沒結伴（`Sera.joined = false`）。
-- 好感度現在只記數字（`sera.affinity`，相遇、戰後、營火、打倒魔像之後各加一次），還沒有地方看。
+里程碑（2026-11-16 傍晚這一輪拆的）：
+- [x] 1 模型：莉莉絲、兩個冒險者、巡察官接進 `gen_art.sh`；Quaternius 的 CC0 桌椅建置時複製（`gen_props.sh` 的 `QUAT`）
+- [x] 2 主線資料：前面五個階段（register → aptitude → take_quest → sera_asks → leave_guild）、後面 report；新遊戲從 `ch1_guild` 開始；存檔 v6
+- [x] 3 大廳的場景（`GuildScenery`）：室內的牆、地板、窗與光、櫃檯、水晶、佈告欄、桌椅、二樓迴廊與樓梯
+- [x] 4 大廳的人（`Npc`）：莉莉絲、雷歐小隊、冒險者、角落的席菈、二樓的巡察官
+- [x] 5 登錄與水晶警報（「全屬性：無」、嘲笑）
+- [x] 6 雷歐的羞辱、小隊走出大門
+- [x] 7 莉莉絲的綠色委託單、席菈開口（兩個回答）、走出大門接到森林
+- [x] 8 森林口相遇改短（兩人已經認識）
+- [x] 9 結尾：傍晚回公會（雷歐小隊、扛著核心）→ 櫃檯那段話 → 巡察官 →「第一章　完」→ 回標題
+- [x] 10 流程測試：`test_guild.gd`＋整段測試從大廳走到第一章完；真的換場景走過一遍
+- [ ] 11 畫面：CI 盤點截圖與 `scripts/shots.sh guild` 加大廳；文件
 
 ## 做完的段落
 
