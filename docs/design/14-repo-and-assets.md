@@ -17,7 +17,7 @@ GitHub 的限制：單一檔案超過 100 MB 會被拒絕（50 MB 會警告）�
 | **Tripo 產的模型（已縮過）** | `art-inbox/tripo/<id>/` | 進。`tripo_queue.py` 會把貼圖縮成 1024 的 JPEG：物件約 0.8 MB、人物每個檔約 2 MB。**單檔上限 6 MB** |
 | Tripo 的原始下載（一個約 10 MB） | `art-work/`（只在 Jacky 的電腦） | **不進**（.gitignore） |
 | 現成的 CC0 素材包 | `art-inbox/<包名>/` | 進，但**先縮**（`scripts/compact_props.py`：貼圖 1024 JPEG）；整包超過 30 MB 就只留用得到的 |
-| 建置產生的東西（轉好的角色、擺正的武器、字型子集、音效） | `build/`、`game/assets/characters/`、`game/assets/props/tripo/`、`game/assets/generated/` | **不進**：本機與 CI 每次從來源重新產生 |
+| 建置產生的東西（轉好的角色、擺正的武器、字型子集、音效） | `build/`、`game/assets/characters/`、`game/assets/props/tripo/`、`game/assets/props/quaternius/`（從 `art-inbox/props/` 複製用到的幾樣）、`game/assets/generated/` | **不進**：本機與 CI 每次從來源重新產生 |
 | 匯出的遊戲（exe、pck、zip） | GitHub Releases（`latest`） | **不進** |
 | 截圖、對照圖 | Releases（`screens`）、`build/shots/` | **不進** |
 
