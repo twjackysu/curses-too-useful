@@ -7,6 +7,8 @@ extends SceneTree
 
 const TEST_DIRS: PackedStringArray = ["res://tests/unit", "res://tests/flow"]
 const SKIP_DIRS: PackedStringArray = ["res://.godot", "res://addons"]
+## 測試中存的設定寫到這裡（跑完刪掉），不動玩家真的 user://settings.cfg
+const TEST_SETTINGS: String = "user://settings_tests.cfg"
 
 
 func _initialize() -> void:
@@ -26,6 +28,10 @@ func _run() -> void:
 	print("[tests] 檢查 %d 個腳本" % scripts.size())
 
 	# 2) 測試
+	# 有的測試改設定（語言、自動攻擊、按鍵）會存檔：改存到一個用完就丟的檔。以前存在真的設定檔裡，跑完測試會留下
+	# auto_attack=false、locale=en——接著在同一台機器上截圖（本機、CI 的盤點截圖），諾恩不會自己砍、字變成英文
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SETTINGS))
+	root.get_node("Settings").call("load_settings", TEST_SETTINGS)
 	var test_files: PackedStringArray = []
 	for dir: String in TEST_DIRS:
 		_collect(dir, ".gd", test_files)
@@ -64,6 +70,7 @@ func _run() -> void:
 					problems.append(f)
 				print("  FAIL %s" % case.current_test)
 
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SETTINGS))
 	print("[tests] 通過 %d 個測試，問題 %d 個" % [passed, problems.size()])
 	for p: String in problems:
 		printerr("  - " + p)
