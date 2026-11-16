@@ -26,7 +26,8 @@ const PILLARS: Array[Vector2] = [
 	Vector2(203, 1), Vector2(236, 3), Vector2(304, 4), Vector2(338, 2),
 ]
 ## 倒在地上的兩截（x、z、朝向的角度）
-const FALLEN: Array[Vector3] = [Vector3(-10.6, 6.2, 35.0), Vector3(9.8, 8.4, 120.0)]
+## （離 RuinedAltar.hold_spot 的八個位置都有三公尺以上：席菈退到後面的時候不會卡在柱子上）
+const FALLEN: Array[Vector3] = [Vector3(-10.6, 6.2, 35.0), Vector3(10.9, 5.6, 120.0)]
 const DRUM_HEIGHT: float = 1.15
 const DRUM_RADIUS: float = 0.72
 const TREE_COUNT: int = 48

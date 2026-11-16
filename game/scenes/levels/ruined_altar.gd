@@ -140,6 +140,11 @@ func stage() -> String:
 	return Game.session.quests.stage_of(QUEST)
 
 
+## 石板的縫與符文現在多亮（0＝魔像沒醒或倒了、1＝醒著；測試用）
+func plague_level() -> float:
+	return _plague_level
+
+
 func _physics_process(delta: float) -> void:
 	if not Game.session.in_story():
 		return
@@ -147,9 +152,11 @@ func _physics_process(delta: float) -> void:
 	_spores.global_position = Vector3(_player.global_position.x, 1.5, _player.global_position.z)
 	# 魔像的疫病醒著：石板的縫與柱子上的符文一下一下跳
 	_pulse_t += delta
-	_plague_level = move_toward(_plague_level, 1.0 if aura != null and aura.active else 0.0, delta * 0.8)
+	# 光環掛在魔像身上：牠倒下幾秒後連光環一起被釋放，所以每次都先確認還在
+	var plagued: bool = is_instance_valid(aura) and aura.active
+	_plague_level = move_toward(_plague_level, 1.0 if plagued else 0.0, delta * 0.8)
 	scenery.set_plague(_plague_level, 0.5 + 0.5 * sin(_pulse_t * 2.6))
-	sera.force_mask = aura != null and aura.contains(sera.global_position)
+	sera.force_mask = plagued and aura.contains(sera.global_position)
 	match stage():
 		STAGE_ARRIVE:
 			if _player.global_position.z < ARRIVE_Z:

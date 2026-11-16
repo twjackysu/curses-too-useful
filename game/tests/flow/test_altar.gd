@@ -114,6 +114,13 @@ func test_altar_level_builds_a_paved_ring_with_pillars_and_the_altar() -> void:
 	assert_true(AltarScenery.keep_inside(Vector3(0, 0, 60)).z <= AltarScenery.PATH_END_Z + 0.01, "往回走也有盡頭")
 	assert_true(absf(AltarScenery.keep_inside(Vector3(9, 0, 28)).x) <= AltarScenery.PATH_WALK_HALF + 0.01, "路的兩邊是樹林")
 	assert_eq(level.footstep_surface(Vector3.ZERO), "stone", "石板上是石頭的腳步聲")
+	# 席菈退到後面站的地方：離魔像最遠的石板邊，而且不會卡在柱子或祭壇上
+	for from: Vector3 in [Vector3.ZERO, Vector3(8, 0, 8), Vector3(-9, 0, 2), Vector3(0, 0, -8), Vector3(10, 0, -3)]:
+		var spot: Vector3 = RuinedAltar.hold_spot(from)
+		assert_true(spot.distance_to(from) > 9.0, "離 %s 夠遠（%.1f m）" % [from, spot.distance_to(from)])
+		assert_true(spot.distance_to(AltarScenery.ALTAR_POS) > 5.0, "不站在祭壇的台階上")
+		for fallen: Vector3 in AltarScenery.FALLEN:
+			assert_true(Vector2(spot.x - fallen.x, spot.z - fallen.y).length() > 3.0, "不卡在倒下的柱子上")
 	# 標題的「繼續」回到這一關
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
@@ -441,6 +448,13 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
 	assert_true(again.story_finished(), "存檔停在這一段的結尾")
+	# 打完繼續待在這一關：魔像沉下去、被釋放之後關卡照樣跑（光環跟著牠一起沒了）
+	await _frames(600)
+	assert_false(is_instance_valid(golem), "魔像沉進地面、不在了")
+	assert_true(level.plague_level() < 0.05, "石板的縫不亮了")
+	assert_false(sera.masked, "席菈把面具拿下來")
+	assert_true(sera.global_position.distance_to(player.global_position) < 9.0, "她跟在諾恩旁邊")
+	assert_false(hud.boss_bar.shown, "Boss 的生命條收掉")
 
 
 ## 倒下重來、讀檔：開打之後從走進石板的地方重來，魔像自己醒來（不用再聽一次那段話）；魔像倒了之後讀檔，牠不在、戰後那段話接著講。
