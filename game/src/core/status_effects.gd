@@ -15,6 +15,8 @@ const BLEED: String = "bleed"
 const BLIND: String = "blind"
 const SLOW: String = "slow"
 const WEAKNESS: String = "weakness"
+const PLAGUE: String = "plague"
+const PETRIFY: String = "petrify"
 ## 沒反轉的緩速、衰弱最多把速度、傷害壓到剩幾成
 const WORST_SCALE: float = 0.3
 
@@ -63,9 +65,31 @@ func source_of(status_id: String) -> String:
 	return str((_active.get(status_id, {}) as Dictionary).get("source", ""))
 
 
-## 麻痺沒有反轉的時候：這段時間不能出手（動作被打斷）。
+## 麻痺、石化沒有反轉的時候：這段時間不能出手（動作被打斷）。
 func blocks_attack() -> bool:
-	return has(PARALYSIS) and not reverses
+	return (has(PARALYSIS) or has(PETRIFY)) and not reverses
+
+
+## 石化沒有反轉：整個人動不了（不能走、不能出手）。
+func is_petrified() -> bool:
+	return has(PETRIFY) and not reverses
+
+
+## 石化被反轉（霸體無敵）：不受直接傷害、不會被打斷。
+func is_unstoppable() -> bool:
+	return has(PETRIFY) and reverses
+
+
+## 疫病（全能力下降）的比例：反轉了＝全能力提升這麼多（不超過 max_reversed_rate），沒反轉＝下降這麼多。身上沒有＝0。
+func all_rate() -> float:
+	if not has(PLAGUE):
+		return 0.0
+	return minf(rate(PLAGUE), rules.max_reversed_rate(PLAGUE)) if reverses else rate(PLAGUE)
+
+
+## 疫病對走路、砍人的傷害乘幾倍
+func _all_scale() -> float:
+	return 1.0 + all_rate() if reverses else maxf(1.0 - all_rate(), WORST_SCALE)
 
 
 ## 出手的速度倍率（只有會反轉的人有）：麻痺＝它的強度（不超過 max_reversed_rate）；流血＝每一層再加 haste_per_rate
@@ -77,7 +101,7 @@ func attack_speed() -> float:
 	var speed: float = 1.0
 	if has(PARALYSIS):
 		speed = clampf(rate(PARALYSIS), 1.0, maxf(rules.max_reversed_rate(PARALYSIS), 1.0))
-	return speed + rate(BLEED) * rules.haste_per_rate(BLEED)
+	return speed + rate(BLEED) * rules.haste_per_rate(BLEED) + all_rate()
 
 
 ## 致盲被反轉（鷹眼）：每一刀都算砍在破綻上（傷害、失衡加倍的倍率在 `noen.weak_*_mult`，見 PlayerController.strike）。
@@ -85,14 +109,16 @@ func strikes_weakpoint() -> bool:
 	return reverses and has(BLIND)
 
 
-## 走路、跑步的速度乘幾倍（緩速）：每一層 per_rate；沒反轉＝變慢，反轉＝變快。身上沒有＝1。
+## 走路、跑步的速度乘幾倍（緩速）：每一層 per_rate；沒反轉＝變慢，反轉＝變快。身上沒有＝1。疫病再乘一次；石化沒反轉＝0（動不了）。
 func move_speed_scale() -> float:
-	return _layered_scale(SLOW)
+	if is_petrified():
+		return 0.0
+	return _layered_scale(SLOW) * _all_scale()
 
 
-## 砍人的傷害乘幾倍（衰弱）：每一層 per_rate；沒反轉＝變輕，反轉＝變重。身上沒有＝1。
+## 砍人的傷害乘幾倍（衰弱）：每一層 per_rate；沒反轉＝變輕，反轉＝變重。身上沒有＝1。疫病再乘一次。
 func damage_dealt_scale() -> float:
-	return _layered_scale(WEAKNESS)
+	return _layered_scale(WEAKNESS) * _all_scale()
 
 
 func _layered_scale(status_id: String) -> float:
@@ -101,12 +127,14 @@ func _layered_scale(status_id: String) -> float:
 
 
 ## 受到直接傷害時乘幾倍（防禦歸零）：沒反轉＝多吃（1 + 強度）；反轉＝少吃（1 − 強度，強度不超過 max_reversed_rate）。身上沒有＝1。
+## 疫病再乘一次：沒反轉＝多吃（1 + 比例），反轉＝防禦提升（除以 1 + 比例）。霸體無敵不在這裡（PlayerController.is_invulnerable）。
 func damage_taken_scale() -> float:
+	var plague: float = 1.0 / (1.0 + all_rate()) if reverses else 1.0 + all_rate()
 	if not has(DEFENSE_ZERO):
-		return 1.0
+		return plague
 	if not reverses:
-		return 1.0 + rate(DEFENSE_ZERO)
-	return 1.0 - clampf(rate(DEFENSE_ZERO), 0.0, minf(rules.max_reversed_rate(DEFENSE_ZERO), 1.0))
+		return (1.0 + rate(DEFENSE_ZERO)) * plague
+	return (1.0 - clampf(rate(DEFENSE_ZERO), 0.0, minf(rules.max_reversed_rate(DEFENSE_ZERO), 1.0))) * plague
 
 
 ## 上狀態。回傳 "start"／"refresh"／"ignored"（強度或時間不合法）。
@@ -170,7 +198,7 @@ func tick(delta: float, health: Health) -> void:
 		var id: String = str(k)
 		var cur: Dictionary = _active[id] as Dictionary
 		var dt: float = minf(delta, float(cur["remaining"]))
-		# 麻痺（action）、防禦歸零（guard）、致盲（aim）、緩速（move）、衰弱（power）不碰生命：只計時，效果由 attack_speed()／blocks_attack()／damage_taken_scale() 問。
+		# 麻痺（action）、防禦歸零（guard）、致盲（aim）、緩速（move）、衰弱（power）、石化（stone）不碰生命：只計時，效果由 attack_speed()／blocks_attack()／damage_taken_scale() 問。
 		# 流血（bleed）沒反轉跟中毒一樣每秒扣血；反轉了不碰生命（變成出手加速）
 		var kind: String = rules.kind(id)
 		if health != null and dt > 0.0 and (kind == "dot" or kind == "bleed"):
@@ -181,6 +209,14 @@ func tick(delta: float, health: Health) -> void:
 				var capped: float = minf(float(cur["rate"]), rules.max_reversed_rate(id))
 				info["reversed"] = true
 				health.heal(capped * reversed_scale * dt, info)
+		elif health != null and dt > 0.0 and kind == "all":
+			# 疫病的持續失血：每秒 drain 點，跟強度無關；反轉＝照樣的速度回血（不打折——劇本的「每秒高速回血」）
+			var info: Dictionary = {"status": id, "source": cur["source"]}
+			if not reverses:
+				health.apply_status_damage(rules.drain(id) * dt, info)
+			else:
+				info["reversed"] = true
+				health.heal(rules.drain(id) * dt, info)
 		cur["remaining"] = float(cur["remaining"]) - delta
 		if float(cur["remaining"]) <= 0.0:
 			ended.append(id)

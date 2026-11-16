@@ -276,6 +276,7 @@ func _physics_process(delta: float) -> void:
 		status_effects.tick(delta, health)
 	reversal_cue.step(delta)
 	_update_sword_glow(delta)
+	_update_body_glow()
 	# 麻痺被反轉＝出手變快（只有出手，不是整個人變快）；沒反轉的麻痺＝這段時間不能出手
 	_puppet.attack_speed = status_effects.attack_speed()
 	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
@@ -636,7 +637,7 @@ func _build_lock_marker() -> void:
 
 
 func is_invulnerable() -> bool:
-	return invulnerable
+	return invulnerable or status_effects.is_unstoppable()
 
 
 ## 這一幀玩家要的動作："dodge"／"release"／"attack"／""。剛按下去的優先（同一幀都按＝閃避 → 釋放 → 出手）；沒有的話看有沒有還記著的。
@@ -1074,6 +1075,33 @@ func _update_sword_glow(delta: float) -> void:
 
 func weapon() -> Node3D:
 	return _weapon
+
+
+## 霸體無敵（石化被反轉）的時候整個人蓋一層金光：看得出「現在打不動他」。劍有自己的那一層，不蓋。
+const BODY_GLOW_FILL: float = 0.28
+const BODY_GLOW_RIM: float = 2.4
+var _body_glow_mat: ShaderMaterial
+var _body_glow_on: bool = false
+
+
+func is_body_glowing() -> bool:
+	return _body_glow_on
+
+
+func _update_body_glow() -> void:
+	var on: bool = status_effects.is_unstoppable()
+	if on == _body_glow_on:
+		return
+	_body_glow_on = on
+	if _body_glow_mat == null:
+		_body_glow_mat = ShaderMaterial.new()
+		_body_glow_mat.shader = SWORD_GLOW_SHADER
+		_body_glow_mat.set_shader_parameter("glow_color", REVERSAL_GOLD)
+		_body_glow_mat.set_shader_parameter("fill", BODY_GLOW_FILL)
+		_body_glow_mat.set_shader_parameter("rim", BODY_GLOW_RIM)
+	for n: Node in _puppet.find_children("*", "GeometryInstance3D", true, false):
+		if _weapon == null or not _weapon.is_ancestor_of(n):
+			(n as GeometryInstance3D).material_overlay = _body_glow_mat if on else null
 
 
 func _process(delta: float) -> void:

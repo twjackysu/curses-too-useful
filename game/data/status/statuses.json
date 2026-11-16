@@ -1,5 +1,5 @@
 {
-	"_doc": "異常狀態、來源與可攜藥劑。kind=dot：每秒扣血／反轉後回血；kind=action：不碰生命，影響出手（沒反轉＝不能出手；反轉＝出手加速，rate 是倍率）；kind=guard：不碰生命，影響受到的直接傷害（rate 是比例：沒反轉＝多吃這麼多；反轉＝少吃這麼多）；kind=bleed：rate 是層數，沒反轉＝每秒扣 rate 點血，反轉＝出手加速（每層快 haste_per_rate）；kind=aim：不碰生命，反轉＝每一刀都算砍在破綻上（傷害、失衡照 noen.weak_*_mult 加倍；沒反轉的「看不見、砍不中」還沒做——現在只有諾恩會中）。kind=move：rate 是層數，沒反轉＝走得慢（每層慢 per_rate），反轉＝走得快；kind=power：rate 是層數，沒反轉＝砍得輕（每層輕 per_rate），反轉＝砍得重。stack_max＝再上一次是把強度加上去（最多到這個數），沒寫的狀態只留比較強的那一份。來源的 also＝同一下再套用另一個來源（一瓶藥帶兩種狀態）。新的狀態照這張表加（docs/design/13-chapter-1-plan.md「系統」）。",
+	"_doc": "異常狀態、來源與可攜藥劑。kind=dot：每秒扣血／反轉後回血；kind=action：不碰生命，影響出手（沒反轉＝不能出手；反轉＝出手加速，rate 是倍率）；kind=guard：不碰生命，影響受到的直接傷害（rate 是比例：沒反轉＝多吃這麼多；反轉＝少吃這麼多）；kind=bleed：rate 是層數，沒反轉＝每秒扣 rate 點血，反轉＝出手加速（每層快 haste_per_rate）；kind=aim：不碰生命，反轉＝每一刀都算砍在破綻上（傷害、失衡照 noen.weak_*_mult 加倍；沒反轉的「看不見、砍不中」還沒做——現在只有諾恩會中）。kind=move：rate 是層數，沒反轉＝走得慢（每層慢 per_rate），反轉＝走得快；kind=power：rate 是層數，沒反轉＝砍得輕（每層輕 per_rate），反轉＝砍得重。stack_max＝再上一次是把強度加上去（最多到這個數），沒寫的狀態只留比較強的那一份。來源的 also＝同一下再套用另一個來源（一瓶藥帶兩種狀態）。kind=all：rate 是比例（0.5＝五成），沒反轉＝出手以外的全能力下降（走得慢、砍得輕、受傷多）＋每秒扣 drain 點血，反轉＝全能力提升（出手也加快）＋每秒回 drain 點血；kind=stone：沒反轉＝整個人不能動、不能出手，反轉＝霸體無敵（不受傷、不會被打斷）。新的狀態照這張表加（docs/design/13-chapter-1-plan.md「系統」）。",
 	"statuses": {
 		"poison": {
 			"max_duration": 30.0,
@@ -50,6 +50,20 @@
 			"max_duration": 60.0,
 			"name_key": "STATUS_WEAKNESS",
 			"reversed_key": "STATUS_WEAKNESS_REVERSED"
+		},
+		"plague": {
+			"kind": "all",
+			"max_duration": 12.0,
+			"max_reversed_rate": 0.5,
+			"drain": 5.0,
+			"name_key": "STATUS_PLAGUE",
+			"reversed_key": "STATUS_PLAGUE_REVERSED"
+		},
+		"petrify": {
+			"kind": "stone",
+			"max_duration": 12.0,
+			"name_key": "STATUS_PETRIFY",
+			"reversed_key": "STATUS_PETRIFY_REVERSED"
 		}
 	},
 	"sources": {
@@ -59,11 +73,17 @@
 			"rate": 6.0,
 			"duration": 4.0
 		},
-		"boss_miasma": {
-			"_doc": "頭目的濃瘴氣（祭壇那一段用）。",
-			"status": "poison",
-			"rate": 8.0,
+		"plague_aura": {
+			"_doc": "【深淵疫病魔像】的疫病光環（劇本節點 3）：全能力下降五成＋持續失血 → 對諾恩是全能力提升五成＋高速回血。站在光環裡每 0.25 秒刷新一次。",
+			"status": "plague",
+			"rate": 0.5,
 			"duration": 3.0
+		},
+		"petrify_gaze": {
+			"_doc": "魔像狂暴後的全場【石化凝視】：石化 → 對諾恩是霸體無敵。",
+			"status": "petrify",
+			"rate": 1.0,
+			"duration": 8.0
 		},
 		"slime_touch": {
 			"_doc": "被劇毒史萊姆撞到。",

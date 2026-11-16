@@ -52,7 +52,8 @@ static func load_file(path: String) -> StatusRules:
 ## 狀態的種類："dot"＝每秒扣血／反轉後回血（中毒）；"action"＝不碰生命，影響能不能出手、出手多快（麻痺）；
 ## "guard"＝不碰生命，影響受到的直接傷害（防禦歸零）；"bleed"＝沒反轉每秒扣血、反轉後出手加速（流血）；
 ## "aim"＝不碰生命，反轉後每一刀都算砍在破綻上（致盲 → 鷹眼）；"move"＝不碰生命，沒反轉走得慢、反轉後走得快（緩速）；
-## "power"＝不碰生命，沒反轉砍得輕、反轉後砍得重（衰弱）
+## "power"＝不碰生命，沒反轉砍得輕、反轉後砍得重（衰弱）；"all"＝全能力下降＋每秒失血，反轉後全能力提升＋每秒回血（疫病）；
+## "stone"＝沒反轉整個人不能動，反轉後霸體無敵（石化）
 func kind(status_id: String) -> String:
 	return str((statuses.get(status_id, {}) as Dictionary).get("kind", "dot"))
 
@@ -74,6 +75,11 @@ func stack_max(status_id: String) -> float:
 ## 流血被反轉：每一層出手快多少（0.12＝快 12%）
 func haste_per_rate(status_id: String) -> float:
 	return float((statuses.get(status_id, {}) as Dictionary).get("haste_per_rate", 0.0))
+
+
+## 疫病（all）：每秒扣／回多少生命
+func drain(status_id: String) -> float:
+	return float((statuses.get(status_id, {}) as Dictionary).get("drain", 0.0))
 
 
 ## 緩速、衰弱：每一層改多少（0.15＝15%）

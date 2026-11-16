@@ -122,6 +122,10 @@ STATUS_SLOW,Slowed,緩速
 STATUS_SLOW_REVERSED,Slowed → Faster on your feet,緩速 → 跑得更快
 STATUS_WEAKNESS,Weakened,衰弱
 STATUS_WEAKNESS_REVERSED,Weakened → Every cut hits harder,衰弱 → 砍得更重
+STATUS_PLAGUE,Plagued (everything down),疫病（全能力下降）
+STATUS_PLAGUE_REVERSED,Plagued → Everything up + regenerating,疫病 → 全能力提升＋回血
+STATUS_PETRIFY,Petrified,石化
+STATUS_PETRIFY_REVERSED,Petrified → Unstoppable and invincible,石化 → 霸體無敵
 GAME_TITLE,These Curses Are Far Too Useful to Me,這些詛咒對我太有用了
 GAME_SUBTITLE,"My ""infection-prone"" body turned out to be the cheat that flips everything",被嫌棄的易感染體質，其實是逆轉一切的外掛
 SPK_LILITH,Lilith,莉莉絲

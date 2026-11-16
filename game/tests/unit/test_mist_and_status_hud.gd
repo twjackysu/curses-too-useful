@@ -23,7 +23,7 @@ func test_mist_applies_while_inside_and_lingers_after_leaving() -> void:
 
 
 func test_mist_height_and_expiry() -> void:
-	var zone := MistZone.new(Vector3(0, 1, 0), 2.0, "boss_miasma", 3.0)
+	var zone := MistZone.new(Vector3(0, 1, 0), 2.0, "vent_gas", 3.0)
 	var fx := _fx(false)
 	assert_false(zone.contains(Vector3(0, 5, 0)), "上面的平台不在霧裡")
 	assert_true(zone.contains(Vector3(0, 1, 0)))
@@ -114,7 +114,7 @@ func test_use_item_action_is_bound_and_rebindable() -> void:
 
 
 func test_poison_mist_node_builds_layers_and_fades_out() -> void:
-	var mist: PoisonMist = PoisonMist.create(2.0, "boss_miasma", 1.0)
+	var mist: PoisonMist = PoisonMist.create(2.0, "vent_gas", 1.0)
 	tree.root.add_child(mist)
 	var discs: int = 0
 	for c: Node in mist.get_children():
