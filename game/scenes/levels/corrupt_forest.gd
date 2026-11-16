@@ -78,6 +78,9 @@ func _ready() -> void:
 	if args.has("explore"):
 		for flag: String in [FLAG_JOINED, FLAG_REVERSAL, FLAG_GATE_TALK, FLAG_MISFIRE, FLAG_SLIMES, FLAG_AFTER_TALK]:
 			Game.session.set_flag(flag, true)
+	# 截圖用：`--explore --scream` 再跳到採滿五朵、聽到慘叫之後（配 `--at=0,-74`：往北走幾步就到祭壇路口，換到祭壇那一關）
+	if args.has("scream"):
+		Game.session.add_flag(ForestExplore.FLAG_MUSHROOMS, ForestExplore.MUSHROOM_NEED)
 	var st0: GameState = Game.session.state
 	_player.global_position = spawn.global_position if bool(st0.get_flag(FLAG_JOINED, false)) else ENTRANCE_POS
 	if ForestExplore.unlocked(st0):

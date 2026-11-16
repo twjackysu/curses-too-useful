@@ -142,7 +142,7 @@ func test_quest_and_dialogue_data_are_valid() -> void:
 	assert_true(db.errors.is_empty(), "任務資料：%s" % ", ".join(db.errors))
 	var dlg := DialogueDB.load_default()
 	assert_true(dlg.errors.is_empty(), "對話資料：%s" % ", ".join(dlg.errors))
-	for id: String in ["ch1_sera_joins", "ch1_forest_gate", "ch1_after_slimes"]:
+	for id: String in ["ch1_sera_joins", "ch1_forest_gate", "ch1_after_slimes", "ch1_campfire", "ch1_altar_arrive", "ch1_altar_after"]:
 		assert_true(dlg.has_dialogue(id), "有對話 %s" % id)
 	assert_true(StatusRules.load_default().errors.is_empty(), "狀態資料")
 
@@ -1292,7 +1292,7 @@ func test_cursed_chest_in_the_bog_curses_norn_and_hands_him_the_split_blade() ->
 
 ## 從頭走一遍（不直接設旗標，只搬動諾恩、按掉對話、把敵人打倒）：新遊戲 → 遇到席菈結伴 → 瘴氣反轉 → 兩人講話 → 三隻史萊姆 →
 ## 戰後對話 → 探索解鎖 → 採五朵夜光毒蕈 → 慘叫 → 走到祭壇路口 →「未完待續」。每一段接得起來、中間不會卡住。
-func test_walkthrough_from_new_game_to_the_altar_road() -> void:
+func test_walkthrough_from_new_game_to_the_fallen_golem() -> void:
 	_game().call("new_game", false)
 	var s: GameSession = _session()
 	var level: CorruptForest = _load_level()
@@ -1344,56 +1344,67 @@ func test_walkthrough_from_new_game_to_the_altar_road() -> void:
 	assert_eq(s.quests.stage_of("ch1_main"), "altar_arrive", "走到祭壇路口")
 	assert_eq(str(_game().get("last_level_request")), "ruined_altar")
 	assert_false(player.health.is_dead())
-
-
-# ---------------------------------------------------------------- 廢棄祭壇（劇本節點 3）
-
-const ALTAR_LEVEL: String = "res://scenes/levels/ruined_altar.tscn"
-var _altar: RuinedAltar
-
-
-## 新遊戲並直接跳到剛走進祭壇那一關
-func _load_altar() -> RuinedAltar:
-	_game().call("new_game", false)
-	RuinedAltar.skip_to_altar(_session())
-	_altar = (load(ALTAR_LEVEL) as PackedScene).instantiate() as RuinedAltar
-	_level_node = _altar
-	tree.root.add_child(_altar)
-	return _altar
-
-
-func test_altar_level_builds_a_paved_ring_with_pillars_and_the_altar() -> void:
-	var level: RuinedAltar = _load_altar()
+	# 換到廢棄祭壇那一關（遊戲裡是 Game 換場景；這裡把森林放掉、載入祭壇）
+	level.free()
+	var altar: RuinedAltar = (load("res://scenes/levels/ruined_altar.tscn") as PackedScene).instantiate() as RuinedAltar
+	_level_node = altar
+	tree.root.add_child(altar)
 	await tree.physics_frame
-	var s: GameSession = _session()
-	assert_eq(s.quests.stage_of("ch1_main"), "altar_arrive")
-	assert_eq(s.state.checkpoint, "ch1_altar")
-	var player: PlayerController = level.get_node("Player") as PlayerController
-	assert_true(player.global_position.distance_to(AltarScenery.ENTRANCE) < 0.5, "諾恩從南邊的路走進來")
-	assert_true(level.sera.joined and level.sera.global_position.distance_to(player.global_position) < 4.0, "席菈跟在旁邊")
-	assert_true(level.sera.global_position.z > player.global_position.z, "她在他後面（鏡頭這一側）")
-	assert_not_null(level.get_node_or_null("AltarRuins"), "目標指引的標記")
-	var altar: Node3D = level.get_node("Altar") as Node3D
-	assert_true(altar.global_position.distance_to(AltarScenery.ALTAR_POS) < 0.01)
-	assert_not_null(altar.get_node_or_null("Omen"), "祭壇上面那盞紅光")
-	assert_eq(level.get_node("Ruins").get_child_count(), AltarScenery.PILLARS.size() + AltarScenery.FALLEN.size(), "一圈斷柱＋倒在地上的兩截")
-	assert_true(level.get_node("Forest").get_child_count() > 30, "外圍有樹")
-	for tree_node: Node in level.get_node("Forest").get_children():
-		if tree_node is StaticBody3D:
-			var at: Vector3 = (tree_node as Node3D).global_position
-			assert_true(Vector2(at.x, at.z).length() > AltarScenery.PLAZA_RADIUS + 2.0, "石板上沒有樹")
-			assert_false(at.z > 0.0 and absf(at.x) < AltarScenery.PATH_WALK_HALF, "路上沒有樹")
-	assert_true(level.scenery.stones.size() >= AltarScenery.PILLARS.size() + 2, "每一塊石頭有自己的符文材質")
-	# 走得到的範圍：石板＋南邊那條路
-	assert_eq(AltarScenery.keep_inside(Vector3(3, 0, -5)), Vector3(3, 0, -5))
-	assert_eq(AltarScenery.keep_inside(AltarScenery.ENTRANCE), AltarScenery.ENTRANCE)
-	assert_true(Vector2(AltarScenery.keep_inside(Vector3(-40, 0, -3)).x, AltarScenery.keep_inside(Vector3(-40, 0, -3)).z).length() <= AltarScenery.WALK_RADIUS + 0.01, "往西走太遠拉回來")
-	assert_true(AltarScenery.keep_inside(Vector3(0, 0, 60)).z <= AltarScenery.PATH_END_Z + 0.01, "往回走也有盡頭")
-	assert_true(absf(AltarScenery.keep_inside(Vector3(9, 0, 28)).x) <= AltarScenery.PATH_WALK_HALF + 0.01, "路的兩邊是樹林")
-	assert_eq(level.footstep_surface(Vector3.ZERO), "stone", "石板上是石頭的腳步聲")
-	# 標題的「繼續」回到這一關
+	player = altar.get_node("Player") as PlayerController
+	hud = altar.get_node("Hud") as Hud
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_ALTAR")
+	# 走上石板：雷歐開口，講完魔像醒來
+	player.global_position = Vector3(0, 0.05, RuinedAltar.ARRIVE_Z - 0.5)
+	await _until_dialogue(30)
+	_finish_dialogue(0)
+	assert_eq(s.quests.stage_of("ch1_main"), "boss", "抵達的那段話講完：開打")
+	var golem: PlagueGolem = altar.golem
+	for i: int in 120:
+		await tree.physics_frame
+		if golem.awake:
+			break
+	assert_true(golem.awake, "魔像醒了")
+	# 砍到剩一半：狂暴 → 石化凝視，擋在席菈前面 → 她射出禁藥 → 一刀粉碎核心（階段的時間縮短，不真的等十幾秒）
+	golem.phases.roar_sec = 0.3
+	golem.phases.rage_sec = 0.6
+	golem.phases.gaze_sec = 0.8
+	golem.health.hp = golem.health.max_hp * 0.5
+	for i: int in 400:
+		await tree.physics_frame
+		player.health.hp = player.health.max_hp
+		if golem.phases.phase == GolemPhases.Phase.GAZE:
+			break
+	assert_eq(golem.phases.phase, GolemPhases.Phase.GAZE, "狂暴之後擺石化凝視")
+	altar.sera.global_position = altar.sera.hold_at
+	player.global_position = golem.global_position.lerp(altar.sera.global_position, 0.6) + Vector3(0, 0.05, 0)
+	for i: int in 400:
+		await tree.physics_frame
+		if golem.phases.core_open:
+			break
+	assert_true(golem.phases.blocked and golem.phases.core_open, "擋住了凝視，禁藥砸中")
+	var to_golem: Vector3 = golem.global_position - player.global_position
+	player.global_position = golem.global_position - to_golem.normalized() * 2.0
+	player.yaw = atan2(-to_golem.x, -to_golem.z)
+	await tree.physics_frame
+	player.start_attack()
+	for i: int in 60:
+		await tree.physics_frame
+		if golem.health.is_dead():
+			break
+	assert_true(golem.health.is_dead(), "粉碎核心")
+	assert_eq(s.quests.stage_of("ch1_main"), "after_boss")
+	Engine.time_scale = 1.0
+	# 戰後那段話講完：目前的內容到底
+	await _until_dialogue(int(RuinedAltar.AFTER_TALK_DELAY * 60.0) + 90)
+	_finish_dialogue(0)
+	assert_true(s.story_finished(), "打倒魔像、講完話：目前的內容到底")
+	await tree.physics_frame
+	assert_eq(hud.objective_text_key(), Hud.STORY_END_KEY)
+	assert_false(player.health.is_dead())
+	# 標題的「繼續」讀得回來
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	assert_true(again.story_finished(), "存檔停在這一段的結尾")
 	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "ruined_altar")
 
 

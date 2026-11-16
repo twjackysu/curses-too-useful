@@ -1,0 +1,40 @@
+{
+  "id": "ch1_altar_arrive",
+  "start": "l00",
+  "nodes": {
+    "l00": {
+      "speaker": "SPK_LEO",
+      "text": "DLG_CH1_ALTAR_001",
+      "next": "l01"
+    },
+    "l01": {
+      "speaker": "SPK_LEO",
+      "text": "DLG_CH1_ALTAR_002",
+      "next": "l02"
+    },
+    "l02": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_ALTAR_003",
+      "next": "l03"
+    },
+    "l03": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_ALTAR_004",
+      "next": "l04"
+    },
+    "l04": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_ALTAR_005",
+      "next": "l05"
+    },
+    "l05": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_ALTAR_006",
+      "do": {
+        "set": {
+          "ch1.altar_talked": true
+        }
+      }
+    }
+  }
+}

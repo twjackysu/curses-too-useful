@@ -1,0 +1,7 @@
+# 廢棄祭壇（Boss，劇本節點 3）的固定鏡頭組：名稱 幀數 旗標…（都用玩家的鏡頭）
+# 走進來看到的全景（魔像舉著拳頭、雷歐小隊倒在地上）／抵達的那段話第一句（鏡頭放低拍雷歐）／開打（--boss＝跳過那段話；魔像醒來走過來、光環、Boss 的生命條）。
+# 魔像會動、席菈會射：每次拍的時間點不完全一樣，跟基準的差異數字只能參考，要看圖。
+# 用法同 forest.txt：scripts/shots.sh altar [--save-baseline]
+altar-arrive 20 --level=ruined_altar --at=-1.5,15.6 --locale=zh_TW
+altar-leo 60 --level=ruined_altar --at=0,14.5 --locale=zh_TW
+altar-fight 110 --level=ruined_altar --boss --at=0.5,6.5 --locale=zh_TW

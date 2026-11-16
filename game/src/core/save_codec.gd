@@ -5,8 +5,9 @@ extends RefCounted
 ## 寫檔先寫 .tmp 再改名，舊檔保留為 .bak，避免當機時毀掉存檔。
 ## v3 以前（v0～v2）是已經刪掉的舊劇情的存檔：不遷移、不刪檔，讀到回 TOO_OLD（當成沒有存檔）。
 ## v4：拿掉 state.reversal（反轉欄位；現在落在諾恩身上的狀態全部反轉，沒有東西要記）。
+## v5：主線後面接了廢棄祭壇（2026-11-16）。v4 時走到祭壇路口主線就「做完」了——這種存檔改成停在「剛走進祭壇」，按繼續可以接著玩。
 
-const CURRENT_VERSION: int = 4
+const CURRENT_VERSION: int = 5
 ## 還讀得懂的最舊版本
 const MIN_VERSION: int = 3
 
@@ -54,13 +55,19 @@ static func migrate(root: Dictionary) -> Dictionary:
 	return data
 
 
-## 一版一段：`match from_version:` 裡加 `4:`（v4 → v5）……
+## 一版一段：`match from_version:` 裡加 `5:`（v5 → v6）……
 static func _migrate_step(from_version: int, data: Dictionary) -> Dictionary:
 	match from_version:
 		3:
 			var state: Variant = data.get("state", null)
 			if state is Dictionary:
 				(state as Dictionary).erase("reversal")
+		4:
+			var state: Variant = data.get("state", null)
+			var quests: Variant = (state as Dictionary).get("quests", null) if state is Dictionary else null
+			if quests is Dictionary and str((quests as Dictionary).get("ch1_main", "")) == StoryLogic.QUEST_DONE:
+				(quests as Dictionary)["ch1_main"] = "altar_arrive"
+				(state as Dictionary)["checkpoint"] = "ch1_altar"
 	return data
 
 

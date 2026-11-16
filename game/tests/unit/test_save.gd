@@ -71,6 +71,31 @@ func test_v3_save_with_reversal_slots_migrates_to_v4() -> void:
 	assert_true(fx.attack_speed() > 1.0)
 
 
+## v4 → v5：v4 的主線到祭壇路口就做完了。這種存檔讀進來改成停在「剛走進祭壇」（後面接了 Boss 那一關），其他照原樣；
+## 還在半路上的 v4 存檔不動。
+func test_v4_save_finished_at_the_altar_road_resumes_at_the_altar() -> void:
+	var v4: Dictionary = {"version": 4, "saved_at": "2026-11-15T23:30:00", "state": {
+		"chapter": "ch1", "checkpoint": "ch1_scream", "mode": "story",
+		"flags": {"ch1.sera_joined": true, "ch1.mushrooms": 5, "ch1.altar_gate_reached": true, "ch1.forest_done": true, "noen.weapon": "split_blade"},
+		"quests": {"ch1_main": StoryLogic.QUEST_DONE}, "items": {}, "statuses": [], "grants": [], "vitals": {"hp": 77.0}}}
+	var r: Dictionary = SaveCodec.decode(JSON.stringify(v4))
+	assert_eq(r["status"], SaveCodec.Status.OK)
+	assert_eq(r["from_version"], 4)
+	var s: GameState = r["state"]
+	assert_eq(s.quests.get("ch1_main"), "altar_arrive", "主線接著往下：剛走進祭壇")
+	assert_eq(s.checkpoint, "ch1_altar")
+	assert_eq(str(s.get_flag("noen.weapon")), "split_blade", "其他照原樣")
+	assert_eq(float(s.vitals["hp"]), 77.0)
+	var runner := QuestRunner.new(QuestDB.load_default(), s)
+	runner.evaluate()
+	assert_eq(runner.stage_of("ch1_main"), "altar_arrive", "任務接得上")
+	assert_false(runner.is_done("ch1_main"))
+	var mid: Dictionary = {"version": 4, "state": {"checkpoint": "ch1_explore", "mode": "story", "quests": {"ch1_main": "gather"}}}
+	var m: GameState = SaveCodec.decode(JSON.stringify(mid))["state"]
+	assert_eq(m.quests.get("ch1_main"), "gather", "還沒走到路口的不動")
+	assert_eq(m.checkpoint, "ch1_explore")
+
+
 ## v0～v2 是已經刪掉的舊劇情的存檔：不遷移，回 TOO_OLD（呼叫端當成沒有存檔），也不會當成壞檔去翻備份。
 func test_saves_older_than_v3_are_too_old() -> void:
 	var v0: Dictionary = {"chapter": "slice_frostbridge", "checkpoint": "bell", "flags": {"a": 1}}

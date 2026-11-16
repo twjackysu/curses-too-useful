@@ -70,5 +70,5 @@ void fragment() {
 	col = mix(col, stone, paved);
 	ALBEDO = col;
 	ROUGHNESS = mix(1.0, 0.8, paved);
-	EMISSION = plague_color * joint * paved * plague * 0.55;
+	EMISSION = plague_color * joint * paved * plague * 0.09;
 }

@@ -198,6 +198,10 @@ jobs:
           shot 22-explore-wolves 30 --level=corrupt_forest --explore --at=23.5,-38.5 --locale=zh_TW
           shot 23-explore-swamp 30 --level=corrupt_forest --explore --at=43.6,-65 --cam-yaw=-12 --locale=zh_TW
           shot 24-explore-hollow 60 --level=corrupt_forest --explore --at=0,-57.5 --locale=zh_TW
+          # 跟 scripts/shots/altar.txt 同一組：廢棄祭壇（走進來的全景／雷歐開口／開打）
+          shot 30-altar-arrive 20 --level=ruined_altar --at=-1.5,15.6 --locale=zh_TW
+          shot 31-altar-leo 60 --level=ruined_altar --at=0,14.5 --locale=zh_TW
+          shot 32-altar-fight 110 --level=ruined_altar --boss --at=0.5,6.5 --locale=zh_TW
           ls -la build/screens
           test -n "$(ls build/screens/*.png 2>/dev/null)"
           cd build && python3 -c "import shutil; shutil.make_archive('screens', 'zip', 'screens')"
