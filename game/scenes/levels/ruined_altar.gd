@@ -5,7 +5,7 @@ extends StoryLevel
 ## 這一關的每一拍：走上石板，雷歐小隊倒在地上、魔像舉著拳頭 → 三人講幾句（ch1_altar_arrive）→ 魔像轉過來，諾恩走進疫病光環
 ## （全能力下降＋失血 → 全能力提升＋回血）→ Boss 戰 → 生命剩一半魔像狂暴，席菈退到後面裝禁藥 → 石化凝視：地上一道光從魔像連到她，
 ## 諾恩站上去擋住（石化 → 霸體無敵），沒擋到她被石化、過一陣子再來一次 → 擋住了她射出【混沌大災難藥劑】，砸中之後諾恩的下一刀粉碎核心
-## → 戰後三人講幾句（ch1_altar_after，兩個回答）→ 拿到魔像核心。第一章回公會的結尾在下一段（公會大廳）。
+## → 戰後三人講幾句（ch1_altar_after，兩個回答）→ 拿到魔像核心 → 隔一下換到公會大廳演第一章的結尾（GuildHall）。
 ## 看得到的場景在 AltarScenery，魔像自己的招式與階段在 PlagueGolem／GolemPhases；這裡放劇情、席菈在這一場要做的事、畫面上的字。
 ## 任務 data/quests/ch1_main.json 的 altar_arrive、boss、after_boss 三個階段。
 
@@ -17,7 +17,7 @@ const STAGE_AFTER: String = "after_boss"
 const FLAG_TALKED: String = "ch1.altar_talked"
 const FLAG_GOLEM_DOWN: String = "ch1.golem_down"
 const FLAG_DONE: String = "ch1.altar_done"
-const STAGES: PackedStringArray = [STAGE_ARRIVE, STAGE_BOSS, STAGE_AFTER, StoryLogic.QUEST_DONE]
+const STAGES: PackedStringArray = [STAGE_ARRIVE, STAGE_BOSS, STAGE_AFTER]
 const ARRIVE_DIALOGUE: String = "ch1_altar_arrive"
 const AFTER_DIALOGUE: String = "ch1_altar_after"
 const CHAOS_SOURCE: String = "sera_chaos"
@@ -40,6 +40,8 @@ const ARRIVE_Z: float = 15.0
 const WAKE_DELAY: float = 0.9
 const AFTER_TALK_DELAY: float = 4.6
 const AFTER_TALK_RELOAD: float = 1.4
+## 戰後那段話講完隔多久換到公會大廳（先讓「獲得魔像核心」那一行出來）
+const RETURN_DELAY: float = 2.6
 ## 席菈裝禁藥的時候退到石板邊上的這一圈（八個方向挑離魔像最遠的）
 const HOLD_RING: float = 12.0
 const GOLD: Color = Color(1.0, 0.84, 0.4)
@@ -50,12 +52,15 @@ var golem: PlagueGolem
 var aura: PlagueAura
 var talk_camera: TalkCamera
 var chatter: SeraChatter
+## 換到公會大廳之前的那張卡（還沒到那一拍是 null）
+var card: ChapterCard
 ## 雷歐小隊：節點名 → 那個人
 var party: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 var _spores: CPUParticles3D
 var _wake_in: float = -1.0
 var _after_talk_in: float = -1.0
+var _return_in: float = -1.0
 ## 飛在半路上的那一瓶禁藥（砸中才開核心）
 var _chaos_vial: SeraVial
 var _plague_level: float = 0.0
@@ -70,6 +75,7 @@ var _burst_on: String = ""
 
 ## 把前面的劇情跳過，直接到「剛走進祭壇」（開發旗標 `--level=ruined_altar` 與測試用）。
 static func skip_to_altar(session: GameSession) -> void:
+	GuildHall.skip_opening(session)
 	for flag: String in [CorruptForest.FLAG_JOINED, CorruptForest.FLAG_REVERSAL, CorruptForest.FLAG_GATE_TALK,
 			CorruptForest.FLAG_MISFIRE, CorruptForest.FLAG_SLIMES, CorruptForest.FLAG_AFTER_TALK]:
 		session.set_flag(flag, true)
@@ -157,6 +163,10 @@ func _physics_process(delta: float) -> void:
 	_plague_level = move_toward(_plague_level, 1.0 if plagued else 0.0, delta * 0.8)
 	scenery.set_plague(_plague_level, 0.5 + 0.5 * sin(_pulse_t * 2.6))
 	sera.force_mask = plagued and aura.contains(sera.global_position)
+	if _return_in >= 0.0:
+		_return_in -= delta
+		if _return_in < 0.0:
+			card = ChapterCard.play(self, "CARD_RETURN_SMALL", "CARD_RETURN_TITLE", Game.go_to_checkpoint_level)
 	match stage():
 		STAGE_ARRIVE:
 			if _player.global_position.z < ARRIVE_Z:
@@ -348,9 +358,11 @@ func _on_golem_down() -> void:
 	_after_talk_in = AFTER_TALK_DELAY
 
 
+## 戰後那段話講完：拿到核心，隔一下「當天傍晚——奧爾德冒險者公會」，換到大廳演結尾
 func _on_dialogue_ended(dialogue_id: String) -> void:
 	if dialogue_id == AFTER_DIALOGUE:
 		_hud.show_banner("CH1_GOT_CORE", 4.0)
+		_return_in = RETURN_DELAY
 
 
 func _mark(node_name: String, at: Vector3) -> void:

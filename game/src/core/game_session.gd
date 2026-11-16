@@ -18,7 +18,7 @@ const DEFAULT_SAVE_DIR: String = "user://saves"
 const MAIN_QUEST: String = "ch1_main"
 const MAIN_QUESTS: PackedStringArray = [MAIN_QUEST]
 const FIRST_CHAPTER: String = "ch1"
-const FIRST_CHECKPOINT: String = "ch1_forest_gate"
+const FIRST_CHECKPOINT: String = "ch1_guild"
 
 var db: QuestDB
 var save_dir: String

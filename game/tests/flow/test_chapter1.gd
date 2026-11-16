@@ -71,17 +71,38 @@ func test_new_game_starts_chapter_one_and_autosaves() -> void:
 	assert_true(s.in_story())
 	assert_eq(s.state.chapter, "ch1")
 	assert_eq(s.main_quest(), "ch1_main")
-	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera")
-	assert_eq(s.objective_key(), "Q_CH1_OBJ_SET_OUT")
-	assert_eq(s.state.checkpoint, "ch1_forest_gate")
+	assert_eq(s.quests.stage_of("ch1_main"), "register", "從公會大廳的登錄開始")
+	assert_eq(s.objective_key(), "Q_CH1_OBJ_REGISTER")
+	assert_eq(s.state.checkpoint, "ch1_guild")
 	assert_true(s.has_save(), "進第一個檢查點就自動存檔")
 	assert_true(bool(_game().call("has_continue")), "標題的「繼續」找得到")
-	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "corrupt_forest")
+	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "guild_hall")
 
 
 func test_quest_follows_the_four_flags_and_continue_restores_it() -> void:
 	_game().call("new_game", false)
 	var s: GameSession = _session()
+	# 公會大廳的開場：登錄 → 水晶與雷歐 → 委託 → 席菈開口 → 出發
+	s.set_flag(GuildHall.FLAG_REGISTERED, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "aptitude")
+	assert_eq(s.quests.marker_spec("ch1_main"), "node:Crystal")
+	s.set_flag(GuildHall.FLAG_CRYSTAL, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "aptitude", "警報響了還沒完：雷歐還沒講")
+	assert_eq(s.state.checkpoint, "ch1_guild", "這一段中途不存檔")
+	s.set_flag(GuildHall.FLAG_LEO_LEFT, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "take_quest")
+	assert_eq(s.state.checkpoint, "ch1_guild_quest")
+	s.set_flag(GuildHall.FLAG_QUEST, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "sera_asks")
+	assert_eq(s.quests.marker_spec("ch1_main"), "node:Sera")
+	s.set_flag(GuildHall.FLAG_SERA_ASKED, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "leave_guild")
+	assert_eq(s.state.checkpoint, "ch1_guild_leave")
+	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "guild_hall")
+	s.set_flag(GuildHall.FLAG_LEFT, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera", "走出大門：腐敗之森")
+	assert_eq(s.state.checkpoint, "ch1_forest_gate")
+	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "corrupt_forest", "換關卡")
 	s.set_flag(CorruptForest.FLAG_REVERSAL, true)
 	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera", "還沒結伴：先中毒也不會跳過相遇")
 	s.set_flag(CorruptForest.FLAG_REVERSAL, false)
@@ -133,8 +154,14 @@ func test_quest_follows_the_four_flags_and_continue_restores_it() -> void:
 	assert_eq(s.state.checkpoint, "ch1_boss_down")
 	assert_false(s.quests.is_done("ch1_main"))
 	s.set_flag(RuinedAltar.FLAG_DONE, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "report", "戰後那段話講完：回公會")
+	assert_eq(s.state.checkpoint, "ch1_guild_return")
+	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "guild_hall", "換回公會大廳")
+	assert_false(s.story_finished())
+	s.set_flag(GuildHall.FLAG_CHAPTER_DONE, true)
 	assert_true(s.quests.is_done("ch1_main"))
-	assert_eq(s.state.get_flag("ch1.altar_cleared"), true)
+	assert_eq(s.state.get_flag("ch1.complete"), true)
+	assert_true(s.story_finished(), "第一章完")
 
 
 func test_quest_and_dialogue_data_are_valid() -> void:
@@ -142,7 +169,8 @@ func test_quest_and_dialogue_data_are_valid() -> void:
 	assert_true(db.errors.is_empty(), "任務資料：%s" % ", ".join(db.errors))
 	var dlg := DialogueDB.load_default()
 	assert_true(dlg.errors.is_empty(), "對話資料：%s" % ", ".join(dlg.errors))
-	for id: String in ["ch1_sera_joins", "ch1_forest_gate", "ch1_after_slimes", "ch1_campfire", "ch1_altar_arrive", "ch1_altar_after"]:
+	for id: String in ["ch1_guild_register", "ch1_guild_leo", "ch1_guild_quest", "ch1_guild_sera", "ch1_sera_joins", "ch1_forest_gate",
+			"ch1_after_slimes", "ch1_campfire", "ch1_altar_arrive", "ch1_altar_after", "ch1_guild_return"]:
 		assert_true(dlg.has_dialogue(id), "有對話 %s" % id)
 	assert_true(StatusRules.load_default().errors.is_empty(), "狀態資料")
 
@@ -262,22 +290,20 @@ func test_noen_starts_alone_meets_sera_at_the_miasma_and_she_joins_with_her_mask
 	assert_true(bool(_game().call("is_in_dialogue")), "走到她面前就開口")
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(runner.current_text(), "DLG_CH1_JOIN_001")
+	assert_eq(str(runner.current().get("speaker", "")), Sera.NAME_KEY, "兩人在公會認識了：她不是「？？？」")
 	runner.advance()
+	assert_false(sera.joined, "話還沒講完")
 	runner.advance()
+	assert_eq(runner.current_text(), "DLG_CH1_JOIN_003")
+	assert_true(runner.visible_choices.is_empty(), "能不能一起去在公會問過了，這裡只是會合")
 	runner.advance()
-	assert_eq(runner.current_text(), "DLG_CH1_JOIN_004", "劇本那一句：能讓我跟你一起去嗎？")
-	assert_eq(runner.visible_choices.size(), 2)
-	assert_false(sera.joined, "還沒答應")
-	assert_true(runner.choose(1))
-	runner.advance()
-	assert_false(bool(_game().call("is_in_dialogue")))
+	assert_false(bool(_game().call("is_in_dialogue")), "三句就講完")
 	assert_eq(s.state.get_flag(CorruptForest.FLAG_JOINED), true)
-	assert_eq(int(s.state.get_flag("sera.affinity", 0)), 10)
-	assert_eq(s.quests.stage_of("ch1_main"), "enter_miasma", "結伴之後才是「走進瘴氣裡」")
+	assert_eq(s.quests.stage_of("ch1_main"), "enter_miasma", "會合之後才是「走進瘴氣裡」")
 	assert_eq(s.state.checkpoint, "ch1_with_sera")
 	for i: int in 3:
 		await tree.physics_frame
-	assert_true(sera.joined, "答應了才結伴")
+	assert_true(sera.joined, "講完才開始跟")
 	assert_false(bool(_game().call("is_in_dialogue")), "只問一次")
 	# 諾恩走進瘴氣，她跟上來：到邊上先戴面具
 	player.global_position = CorruptForest.MIASMA_POS + Vector3(0, 0.05, -3.0)
@@ -322,7 +348,7 @@ func test_talk_camera_shows_whoever_is_speaking_then_hands_back() -> void:
 		await tree.physics_frame
 	assert_true(bool(_game().call("is_in_dialogue")))
 	assert_true(cam.is_talking() and cam.current, "對話一開始就接手")
-	assert_eq(cam.speaker(), sera as Node3D, "第一句是她（？？？）")
+	assert_eq(cam.speaker(), sera as Node3D, "第一句是她")
 	# 滑過去的路上不擦過諾恩的頭
 	var closest: float = 99.0
 	for i: int in int(TalkCamera.BLEND_SEC * 60.0) + 12:
@@ -351,8 +377,6 @@ func test_talk_camera_shows_whoever_is_speaking_then_hands_back() -> void:
 	assert_true(player.facing().dot((cam.global_position - player.global_position).normalized()) > 0.5, "拍到的是他的臉")
 	# 講完：滑回玩家的鏡頭
 	runner.advance()
-	runner.advance()
-	runner.choose(0)
 	runner.advance()
 	assert_false(bool(_game().call("is_in_dialogue")))
 	for i: int in int(TalkCamera.BLEND_SEC * 60.0) + 6:
@@ -888,6 +912,7 @@ func test_title_menu_has_four_entries_and_new_game_works() -> void:
 	assert_eq((boot.get_node("%Title") as Label).text, "GAME_TITLE")
 	(boot.get_node("%NewGame") as Button).pressed.emit()
 	assert_true(_session().in_story(), "按新遊戲開了第一章")
+	assert_eq(str(_game().call("level_for_checkpoint", _session().state.checkpoint)), "guild_hall", "從公會大廳開始")
 	boot.free()
 
 
@@ -1333,15 +1358,51 @@ func test_cursed_chest_in_the_bog_curses_norn_and_hands_him_the_split_blade() ->
 
 ## 從頭走一遍（不直接設旗標，只搬動諾恩、按掉對話、把敵人打倒）：新遊戲 → 遇到席菈結伴 → 瘴氣反轉 → 兩人講話 → 三隻史萊姆 →
 ## 戰後對話 → 探索解鎖 → 採五朵夜光毒蕈 → 慘叫 → 走到祭壇路口 →「未完待續」。每一段接得起來、中間不會卡住。
-func test_walkthrough_from_new_game_to_the_fallen_golem() -> void:
+func test_walkthrough_from_new_game_to_the_end_of_chapter_one() -> void:
 	_game().call("new_game", false)
 	var s: GameSession = _session()
+	# 公會大廳：登錄 → 水晶警報 → 雷歐 → 委託 → 席菈開口 → 走出大門
+	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "guild_hall")
+	var hall: GuildHall = (load("res://scenes/levels/guild_hall.tscn") as PackedScene).instantiate() as GuildHall
+	_level_node = hall
+	tree.root.add_child(hall)
+	await tree.physics_frame
+	var player: PlayerController = hall.get_node("Player") as PlayerController
+	assert_eq(s.quests.stage_of("ch1_main"), "register")
+	player.global_position = Vector3(0.4, 0.05, GuildHall.REGISTER_Z - 0.6)
+	await _until_dialogue(10)
+	_finish_dialogue(0)
+	player.global_position = Vector3(GuildScenery.CRYSTAL_POS.x, 0.05, GuildScenery.STAFF_LINE_Z + 0.6)
+	await tree.physics_frame
+	await _press_interact()
+	assert_true(hall.is_alarm_ringing(), "水晶的警報")
+	await _until_dialogue(int(GuildHall.ALARM_TIMEOUT * 60.0) + 60)
+	_finish_dialogue(0)
+	assert_eq(s.quests.stage_of("ch1_main"), "take_quest", "雷歐走了")
+	player.global_position = GuildHall.COUNTER_FRONT
+	await tree.physics_frame
+	await _press_interact()
+	assert_true(bool(_game().call("is_in_dialogue")), "跟莉莉絲說話")
+	_finish_dialogue(0)
+	assert_eq(s.quests.stage_of("ch1_main"), "sera_asks", "接了委託")
+	await _until_dialogue(900)
+	_finish_dialogue(0)
+	assert_eq(s.quests.stage_of("ch1_main"), "leave_guild", "席菈問過了")
+	player.global_position = GuildScenery.DOOR_POS + Vector3(0, 0.05, -0.8)
+	for i: int in 3:
+		await tree.physics_frame
+	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera", "走出大門")
+	hall.card.finish()
+	assert_eq(str(_game().get("last_level_request")), "corrupt_forest")
+	# 換到腐敗之森（遊戲裡是 Game 換場景；這裡把大廳放掉、載入森林）
+	hall.free()
 	var level: CorruptForest = _load_level()
 	await tree.physics_frame
-	var player: PlayerController = level.get_node("Player") as PlayerController
+	player = level.get_node("Player") as PlayerController
 	var hud: Hud = level.get_node("Hud") as Hud
 	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera")
-	# 相遇、結伴
+	assert_false(level.sera.joined, "席菈先到了、等在瘴氣前面")
+	# 會合
 	player.global_position = CorruptForest.SERA_WAIT_POS + Vector3(0.6, 0.05, 2.5)
 	await _until_dialogue(60)
 	_finish_dialogue(0)
@@ -1435,18 +1496,51 @@ func test_walkthrough_from_new_game_to_the_fallen_golem() -> void:
 	assert_true(golem.health.is_dead(), "粉碎核心")
 	assert_eq(s.quests.stage_of("ch1_main"), "after_boss")
 	Engine.time_scale = 1.0
-	# 戰後那段話講完：目前的內容到底
+	# 戰後那段話講完：拿到核心，一張卡，換回公會大廳
 	await _until_dialogue(int(RuinedAltar.AFTER_TALK_DELAY * 60.0) + 90)
 	_finish_dialogue(0)
-	assert_true(s.story_finished(), "打倒魔像、講完話：目前的內容到底")
-	await tree.physics_frame
-	assert_eq(hud.objective_text_key(), Hud.STORY_END_KEY)
+	assert_eq(s.quests.stage_of("ch1_main"), "report", "打倒魔像、講完話：回公會")
 	assert_false(player.health.is_dead())
+	for i: int in int(RuinedAltar.RETURN_DELAY * 60.0) + 30:
+		await tree.physics_frame
+		if altar.card != null:
+			break
+	assert_not_null(altar.card, "換回公會的那張卡")
+	altar.card.finish()
+	assert_eq(str(_game().get("last_level_request")), "guild_hall")
+	altar.free()
+	hall = (load("res://scenes/levels/guild_hall.tscn") as PackedScene).instantiate() as GuildHall
+	_level_node = hall
+	tree.root.add_child(hall)
+	await tree.physics_frame
+	player = hall.get_node("Player") as PlayerController
+	hud = hall.get_node("Hud") as Hud
+	assert_true(hall.is_epilogue(), "傍晚的公會")
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_REPORT")
+	# 走到櫃檯前：結尾那段話 →「第一章　完」→ 回標題
+	player.global_position = Vector3(0.2, 0.05, GuildHall.REPORT_Z - 0.5)
+	await _until_dialogue(10)
+	_finish_dialogue(0)
+	assert_true(s.story_finished(), "第一章完")
+	for i: int in int(GuildHall.END_CARD_DELAY * 60.0) + 30:
+		await tree.physics_frame
+		if hall.card != null:
+			break
+	assert_not_null(hall.card, "章節卡")
+	hall.card.finish()
+	assert_eq(str(_game().get("last_level_request")), "title")
 	# 標題的「繼續」讀得回來
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
-	assert_true(again.story_finished(), "存檔停在這一段的結尾")
-	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "ruined_altar")
+	assert_true(again.story_finished(), "存檔停在第一章的結尾")
+	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "guild_hall")
+
+
+func _press_interact() -> void:
+	Input.action_press(Interactable.ACTION)
+	await tree.physics_frame
+	Input.action_release(Interactable.ACTION)
+	await tree.physics_frame
 
 
 ## 等到有對話開始（最多 max_frames 幀）

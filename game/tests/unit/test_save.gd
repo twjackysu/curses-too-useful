@@ -96,6 +96,34 @@ func test_v4_save_finished_at_the_altar_road_resumes_at_the_altar() -> void:
 	assert_eq(m.checkpoint, "ch1_explore")
 
 
+## v5 → v6：v5 的主線到打倒魔像、講完話就做完了。這種存檔讀進來改成停在「回到公會」（後面接了第一章的結尾）；
+## 還在半路上的 v5 存檔不動——前面多出來的公會大廳開場不影響它們（階段的 id 沒變）。
+func test_v5_save_finished_after_the_golem_resumes_at_the_guild_return() -> void:
+	var v5: Dictionary = {"version": 5, "saved_at": "2026-11-16T11:00:00", "state": {
+		"chapter": "ch1", "checkpoint": "ch1_boss_down", "mode": "story",
+		"flags": {"ch1.sera_joined": true, "ch1.mushrooms": 5, "ch1.altar_done": true, "ch1.golem_core": true, "ch1.altar_cleared": true, "sera.affinity": 30},
+		"quests": {"ch1_main": StoryLogic.QUEST_DONE}, "items": {}, "statuses": [], "grants": [], "vitals": {"hp": 64.0}}}
+	var r: Dictionary = SaveCodec.decode(JSON.stringify(v5))
+	assert_eq(r["status"], SaveCodec.Status.OK)
+	assert_eq(r["from_version"], 5)
+	var s: GameState = r["state"]
+	assert_eq(s.quests.get("ch1_main"), "report", "主線接著往下：把核心帶回公會")
+	assert_eq(s.checkpoint, "ch1_guild_return")
+	assert_eq(int(s.get_flag("sera.affinity")), 30, "其他照原樣")
+	var runner := QuestRunner.new(QuestDB.load_default(), s)
+	runner.evaluate()
+	assert_eq(runner.stage_of("ch1_main"), "report", "任務接得上")
+	assert_false(runner.is_done("ch1_main"))
+	var mid: Dictionary = {"version": 5, "state": {"checkpoint": "ch1_explore", "mode": "story",
+		"flags": {"ch1.sera_joined": true}, "quests": {"ch1_main": "gather"}}}
+	var m: GameState = SaveCodec.decode(JSON.stringify(mid))["state"]
+	assert_eq(m.quests.get("ch1_main"), "gather", "還在森林裡的不動")
+	assert_eq(m.checkpoint, "ch1_explore")
+	var mid_runner := QuestRunner.new(QuestDB.load_default(), m)
+	mid_runner.evaluate()
+	assert_eq(mid_runner.stage_of("ch1_main"), "gather", "不會被拉回公會大廳")
+
+
 ## v0～v2 是已經刪掉的舊劇情的存檔：不遷移，回 TOO_OLD（呼叫端當成沒有存檔），也不會當成壞檔去翻備份。
 func test_saves_older_than_v3_are_too_old() -> void:
 	var v0: Dictionary = {"chapter": "slice_frostbridge", "checkpoint": "bell", "flags": {"a": 1}}

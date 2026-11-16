@@ -440,14 +440,23 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_eq(str(s.state.get_flag("ch1.altar_answer", "")), "share")
 	assert_eq(s.state.get_flag(RuinedAltar.FLAG_DONE), true)
 	assert_eq(s.state.get_flag("ch1.golem_core"), true, "拿到魔像核心")
-	assert_true(s.story_finished(), "主線做到底了")
+	assert_eq(s.quests.stage_of("ch1_main"), "report", "下一段：把核心帶回公會")
+	assert_eq(s.state.checkpoint, "ch1_guild_return")
 	await _frames(3)
 	assert_eq(hud.banner_text(), "CH1_GOT_CORE")
-	assert_eq(hud.objective_text_key(), Hud.STORY_END_KEY, "左上寫「目前的內容到這裡」")
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_REPORT")
 	assert_false(player.health.is_dead())
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
-	assert_true(again.story_finished(), "存檔停在這一段的結尾")
+	assert_eq(again.quests.stage_of("ch1_main"), "report", "存檔停在回公會之前")
+	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "guild_hall", "按繼續是從公會大廳接")
+	# 隔一下出「當天傍晚——奧爾德冒險者公會」的卡，播完換到大廳
+	assert_true(level.card == null, "先讓「獲得魔像核心」出來")
+	await _frames(int(RuinedAltar.RETURN_DELAY * 60.0) + 20)
+	assert_not_null(level.card, "換關卡的那張卡")
+	assert_eq(level.card.title_text(), tr("CARD_RETURN_TITLE"))
+	level.card.finish()
+	assert_eq(str(_game().get("last_level_request")), "guild_hall", "卡播完：換到公會大廳")
 	# 打完繼續待在這一關：魔像沉下去、被釋放之後關卡照樣跑（光環跟著牠一起沒了）
 	await _frames(600)
 	assert_false(is_instance_valid(golem), "魔像沉進地面、不在了")
@@ -498,7 +507,7 @@ func test_retry_restarts_the_fight_and_a_save_after_the_golem_fell_resumes_the_t
 			break
 	assert_true(bool(_game().call("is_in_dialogue")), "戰後那段話接著講")
 	_finish_dialogue(0)
-	assert_true(_session().story_finished())
+	assert_eq(_session().quests.stage_of("ch1_main"), "report")
 
 
 ## 整場照真的時間打一遍（階段不縮短）：一個不會閃的「玩家」——平常站在魔像面前一直砍；凝視的前兆一開始就跑到那道光上站著；

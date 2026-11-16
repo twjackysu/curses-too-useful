@@ -3,6 +3,53 @@
   "title": "Q_CH1_MAIN_TITLE",
   "stages": [
     {
+      "id": "register",
+      "objective": "Q_CH1_OBJ_REGISTER",
+      "hint": "Q_CH1_HINT_MOVE",
+      "checkpoint": "ch1_guild",
+      "marker": "node:Lilith",
+      "done_when": {
+        "flag": "ch1.registered"
+      }
+    },
+    {
+      "id": "aptitude",
+      "objective": "Q_CH1_OBJ_CRYSTAL",
+      "hint": "Q_CH1_HINT_INTERACT",
+      "marker": "node:Crystal",
+      "done_when": {
+        "flag": "ch1.leo_left"
+      }
+    },
+    {
+      "id": "take_quest",
+      "objective": "Q_CH1_OBJ_LILITH",
+      "hint": "Q_CH1_HINT_INTERACT",
+      "checkpoint": "ch1_guild_quest",
+      "marker": "node:Lilith",
+      "done_when": {
+        "flag": "ch1.quest_taken"
+      }
+    },
+    {
+      "id": "sera_asks",
+      "objective": "Q_CH1_OBJ_SERA_ASKS",
+      "marker": "node:Sera",
+      "done_when": {
+        "flag": "ch1.sera_asked"
+      }
+    },
+    {
+      "id": "leave_guild",
+      "objective": "Q_CH1_OBJ_LEAVE",
+      "hint": "Q_CH1_HINT_MOVE",
+      "checkpoint": "ch1_guild_leave",
+      "marker": "node:GuildDoor",
+      "done_when": {
+        "flag": "ch1.left_guild"
+      }
+    },
+    {
       "id": "meet_sera",
       "objective": "Q_CH1_OBJ_SET_OUT",
       "hint": "Q_CH1_HINT_MOVE",
@@ -119,11 +166,21 @@
       "done_when": {
         "flag": "ch1.altar_done"
       }
+    },
+    {
+      "id": "report",
+      "objective": "Q_CH1_OBJ_REPORT",
+      "hint": "Q_CH1_HINT_MOVE",
+      "checkpoint": "ch1_guild_return",
+      "marker": "node:Lilith",
+      "done_when": {
+        "flag": "ch1.chapter_done"
+      }
     }
   ],
   "on_complete": {
     "set": {
-      "ch1.altar_cleared": true
+      "ch1.complete": true
     }
   }
 }

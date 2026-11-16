@@ -1,9 +1,9 @@
 class_name CorruptForest
 extends StoryLevel
 ## 腐敗之森入口（第一章的起點，docs/story/chapter-1.md 節點 2；計畫在 docs/design/13-chapter-1-plan.md）。
-## 入口這一段：諾恩一個人走進來 → 席菈等在瘴氣前面，問能不能一起去（答應了才結伴）→ 一團瘴氣（她戴上防毒面具；
+## 入口這一段：諾恩一個人走進來 → 席菈先到了、等在瘴氣前面，兩人講幾句就結伴（ch1_sera_joins）→ 一團瘴氣（她戴上防毒面具；
 ## 諾恩走進去中毒 → 反轉成回血 → 兩人講幾句）→ 林間空地的三隻劇毒史萊姆（席菈跟在後面，開打後往諾恩背上射藥：scenes/actors/sera/）。
-## 劇本裡兩人是在公會大廳認識的（節點 1）；公會還沒做，先讓她在森林口開口（D-280）。
+## 兩人是在公會大廳認識的（節點 1，GuildHall：她在那裡問能不能一起去，然後先回去拿面具）；這裡是在森林口會合。
 ## 戰後那段話講完，自由探索（時段 B）開放：那一段的東西在 ForestExplore。
 ## 地圖（空地、路）在 ForestMap，看得到的場景（天空、地面、樹、草）在 ForestScenery；這裡放規則與劇情。
 ## 教學戰照劇本：席菈慌了，第一瓶拿錯成【重度麻痺＋防禦歸零】（對諾恩＝出手快 150%＋受傷少 80%）→ 打完兩人講話（兩個選項）。
@@ -71,6 +71,9 @@ func _ready() -> void:
 	_mark("SlimeGlade", GLADE_POS)
 	var spawn: Marker3D = $Spawn
 	var args: Dictionary = App.parse_user_args(OS.get_cmdline_user_args())
+	# 新遊戲是從公會大廳開始的：直接進這一關（開發旗標 `--level=corrupt_forest`、測試）就當成大廳那一段演過了
+	if Game.session.in_story() and Game.session.quests.stage_of(GuildHall.QUEST) in GuildHall.OPENING_STAGES:
+		GuildHall.skip_opening(Game.session)
 	# 截圖用：`--joined` 直接從結伴之後開始（席菈在旁邊）；`--burst-on=vial` 要她射藥，也要加這個
 	if args.has("joined"):
 		Game.session.set_flag(FLAG_JOINED, true)
@@ -177,7 +180,7 @@ func _physics_process(delta: float) -> void:
 			_after_talk_in = 0.2  # 別的對話還沒講完：等一下再試
 
 
-## 還沒結伴：席菈等在瘴氣前面。諾恩走近她先出聲，再近一點（或從旁邊走過去）就開口問能不能一起去；
+## 還沒會合：席菈等在瘴氣前面。諾恩走近她先出聲，再近一點（或從旁邊走過去）兩人講幾句；
 ## 對話最後一句把 ch1.sera_joined 設起來，她才開始跟。
 func _tick_meeting(st: GameState) -> void:
 	if sera.joined:
@@ -249,10 +252,10 @@ func _spawn_sera() -> void:
 		sera.ask_enabled = true
 	add_child(sera)
 	SeraChatter.attach(self, sera, _hud)
-	# 對話時鏡頭帶到講話的人臉上；一開始的「？？？」也是她
+	# 對話時鏡頭帶到講話的人臉上
 	talk_camera = TalkCamera.new()
 	talk_camera.name = "TalkCamera"
-	talk_camera.cast = {"SPK_NOEN": _player, Sera.NAME_KEY: sera, "SPK_UNKNOWN": sera}
+	talk_camera.cast = {"SPK_NOEN": _player, Sera.NAME_KEY: sera}
 	add_child(talk_camera)
 
 

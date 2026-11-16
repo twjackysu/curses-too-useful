@@ -1,0 +1,35 @@
+{
+  "id": "ch1_guild_leo",
+  "start": "l00",
+  "nodes": {
+    "l00": {
+      "speaker": "SPK_LEO",
+      "text": "DLG_CH1_LEO_001",
+      "next": "l01"
+    },
+    "l01": {
+      "speaker": "SPK_LEO",
+      "text": "DLG_CH1_LEO_002",
+      "next": "l02"
+    },
+    "l02": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_LEO_003",
+      "next": "l03"
+    },
+    "l03": {
+      "speaker": "SPK_LEO",
+      "text": "DLG_CH1_LEO_004",
+      "next": "l04"
+    },
+    "l04": {
+      "speaker": "SPK_LEO",
+      "text": "DLG_CH1_LEO_005",
+      "do": {
+        "set": {
+          "ch1.leo_left": true
+        }
+      }
+    }
+  }
+}

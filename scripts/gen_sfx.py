@@ -625,6 +625,27 @@ def reversal_shatter(seconds=1.25, seed=157):
     return out
 
 
+def crystal_alarm(seconds=2.4, seed=163):
+    """適性測試水晶的警報（公會大廳，劇本節點 1）：刺耳的兩個音來回跳（每 0.16 秒換一次），帶玻璃的泛音，
+    一開始最大聲、後面慢慢小下去——「測到不該有的結果」的聲音，跟戰鬥裡的每一種聲音都不像。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = []
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        hi = int(t / 0.16) % 2 == 0
+        f = 1480.0 if hi else 1110.0
+        phase += 2 * math.pi * f / RATE
+        # 方波味（奇次泛音）＋一點玻璃的高音
+        tone = sum(math.sin(phase * k) / k for k in (1, 3, 5, 7))
+        glass = 0.3 * math.sin(phase * 2.76) + 0.18 * math.sin(phase * 5.4)
+        gate = min(1.0, (t % 0.16) / 0.004) * (0.75 + 0.25 * math.sin(2 * math.pi * 31 * t))
+        env = math.exp(-t * 0.9) * min(1.0, (seconds - t) / 0.25)
+        out.append(0.42 * (tone + glass) * gate * env + 0.02 * (rng.random() * 2 - 1) * env)
+    return out
+
+
 def main():
     made = [
         write("blunt", thump(0.3, 140, 55, seed=2)),
@@ -651,6 +672,7 @@ def main():
         write("poison_burst", poison_burst()),
         write("curse_sting", curse_sting()),
         write("reversal_shatter", reversal_shatter()),
+        write("crystal_alarm", crystal_alarm()),
     ]
     for p in made:
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

@@ -1,0 +1,474 @@
+class_name GuildHall
+extends StoryLevel
+## 奧爾德冒險者公會的大廳：第一章的開場（docs/story/chapter-1.md 節點 1）與結尾（節點 3 的第 5 拍）。新遊戲從這裡開始。
+## 開場的每一拍：走到櫃檯，莉莉絲幫諾恩登錄（ch1_guild_register）→ 按鍵把手放到適性測試水晶上：警報、「全屬性：無」、大廳一陣嘲笑
+## → 雷歐走過來羞辱他與縮在角落的席菈，帶隊離開（ch1_guild_leo）→ 跟莉莉絲說話，她拿出沒人接的綠色委託單（ch1_guild_quest）
+## → 席菈走過來問能不能一起去（ch1_guild_sera，兩個回答），先回去拿面具 → 走出大門，換到腐敗之森（城鎮還沒做）。
+## 結尾（傍晚）：打倒魔像之後回到公會——雷歐小隊先逃回來了，諾恩扛著魔像核心走進來、席菈跟在後面 → 走到櫃檯前，
+## 幾個人講話（ch1_guild_return，一個回答）、鏡頭帶到二樓陰影裡的王都巡察官 →「第一章　完」→ 回標題。
+## 看得到的場景在 GuildScenery，站著的人是 Npc；這裡放劇情與畫面上的字。
+## 任務 data/quests/ch1_main.json 最前面的五個階段與最後的 report。
+
+const QUEST: String = "ch1_main"
+const STAGE_REGISTER: String = "register"
+const STAGE_APTITUDE: String = "aptitude"
+const STAGE_TAKE_QUEST: String = "take_quest"
+const STAGE_SERA_ASKS: String = "sera_asks"
+const STAGE_LEAVE: String = "leave_guild"
+const STAGE_REPORT: String = "report"
+const OPENING_STAGES: PackedStringArray = [STAGE_REGISTER, STAGE_APTITUDE, STAGE_TAKE_QUEST, STAGE_SERA_ASKS, STAGE_LEAVE]
+## 劇情旗標：對話資料自己設的有 registered、leo_left、quest_taken、sera_asked、chapter_done；關卡設的是 crystal_tested、left_guild
+const FLAG_REGISTERED: String = "ch1.registered"
+const FLAG_CRYSTAL: String = "ch1.crystal_tested"
+const FLAG_LEO_LEFT: String = "ch1.leo_left"
+const FLAG_QUEST: String = "ch1.quest_taken"
+const FLAG_SERA_ASKED: String = "ch1.sera_asked"
+const FLAG_LEFT: String = "ch1.left_guild"
+const FLAG_CHAPTER_DONE: String = "ch1.chapter_done"
+const OPENING_FLAGS: PackedStringArray = [FLAG_REGISTERED, FLAG_CRYSTAL, FLAG_LEO_LEFT, FLAG_QUEST, FLAG_SERA_ASKED, FLAG_LEFT]
+const REGISTER_DIALOGUE: String = "ch1_guild_register"
+const LEO_DIALOGUE: String = "ch1_guild_leo"
+const QUEST_DIALOGUE: String = "ch1_guild_quest"
+const SERA_DIALOGUE: String = "ch1_guild_sera"
+const RETURN_DIALOGUE: String = "ch1_guild_return"
+const LILITH_KEY: String = "SPK_LILITH"
+const LEO_KEY: String = "SPK_LEO"
+const ADVENTURER_KEY: String = "SPK_ADVENTURER"
+const INSPECTOR_KEY: String = "SPK_UNKNOWN"
+## 諾恩從大門走進來的地方；之後的檢查點（雷歐走了、可以出發了）站在櫃檯前面
+const ENTRANCE: Vector3 = Vector3(0, 0.05, 8.6)
+const COUNTER_FRONT: Vector3 = Vector3(0.4, 0.05, -5.9)
+## 走到這條線以北莉莉絲就開口（開場的登錄；結尾是大廳的人看到他）
+const REGISTER_Z: float = -4.4
+const REPORT_Z: float = -1.6
+const LILITH_POS: Vector3 = Vector3(0, 0, -8.85)
+## 雷歐小隊一開始站在佈告欄前面：節點名、角色 id、位置、面向（度）
+const PARTY: Array[Array] = [
+	["Leo", "leo", Vector3(-5.6, 0, 0.3), 90.0],
+	["LeoMage", "leo_mage", Vector3(-5.4, 0, 1.6), 100.0],
+	["LeoTank", "leo_tank", Vector3(-5.9, 0, -0.9), 80.0],
+]
+## 結尾：他們先逃回來了，圍在櫃檯前面
+const PARTY_RETURNED: Array[Vector3] = [Vector3(-1.9, 0, -6.2), Vector3(-3.1, 0, -5.6), Vector3(-2.7, 0, -4.5)]
+## 大廳裡的冒險者：節點名、角色 id、開場的位置與面向、結尾的位置
+const CROWD: Array[Array] = [
+	["AdventurerA", "guild_adventurer_a", Vector3(2.4, 0, 4.5), 180.0, Vector3(1.9, 0, -4.7)],
+	["AdventurerB", "guild_adventurer_b", Vector3(2.6, 0, 6.1), 0.0, Vector3(3.0, 0, -5.5)],
+]
+## 佈告欄前面走到走道上的那一點（直線走會穿過桌子）
+const AISLE_WEST: Vector3 = Vector3(-2.3, 0, 0.4)
+## 席菈縮在西北的角落（武器架與凳子旁邊），面向牆角
+const SERA_CORNER: Vector3 = Vector3(-6.7, 0, -6.5)
+const SERA_CORNER_FACING: float = 55.0
+## 王都巡察官站在二樓欄杆後面
+const INSPECTOR_POS: Vector3 = Vector3(0.9, GuildScenery.LOFT_Y, GuildScenery.LOFT_EDGE_Z - 0.6)
+## 警報的時間軸（秒）：兩個冒險者先後笑出來、莉莉絲愣住、雷歐走過來；他走到了（或等太久）就開口
+const ALARM_LAUGH_A: float = 0.9
+const ALARM_LAUGH_B: float = 1.9
+const ALARM_LILITH: float = 2.6
+const ALARM_LEO_WALKS: float = 3.0
+const ALARM_TIMEOUT: float = 11.0
+## 席菈走過來的速度（鼓起勇氣慢慢走）；走到離諾恩這麼近就開口
+const SERA_APPROACH_SPEED: float = 2.0
+const SERA_TALK_DIST: float = 2.3
+## 結尾那段話講完隔多久出「第一章　完」
+const END_CARD_DELAY: float = 1.4
+const END_MUSIC_DB: float = -5.0
+const MURMUR_DB: float = -17.0
+
+var scenery: GuildScenery
+var lilith: Npc
+var sera: Sera
+var inspector: Npc
+var talk_camera: TalkCamera
+## 雷歐小隊、冒險者：節點名 → 那個人（走出大門的人會被釋放）
+var party: Dictionary = {}
+var crowd: Dictionary = {}
+var crystal_use: Interactable
+var lilith_use: Interactable
+var core: Node3D
+var card: ChapterCard
+## 警報響了幾秒（< 0＝沒有在響）
+var _alarm_t: float = -1.0
+var _alarm_step: int = 0
+var _pulse_t: float = 0.0
+## 席菈還沒結伴、站著的時候慢慢轉過去看的地方
+var _sera_look: Vector3 = Vector3.INF
+var _sera_leaving: bool = false
+var _leaving: bool = false
+var _end_in: float = -1.0
+var _return_barked: bool = false
+var _burst_on: String = ""
+
+@onready var _player: PlayerController = $Player
+@onready var _hud: Hud = $Hud
+
+
+## 把大廳的開場跳過（開發旗標直接進森林、測試）：當成登錄、警報、雷歐、委託、席菈都演過了、已經走出大門。
+static func skip_opening(session: GameSession) -> void:
+	for flag: String in OPENING_FLAGS:
+		session.set_flag(flag, true)
+
+
+## 直接跳到結尾「回到公會」（開發旗標 `--level=guild_hall --return` 與測試用）
+static func skip_to_return(session: GameSession) -> void:
+	RuinedAltar.skip_to_altar(session)
+	for flag: String in [RuinedAltar.FLAG_TALKED, RuinedAltar.FLAG_GOLEM_DOWN, RuinedAltar.FLAG_DONE]:
+		session.set_flag(flag, true)
+
+
+func _ready() -> void:
+	var args: Dictionary = App.parse_user_args(OS.get_cmdline_user_args())
+	var s: GameSession = Game.session
+	# 截圖用：`--registered`（登錄那段話講過了：站在櫃檯前，可以摸水晶）、`--after-leo`（雷歐走了：跟莉莉絲說話）、
+	# `--quest-taken`（接了委託：席菈走過來）、`--ready`（可以出發了）、`--return`（結尾：傍晚回到公會）
+	if s.in_story():
+		if args.has("return"):
+			skip_to_return(s)
+		for spec: Array in [["registered", 1], ["after-leo", 3], ["quest-taken", 4], ["ready", 5]]:
+			if args.has(str(spec[0])):
+				for i: int in int(spec[1]):
+					s.set_flag(OPENING_FLAGS[i], true)
+	var talk_skip: int = int(str(args.get("talk-skip", "0")))
+	if talk_skip > 0:
+		Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
+			for i: int in talk_skip:
+				r.advance.call_deferred())
+	scenery = GuildScenery.build(self, is_epilogue())
+	_mark("GuildDoor", GuildScenery.DOOR_POS + Vector3(0, 0, -0.6))
+	_player.collision_mask |= GuildScenery.PEOPLE_LAYER
+	_player.global_position = ENTRANCE if stage() in [STAGE_REGISTER, STAGE_APTITUDE, STAGE_REPORT, ""] else COUNTER_FRONT
+	var at: PackedStringArray = str(args.get("at", "")).split(",")
+	if at.size() == 2:
+		_player.global_position = Vector3(float(at[0]), ENTRANCE.y, float(at[1]))
+	if args.has("cam-yaw"):
+		_player.yaw = deg_to_rad(float(str(args["cam-yaw"])))
+	_player.snap_camera()
+	_spawn_cast()
+	_build_interactables()
+	Game.dialogue_ended.connect(_on_dialogue_ended)
+	Ambience.play(self, "market_murmur", MURMUR_DB, "HallMurmur")
+	if is_epilogue() and stage() == STAGE_REPORT:
+		_attach_core()
+	# 連拍用（scripts/burst.sh）：`--registered --burst-on=alarm` 進場 1.2 秒後把手放上水晶，從那一刻開始拍
+	_burst_on = str(args.get("burst-on", ""))
+	if _burst_on == "alarm":
+		get_tree().create_timer(1.2).timeout.connect(func() -> void:
+			App.burst_start_in(1)
+			touch_crystal())
+	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
+
+
+func footstep_surface(_p: Vector3) -> String:
+	return "wood"
+
+
+func stage() -> String:
+	return Game.session.quests.stage_of(QUEST)
+
+
+## 結尾的那一段（傍晚）：主線走到 report，或整章做完之後再進來
+func is_epilogue() -> bool:
+	return stage() == STAGE_REPORT or Game.session.story_finished()
+
+
+func _flag(key: String) -> bool:
+	return bool(Game.session.state.get_flag(key, false))
+
+
+func _physics_process(delta: float) -> void:
+	_pulse_t += delta
+	_tick_crystal()
+	_turn_sera(delta)
+	if not Game.session.in_story() or _leaving:
+		return
+	_player.global_position = GuildScenery.keep_inside(_player.global_position)
+	match stage():
+		STAGE_REGISTER:
+			if _player.global_position.z < REGISTER_Z:
+				_talk(REGISTER_DIALOGUE, ["SPK_NOEN", LILITH_KEY])
+		STAGE_APTITUDE:
+			_tick_alarm(delta)
+		STAGE_SERA_ASKS:
+			_tick_sera_asks()
+		STAGE_LEAVE:
+			_tick_leave()
+		STAGE_REPORT:
+			_tick_report()
+	if _end_in >= 0.0 and not Game.is_in_dialogue():
+		_end_in -= delta
+		if _end_in < 0.0:
+			_play_end_card()
+
+
+## 開始一段對話。order＝這一段誰跟誰講（說話者的翻譯 key，第一個是諾恩）：TalkCamera 把第二個當成諾恩面對的人。
+func _talk(dialogue_id: String, order: Array[String]) -> bool:
+	if Game.is_in_dialogue():
+		return false
+	var who: Dictionary[String, Node3D] = {}
+	for key: String in order:
+		var n: Node3D = _speaker_node(key)
+		if n != null:
+			who[key] = n
+	talk_camera.cast = who
+	return Game.start_dialogue(dialogue_id)
+
+
+func _speaker_node(key: String) -> Node3D:
+	match key:
+		"SPK_NOEN":
+			return _player
+		LILITH_KEY:
+			return lilith
+		LEO_KEY:
+			return party.get("Leo") as Node3D
+		Sera.NAME_KEY:
+			return sera
+		ADVENTURER_KEY:
+			return crowd.get("AdventurerA") as Node3D
+		INSPECTOR_KEY:
+			return inspector
+	return null
+
+
+func _spawn_cast() -> void:
+	var evening: bool = is_epilogue()
+	lilith = Npc.create("Lilith", "lilith", LILITH_POS, 180.0)
+	add_child(lilith)
+	for i: int in CROWD.size():
+		var spec: Array = CROWD[i]
+		var who: Npc = Npc.create(str(spec[0]), str(spec[1]), (spec[4] if evening else spec[2]) as Vector3, float(spec[3]))
+		add_child(who)
+		crowd[str(spec[0])] = who
+		if evening:
+			who.face(LILITH_POS)
+	# 雷歐小隊：開場在佈告欄前面（羞辱完就走了）；結尾先逃回來、圍在櫃檯前
+	if evening or not _flag(FLAG_LEO_LEFT):
+		for i: int in PARTY.size():
+			var spec: Array = PARTY[i]
+			var who: Npc = Npc.create(str(spec[0]), str(spec[1]), PARTY_RETURNED[i] if evening else spec[2] as Vector3, float(spec[3]))
+			add_child(who)
+			party[str(spec[0])] = who
+			if evening:
+				who.face(LILITH_POS)
+	if evening:
+		inspector = Npc.create("Inspector", "royal_inspector", INSPECTOR_POS, 180.0)
+		add_child(inspector)
+	# 席菈：開場縮在角落（問完就先回去拿面具）；結尾跟在諾恩後面
+	if evening or not _flag(FLAG_SERA_ASKED):
+		sera = Sera.new()
+		sera.name = "Sera"
+		sera.collision_mask |= GuildScenery.PEOPLE_LAYER
+		if evening:
+			sera.target = _player
+			sera.position = _player.global_position + Vector3(-1.2, 0.0, 1.6)
+		else:
+			sera.joined = false
+			sera.position = SERA_CORNER
+			sera.rotation.y = deg_to_rad(SERA_CORNER_FACING)
+		add_child(sera)
+	talk_camera = TalkCamera.new()
+	talk_camera.name = "TalkCamera"
+	add_child(talk_camera)
+
+
+func _build_interactables() -> void:
+	crystal_use = Interactable.create("Crystal", Vector3(GuildScenery.CRYSTAL_POS.x, 0.0, GuildScenery.CRYSTAL_POS.z), "HINT_TOUCH_CRYSTAL", 2.4)
+	crystal_use.used.connect(func(_by: PlayerController) -> void: touch_crystal())
+	add_child(crystal_use)
+	lilith_use = Interactable.create("TalkLilith", Vector3(0.0, 0.0, GuildScenery.STAFF_LINE_Z), "HINT_TALK_LILITH", 2.6)
+	lilith_use.used.connect(func(_by: PlayerController) -> void: _talk(QUEST_DIALOGUE, ["SPK_NOEN", LILITH_KEY]))
+	add_child(lilith_use)
+	_refresh_interactables()
+
+
+func _refresh_interactables() -> void:
+	crystal_use.enabled = stage() == STAGE_APTITUDE and _alarm_t < 0.0
+	lilith_use.enabled = stage() == STAGE_TAKE_QUEST
+
+
+## 把手放到水晶上：警報、畫面中間寫結果；之後的事照 _tick_alarm 的時間軸
+func touch_crystal() -> void:
+	if stage() != STAGE_APTITUDE or _alarm_t >= 0.0:
+		return
+	_alarm_t = 0.0
+	_alarm_step = 0
+	Game.session.set_flag(FLAG_CRYSTAL, true)
+	_refresh_interactables()
+	Sfx.play_flat(self, "crystal_alarm", -3.0)
+	_player.shake(0.35)
+	_hud.show_center_lines("CH1_CRYSTAL_LINE1", "CH1_CRYSTAL_LINE2", 7.0)
+
+
+func is_alarm_ringing() -> bool:
+	return _alarm_t >= 0.0
+
+
+func _tick_alarm(delta: float) -> void:
+	if _alarm_t < 0.0 or Game.is_in_dialogue():
+		return
+	_alarm_t += delta
+	var a: Npc = crowd.get("AdventurerA") as Npc
+	var b: Npc = crowd.get("AdventurerB") as Npc
+	var leo: Npc = party.get("Leo") as Npc
+	if _alarm_step == 0 and _alarm_t >= ALARM_LAUGH_A:
+		_alarm_step = 1
+		a.face(_player.global_position)
+		b.face(_player.global_position)
+		_hud.show_bark(a, "BARK_ADV_LAUGH_A", 3.0, ADVENTURER_KEY)
+	elif _alarm_step == 1 and _alarm_t >= ALARM_LAUGH_B:
+		_alarm_step = 2
+		_hud.show_bark(b, "BARK_ADV_LAUGH_B", 3.0, ADVENTURER_KEY)
+		for key: String in party:
+			(party[key] as Npc).face(_player.global_position)
+	elif _alarm_step == 2 and _alarm_t >= ALARM_LILITH:
+		_alarm_step = 3
+		_hud.show_bark(lilith, "BARK_LILITH_ALARM", 2.6, LILITH_KEY)
+	elif _alarm_step == 3 and _alarm_t >= ALARM_LEO_WALKS:
+		_alarm_step = 4
+		# 雷歐從佈告欄前面走到走道上，再走到諾恩旁邊
+		leo.walk_path([AISLE_WEST, _beside_player(Vector3(-1.5, 0, 1.3))], 2.4)
+	elif _alarm_step == 4 and (not leo.is_walking() or _alarm_t >= ALARM_TIMEOUT):
+		if _talk(LEO_DIALOGUE, ["SPK_NOEN", LEO_KEY, Sera.NAME_KEY]):
+			_alarm_step = 5
+			_sera_look = _player.global_position
+
+
+## 諾恩旁邊的一個位置（offset 是相對他的位移；不會落在櫃檯裡面或牆外）
+func _beside_player(offset: Vector3) -> Vector3:
+	var p: Vector3 = GuildScenery.keep_inside(_player.global_position + offset)
+	return Vector3(p.x, 0.0, maxf(p.z, GuildScenery.STAFF_LINE_Z + 0.9))
+
+
+## 水晶的光：警報中紅的一閃一閃；測過了就暗掉
+func _tick_crystal() -> void:
+	if scenery == null:
+		return
+	if _alarm_t >= 0.0 and not _flag(FLAG_LEO_LEFT):
+		scenery.set_crystal(0.75 + 0.25 * sin(_pulse_t * 14.0), false)
+	else:
+		scenery.set_crystal(0.0, Game.session.in_story() and _flag(FLAG_CRYSTAL))
+
+
+## 還沒結伴的席菈沒有在跟誰（target 是空的，她自己不會動）：關卡讓她慢慢轉過去看 _sera_look
+func _turn_sera(delta: float) -> void:
+	if sera == null or not is_instance_valid(sera) or sera.target != null or not _sera_look.is_finite():
+		return
+	var to: Vector3 = _sera_look - sera.global_position
+	sera.rotation.y = lerp_angle(sera.rotation.y, atan2(-to.x, -to.z), minf(delta * 3.0, 1.0))
+
+
+## 席菈從角落走過來，走到諾恩旁邊就開口
+func _tick_sera_asks() -> void:
+	if sera == null or not is_instance_valid(sera) or Game.is_in_dialogue():
+		return
+	if sera.target == null:
+		sera.target = _player
+		sera.hold_speed = SERA_APPROACH_SPEED
+	var from_player: Vector3 = sera.global_position - _player.global_position
+	from_player.y = 0.0
+	sera.hold_at = _beside_player(from_player.normalized() * (SERA_TALK_DIST - 0.5))
+	if from_player.length() < SERA_TALK_DIST:
+		_talk(SERA_DIALOGUE, ["SPK_NOEN", Sera.NAME_KEY])
+
+
+## 可以出發了：席菈先跑出去；諾恩走到大門就換到腐敗之森
+func _tick_leave() -> void:
+	if sera != null and is_instance_valid(sera):
+		if not _sera_leaving:
+			_sera_leaving = true
+			sera.target = _player
+			sera.hold_speed = 0.0
+			sera.hold_at = GuildScenery.DOOR_POS + Vector3(0, 0, -0.5)
+			_hud.show_bark(sera, "BARK_SERA_GUILD_GO", 2.6, Sera.NAME_KEY)
+		elif sera.global_position.distance_to(sera.hold_at) < 0.9:
+			sera.queue_free()
+			sera = null
+	var p: Vector3 = _player.global_position
+	if p.z > GuildScenery.HALF_L - GuildScenery.WALL_MARGIN - 0.7 and absf(p.x) < GuildScenery.DOOR_SIZE.x * 0.5 + 0.3:
+		_leaving = true
+		Game.session.set_flag(FLAG_LEFT, true)
+		card = ChapterCard.play(self, "CARD_FOREST_SMALL", "CARD_FOREST_TITLE", Game.go_to_checkpoint_level)
+
+
+## 結尾：諾恩扛著核心走進來，雷歐還在跟大家說那兩個人回不來了；走近櫃檯，所有人轉過來
+func _tick_report() -> void:
+	var leo: Npc = party.get("Leo") as Npc
+	if not _return_barked and leo != null:
+		_return_barked = true
+		_hud.show_bark(leo, "BARK_LEO_RETURN", 4.5, LEO_KEY)
+	if _player.global_position.z < REPORT_Z:
+		_talk(RETURN_DIALOGUE, ["SPK_NOEN", LILITH_KEY, LEO_KEY, ADVENTURER_KEY, Sera.NAME_KEY, INSPECTOR_KEY])
+
+
+func _on_dialogue_ended(dialogue_id: String) -> void:
+	_refresh_interactables()
+	match dialogue_id:
+		LEO_DIALOGUE:
+			_party_leaves()
+			_alarm_t = -1.0
+			_sera_look = sera.global_position + Vector3(-1.0, 0, -1.4) if sera != null else Vector3.INF
+			get_tree().create_timer(1.6).timeout.connect(func() -> void:
+				_hud.show_bark(lilith, "BARK_LILITH_SIGH", 2.2, LILITH_KEY))
+		RETURN_DIALOGUE:
+			_end_in = END_CARD_DELAY
+
+
+## 雷歐小隊走出大門（走到就消失）
+func _party_leaves() -> void:
+	var door: Vector3 = GuildScenery.DOOR_POS + Vector3(0, 0, -0.4)
+	var i: int = 0
+	for key: String in party:
+		var who: Npc = party[key] as Npc
+		who.leave_on_arrival = true
+		var lane := Vector3(-0.5 + 0.5 * float(i), 0, 0)
+		if key == "Leo":
+			who.walk_path([door + lane], 2.2)
+		else:
+			who.walk_path([AISLE_WEST + lane + Vector3(0, 0, 0.8 * float(i)), door + lane], 2.0)
+		i += 1
+	party.clear()
+
+
+## 「第一章　完」：整個畫面淡成黑、出章名，播完回標題
+func _play_end_card() -> void:
+	if card != null:
+		return
+	Ambience.music(self, "part_end_theme", END_MUSIC_DB, 1.2, "EndTheme")
+	card = ChapterCard.play(self, "CARD_END_SMALL", "CARD_END_TITLE", Game.back_to_title)
+
+
+## 魔像核心：一顆裂著病綠色光的石球，扛在諾恩的左肩上（程式拼的）
+func _attach_core() -> void:
+	core = Node3D.new()
+	core.name = "GolemCore"
+	var ball := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.27
+	sphere.height = 0.54
+	sphere.radial_segments = 20
+	sphere.rings = 10
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.2, 0.22, 0.26)
+	mat.roughness = 0.6
+	mat.emission_enabled = true
+	mat.emission = Color(0.35, 1.0, 0.55)
+	mat.emission_energy_multiplier = 0.9
+	sphere.material = mat
+	ball.mesh = sphere
+	core.add_child(ball)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(0.35, 1.0, 0.55)
+	glow.light_energy = 0.9
+	glow.omni_range = 2.6
+	glow.shadow_enabled = false
+	core.add_child(glow)
+	core.position = Vector3(-0.3, 1.62, 0.08)
+	_player.get_node("Body").add_child(core)
+
+
+func _mark(node_name: String, at: Vector3) -> void:
+	var m := Marker3D.new()
+	m.name = node_name
+	m.position = at
+	add_child(m)

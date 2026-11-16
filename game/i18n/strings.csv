@@ -190,7 +190,7 @@ CH1_SLIMES_CLEARED,The glade is clear.,空地清乾淨了。
 BARK_SERA_PANIC,"S-slimes! H-hang on, I will back you up!",史、史萊姆！等、等一下，我來幫你——
 BARK_SERA_MISFIRE,"No no no! Norn, I am so sorry, I messed up again!",完了完了！諾恩，對不起我又搞砸了！
 BARK_NAMED,{who}: {line},{who}：{line}
-BARK_SERA_NOTICE,"Ah... u-um, excuse me!",啊……那、那個！
+BARK_SERA_NOTICE,"Ah, Norn...!",啊，諾恩……！
 BARK_SERA_MASK,"Mask, mask... okay, it is on!",面具、面具……好，戴好了！
 BARK_SERA_ASK,"The smoke one? O-okay, here it comes!",煙霧彈？好、好，接好了！
 BARK_SERA_RELOADING,"W-wait, I am still loading the next one!",等、等一下，還在裝下一瓶！
@@ -203,14 +203,12 @@ DLG_CH1_GATE_001,"W-wait, that is miasma! Without a mask, normal people collapse
 DLG_CH1_GATE_002,Funny. I feel better than I have all week.,奇怪。我覺得這是我這禮拜精神最好的一次。
 DLG_CH1_GATE_003,"...Y-you are glowing gold. Does poison just... not work on you?",……你、你身上在發金光耶。毒對你……沒有用嗎？
 DLG_CH1_GATE_004,"Looks like it does more than nothing. Come on. Keep that mask on and stay behind me.",好像不只是沒用。走吧，妳面具戴好，跟在我後面。
-DLG_CH1_JOIN_001,"U-um! You are the one who took the toxic mushroom request at the guild... right?",那、那個！你是在公會接下毒蕈委託的人……對吧？
-DLG_CH1_JOIN_002,That is me. And you are?,是我。妳是？
-DLG_CH1_JOIN_003,"I-I am Sera, an apprentice alchemist. ...The one everybody avoids. The side effects of my potions are stronger than the potions.",我、我叫席菈，見習鍊金術師。……就是大家在躲的那個。我做的藥，副作用都比藥效還強。
-DLG_CH1_JOIN_004,"Um... my potions do have side effects, but in a place full of poison mist, they might actually be useful... Could I come with you?",那個……雖然我的藥水有副作用，但如果是去毒霧區，說不定能派上用場……能讓我跟你一起去嗎？
-DLG_CH1_JOIN_CHOICE_A,Sure. Walking alone is boring anyway.,好啊。一個人走也無聊。
-DLG_CH1_JOIN_CHOICE_B,Side effects stronger than the potion? Now I want to try one.,副作用比藥效還強？我反而想試試看。
-DLG_CH1_JOIN_A,"R-really!? Thank you! I have a gas mask, so I can handle the miasma. I will not slow you down!",真、真的可以嗎！？謝謝你！我有防毒面具，瘴氣我撐得住，不會拖累你的！
-DLG_CH1_JOIN_B,"Y-you want to try one!? People usually run when they hear that...! I have a gas mask for the miasma, and you can have all the potions you want!",咦、你想試！？大家聽到都是用跑的耶……！我有防毒面具，瘴氣我撐得住——藥要多少有多少！
+DLG_CH1_JOIN_001,Norn! O-over here! I brought my mask and my potions.,諾恩！這、這邊！面具跟藥我都帶來了。
+DLG_CH1_JOIN_002,Sorry for the wait. That purple cloud ahead — that's the miasma?,久等了。前面那團紫色的，就是瘴氣？
+DLG_CH1_JOIN_003,Yes... Normal people don't last ten minutes in there. I'll manage with my mask — I-I won't slow you down!,嗯……普通人進去撐不到十分鐘。我有面具撐得住——不、不會拖累你的！
+DLG_CH1_ASK_004,"Um... my potions do have side effects, but in a place full of poison mist, they might actually be useful... Could I come with you?",那個……雖然我的藥水有副作用，但如果是去毒霧區，說不定能派上用場……能讓我跟你一起去嗎？
+DLG_CH1_ASK_CHOICE_A,Sure. Walking alone is boring anyway.,好啊。一個人走也無聊。
+DLG_CH1_ASK_CHOICE_B,Side effects stronger than the potion? Now I want to try one.,副作用比藥效還強？我反而想試試看。
 DLG_CH1_AFTER_001,"I-I am so sorry! I grabbed the wrong vial again... Huh? You are... fine?",對、對不起！我又拿錯瓶了……咦？你……沒事？
 DLG_CH1_AFTER_002,Fine? That was the best thing anyone has ever shot at me.,沒事。應該說，那是我這輩子挨過最棒的一發。
 DLG_CH1_AFTER_003,Norn... you really do not get hurt by what I make?,諾恩……你真的不會因為我的能力而受傷嗎？
@@ -257,3 +255,58 @@ CH1_CHAOS_LINE2,All of it flips. Shatter the golem's core!,全部反轉——砍
 BARK_SERA_CORE,It won't break... The core is still holding it together!,砍不碎……核心還撐著！
 CH1_GOLEM_DOWN,The Abyssal Plague Golem falls,【深淵疫病魔像】倒下了
 CH1_GOT_CORE,Obtained: Golem Core,獲得【魔像核心】
+DLG_CH1_ASK_003,"I-I'm Sera, an apprentice alchemist. ...The one everybody avoids. The side effects of my potions are stronger than the potions.",我、我叫席菈，見習鍊金術師。……就是大家在躲的那個。我做的藥，副作用都比藥效還強。
+SPK_ADVENTURER,Adventurer,冒險者
+Q_CH1_OBJ_REGISTER,Register at the guild counter,到櫃檯辦冒險者登錄
+Q_CH1_OBJ_CRYSTAL,Put your hand on the aptitude crystal,把手放到適性測試水晶上
+Q_CH1_OBJ_LILITH,Talk to Lilith at the counter,跟櫃檯的莉莉絲說話
+Q_CH1_OBJ_SERA_ASKS,Sera seems to have something to say,席菈好像有話要說
+Q_CH1_OBJ_LEAVE,Leave through the guild doors for the Corrupt Forest,走出公會大門，前往腐敗之森
+Q_CH1_OBJ_REPORT,Bring the golem core to the guild counter,把魔像核心帶回公會櫃檯
+Q_CH1_HINT_INTERACT,{interact} Interact　{move} Move　{look} Look around,{interact} 互動　{move} 移動　{look} 轉視角
+HINT_TOUCH_CRYSTAL,{key} Put your hand on the crystal,{key} 把手放到水晶上
+HINT_TALK_LILITH,{key} Talk to Lilith,{key} 跟莉莉絲說話
+CH1_CRYSTAL_LINE1,Aptitude test result — All attributes: NONE,適性測試結果——全屬性：無
+CH1_CRYSTAL_LINE2,No aptitude (System Error),【無適性（System Error）】
+BARK_ADV_LAUGH_A,Hahaha! All attributes NONE? Never seen that one before!,哈哈哈！全屬性「無」？第一次看到這種的！
+BARK_ADV_LAUGH_B,Pfft— Even the crystal is screaming at him!,噗——連水晶都在慘叫耶！
+BARK_LILITH_ALARM,Eh...? I-it's not broken... is it?,咦……？水、水晶沒壞吧……？
+BARK_LILITH_SIGH,...Haah.,……唉。
+BARK_SERA_GUILD_GO,I-I'll be at the forest entrance!,我、我在森林口等你！
+DLG_CH1_REG_001,"Welcome to the Alder Adventurers' Guild — dead last in the frontier rankings. New registration, right?",歡迎來到奧爾德冒險者公會——邊境業績最後一名的公會。新人登錄對吧？
+DLG_CH1_REG_002,"Right. Name's Norn. Starting today, I plan to eat by taking requests.",對。我叫諾恩，今天起想靠接委託吃飯。
+DLG_CH1_REG_003,Your form is filled in. Last step: put your hand on the aptitude crystal next to the counter. It shows which path suits you.,表格我幫你填好了。最後一步：把手放到櫃檯旁邊那顆適性測試水晶上，它會顯示你適合走哪一條路。
+DLG_CH1_LEO_001,"What a racket. ...All attributes: none? I came here two rookies short for bait, and you don't even qualify for that.",吵死了。……全屬性「無」？我本來還缺兩個菜鳥當誘餌，你連這個都不夠格。
+DLG_CH1_LEO_002,"And the alchemist hiding in the corner. That stamina potion of yours, the one with paralysis on the side — it put your own teammate in the infirmary, didn't it?",還有縮在角落的那個鍊金術師。妳那瓶「附帶麻痺的體力藥水」，把自己的隊友送進醫務室了吧？
+DLG_CH1_LEO_003,I-I'm sorry... I didn't mean to...,對、對不起……我不是故意的……
+DLG_CH1_LEO_004,"One useless washout, one walking gas bomb. The guild's two biggest duds, together at last.",一個沒用的廢柴、一個移動毒氣彈。公會的兩大廢物，今天湊齊了。
+DLG_CH1_LEO_005,We're leaving. The altar deep in the Corrupt Forest is ours to claim. Neither of you comes near my party.,走了。腐敗之森深處的祭壇，功勞是我們的。你們兩個，離我的隊伍遠一點。
+DLG_CH1_QUEST_001,"...Haah. Don't take it to heart, he's like that with everyone. But with 'no aptitude,' I honestly can't hand you a normal request.",……唉。別放在心上，他對誰都那樣。不過「無適性」的話，一般的委託我真的派不出去。
+DLG_CH1_QUEST_002,All that's left is this — a green slip that's been gathering dust for half a year. 'Corrupt Forest Outskirts: Gather Glowing Toxic Mushrooms.' It pays ten times a normal request.,剩下的只有這張——積了半年灰的綠色委託單：《腐敗之森外圍：採集「夜光毒蕈」》。報酬是一般委託的十倍。
+DLG_CH1_QUEST_003,Ten times? Then why has nobody taken it?,十倍？那為什麼沒人接？
+DLG_CH1_QUEST_004,"Because that forest is full of miasma. A normal adventurer collapses from the poison in under ten minutes. ...Frankly, I don't recommend it.",因為那座森林全是瘴氣，普通冒險者進去不到十分鐘就會中毒倒地。……老實說，我不建議。
+DLG_CH1_QUEST_005,I'll take it. I still don't know where today's dinner is coming from.,我接。今天的飯錢還沒著落。
+DLG_CH1_QUEST_006,"...Seriously? Fine, it's stamped. Bring back five. And please come back alive — our numbers can't drop any lower.",……真的假的。好，蓋章了，採五朵回來就行。拜託活著回來，我們公會的業績不能再掉了。
+DLG_CH1_ASK_001,U-um...!,那、那個……！
+DLG_CH1_ASK_002,You're the one from the corner just now.,妳是剛剛在角落的那位。
+DLG_CH1_ASK_A,R-really!? Thank you! I-I'll go get my gas mask and my potions — meet me at the forest entrance!,真、真的可以嗎！？謝謝你！我、我回去拿防毒面具跟藥——森林口見！
+DLG_CH1_ASK_B,"Y-you want to try one!? People usually run when they hear that...! I'll get my mask, and you can have all the potions you want — meet me at the forest entrance!",咦、你想試！？大家聽到都是用跑的耶……！我去拿面具，藥要多少有多少——森林口見！
+CARD_FOREST_SMALL,Outside Alder,奧爾德近郊
+CARD_FOREST_TITLE,The Corrupt Forest,腐敗之森
+CARD_RETURN_SMALL,That evening,當天傍晚
+CARD_RETURN_TITLE,Alder Adventurers' Guild,奧爾德冒險者公會
+CARD_END_SMALL,Chapter 1: The Tumor and the Junk,第一章　毒瘤與破爛的共鳴
+CARD_END_TITLE,End of Chapter 1,第一章　完
+BARK_LEO_RETURN,"...That golem was a nightmare. Those two duds are done for, no question.",……那隻魔像根本是怪物。那兩個廢物，肯定回不來了。
+DLG_CH1_RETURN_001,"...So don't bother waiting for them. Against a monster like that, a 'no aptitude' and a gas bomb couldn't possibly—",……所以那兩個人不用等了。在那種怪物面前，「無適性」跟毒氣彈怎麼可能——
+DLG_CH1_RETURN_002,"H-hey, the door...! That thing on his shoulder — that's the golem's core, isn't it!?",喂、喂，門口……！他肩上扛的那個，是魔像的核心吧！？
+DLG_CH1_RETURN_003,Lilith. Five glowing toxic mushrooms. We also picked up some extra loot on the way — add it to the tab.,莉莉絲，夜光毒蕈五朵。另外路上多了一件戰利品，一起算。
+DLG_CH1_RETURN_004,The core of an Abyssal Plague Golem...!? W-we haven't logged loot of this grade in ten years!,【深淵疫病魔像】的核心……！？這、這種等級的戰利品，我們公會十年沒收過了！
+DLG_CH1_RETURN_005,Impossible... What did the two of you even do...?,不可能……你們兩個，到底做了什麼……
+DLG_CH1_RETURN_006,...Norn did it. Together with... my potions.,……是諾恩，還有我的藥……一起打倒的。
+DLG_CH1_RETURN_CHOICE_A,"Without Sera's brew, that core would never have cracked.",沒有席菈的藥，那顆核心我砍不碎。
+DLG_CH1_RETURN_CHOICE_B,"The next request, too — the two of us take it together.",下一張委託，一樣我們兩個接。
+DLG_CH1_RETURN_A,"...Yes! (For the first time, she lifts her head, cheeks a little red.)",……嗯！（她第一次抬起頭，臉頰有點紅。）
+DLG_CH1_RETURN_B,"Th-the next one too!? ...Okay! (For the first time, she lifts her head, cheeks a little red.)",下、下一張也可以嗎！？……好！（她第一次抬起頭，臉頰有點紅。）
+DLG_CH1_RETURN_007,"(beaming like she just struck gold) You two — from now on, every request nobody dares to take is all yours, okay?",（露出撿到寶的燦爛笑容）兩位——以後沒人敢接的委託，全部留給你們喔？
+DLG_CH1_RETURN_008,...That black haze clinging to him. He turns curses into blessings — how interesting.,……纏在他身上的那股黑氣。把詛咒當成祝福嗎——有意思。

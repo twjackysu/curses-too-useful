@@ -66,6 +66,8 @@ var _mask: Node3D
 var _mask_off_in: float = 0.0
 ## 關卡叫她去某個地方站著、不跟諾恩（Boss 戰她退到後排裝禁藥）。Vector3.INF＝照平常跟著
 var hold_at: Vector3 = Vector3.INF
+## 去 hold_at 的速度（公尺／秒）；0＝用跑的（Boss 戰）。公會大廳她鼓起勇氣走過來，關卡設得慢一點
+var hold_speed: float = 0.0
 ## true＝手上在忙別的（裝禁藥）：不射平常的藥，玩家也要不到
 var hands_full: bool = false
 ## 站在看不到邊的毒裡（Boss 的疫病光環）：關卡設成 true，她就戴著面具
@@ -164,7 +166,7 @@ func _go_hold(delta: float, to_target: Vector3, target_dist: float) -> void:
 	step.y = 0.0
 	var moving: bool = step.length() > 0.35 and _special_in < 0.0 and not Game.is_player_locked()
 	var dir: Vector3 = step.normalized() if moving else (to_target / target_dist if target_dist > 0.01 else Vector3.ZERO)
-	var speed: float = CombatTuning.num("sera.run_speed", 5.6) if moving else 0.0
+	var speed: float = (hold_speed if hold_speed > 0.0 else CombatTuning.num("sera.run_speed", 5.6)) if moving else 0.0
 	velocity = Vector3(dir.x * speed, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, dir.z * speed) if moving else Vector3(0.0, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, 0.0)
 	move_and_slide()
 	_puppet.set_move_speed(speed)

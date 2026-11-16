@@ -1,0 +1,353 @@
+extends TestCase
+## 公會大廳（第一章的開場與結尾，劇本節點 1 與節點 3 的第 5 拍）：關卡蓋得起來 → 走到櫃檯登錄 → 把手放上水晶：警報、嘲笑 →
+## 雷歐走過來羞辱兩人、帶隊離開 → 莉莉絲的綠色委託單 → 席菈走過來問能不能一起去 → 她先走、諾恩走出大門換到森林 → 讀檔。
+## 結尾：傍晚回到公會，雷歐小隊先逃回來了、諾恩扛著核心 → 櫃檯前那段話 → 二樓的巡察官 →「第一章　完」→ 回標題。
+## 從新遊戲一路走到第一章完的整段測試在 test_chapter1.gd（test_walkthrough_…）。
+
+const LEVEL: String = "res://scenes/levels/guild_hall.tscn"
+
+var _dir: String = ""
+var _old_session: GameSession
+var _level: GuildHall
+
+
+func _game() -> Node:
+	return tree.root.get_node("Game")
+
+
+func before_each() -> void:
+	_dir = "user://test_guild_%d" % Time.get_ticks_usec()
+	_old_session = _game().get("session") as GameSession
+	_game().set("session", GameSession.new(QuestDB.load_default(), _dir))
+	_game().set("change_scenes", false)
+	_game().set("last_level_request", "")
+
+
+func after_each() -> void:
+	if _level != null and is_instance_valid(_level):
+		_level.free()
+	_game().set("change_scenes", true)
+	_game().set("session", _old_session)
+	_game().set("dialogue", null)
+	Engine.time_scale = 1.0
+	if DirAccess.dir_exists_absolute(_dir):
+		for f: String in DirAccess.get_files_at(_dir):
+			DirAccess.remove_absolute(_dir.path_join(f))
+		DirAccess.remove_absolute(_dir)
+
+
+func _session() -> GameSession:
+	return _game().get("session") as GameSession
+
+
+func _load_level() -> GuildHall:
+	_level = (load(LEVEL) as PackedScene).instantiate() as GuildHall
+	tree.root.add_child(_level)
+	return _level
+
+
+func _frames(n: int) -> void:
+	for i: int in n:
+		await tree.physics_frame
+
+
+func _until_dialogue(max_frames: int) -> void:
+	var frames: int = 0
+	while not bool(_game().call("is_in_dialogue")) and frames < max_frames:
+		await tree.physics_frame
+		frames += 1
+	assert_true(bool(_game().call("is_in_dialogue")), "等了 %d 幀對話沒有開始" % frames)
+
+
+func _finish_dialogue(pick: int) -> void:
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	var guard: int = 0
+	while runner != null and runner.is_running() and guard < 40:
+		guard += 1
+		if not runner.visible_choices.is_empty():
+			runner.choose(pick)
+		else:
+			runner.advance()
+	assert_false(bool(_game().call("is_in_dialogue")), "對話按得完")
+
+
+func _press_interact() -> void:
+	Input.action_press(Interactable.ACTION)
+	await tree.physics_frame
+	Input.action_release(Interactable.ACTION)
+	await tree.physics_frame
+
+
+func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> void:
+	_game().call("new_game", false)
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var s: GameSession = _session()
+	assert_eq(s.quests.stage_of("ch1_main"), "register")
+	assert_false(level.is_epilogue(), "開場是早上")
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	assert_true(player.global_position.distance_to(GuildHall.ENTRANCE) < 0.5, "諾恩從大門走進來")
+	var hall: Node3D = level.get_node("Hall") as Node3D
+	for part: String in ["Floor", "WallNorth", "WallSouth", "WallEast", "WallWest", "Ceiling", "Door", "Loft", "Counter", "CrystalLook", "Carpet"]:
+		assert_not_null(hall.get_node_or_null(part), "大廳有 %s" % part)
+	assert_eq(level.scenery.windows.size(), 6, "東西兩面牆各三扇窗")
+	assert_eq(hall.find_children("*", "SpotLight3D", true, false).size(), 3, "受光的那一側每扇窗一道光")
+	# 牆沒有鏡頭會撞到的碰撞（第 1 層只有地板）：鏡頭退到牆外的時候不會被推到諾恩背上
+	for body: Node in hall.find_children("*", "StaticBody3D", true, false):
+		var b := body as StaticBody3D
+		if b.name != "Floor":
+			assert_eq(b.collision_layer, GuildScenery.PEOPLE_LAYER, "%s 只擋人" % b.name)
+	assert_true((player.collision_mask & GuildScenery.PEOPLE_LAYER) != 0, "諾恩會被牆與桌子擋住")
+	assert_eq(level.footstep_surface(Vector3.ZERO), "wood")
+	# 走不出牆、進不去櫃檯裡面
+	assert_eq(GuildScenery.keep_inside(Vector3(0, 0, 3)), Vector3(0, 0, 3))
+	assert_true(GuildScenery.keep_inside(Vector3(30, 0, 0)).x < GuildScenery.HALF_W)
+	assert_true(GuildScenery.keep_inside(Vector3(0, 0, -10)).z > GuildScenery.STAFF_LINE_Z)
+	# 人：莉莉絲在櫃檯後面、雷歐小隊在佈告欄前面、兩個冒險者、席菈縮在角落；巡察官早上不在
+	assert_true(level.lilith.global_position.z < GuildScenery.COUNTER_POS.z, "莉莉絲在櫃檯後面")
+	assert_eq(level.party.size(), 3, "雷歐小隊三個人")
+	assert_eq(level.crowd.size(), 2)
+	assert_true(level.inspector == null, "巡察官只在結尾出現")
+	assert_not_null(level.sera)
+	assert_false(level.sera.joined, "席菈還沒結伴")
+	assert_true(level.sera.global_position.distance_to(GuildHall.SERA_CORNER) < 0.3, "她縮在角落")
+	assert_true(level.sera.global_position.distance_to(player.global_position) > 12.0)
+	for marker: String in ["Lilith", "Crystal", "Sera", "GuildDoor"]:
+		assert_not_null(level.get_node_or_null(marker), "目標指引找得到 %s" % marker)
+	assert_false(level.crystal_use.enabled, "還沒登錄，水晶不能摸")
+	assert_false(level.lilith_use.enabled)
+	var hud: Hud = level.get_node("Hud") as Hud
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_REGISTER")
+	assert_true(level.get_node_or_null("HallMurmur") != null or Sfx.stream("market_murmur") == null, "大廳的人聲")
+
+
+func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> void:
+	_game().call("new_game", false)
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var s: GameSession = _session()
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	await _frames(20)
+	assert_false(bool(_game().call("is_in_dialogue")), "還沒走到櫃檯不會開口")
+	# 走到櫃檯：莉莉絲幫他登錄
+	player.global_position = Vector3(0.4, 0.05, GuildHall.REGISTER_Z - 0.6)
+	await _until_dialogue(10)
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_eq(str(runner.current().get("speaker", "")), "SPK_LILITH")
+	await _frames(3)
+	assert_eq(level.talk_camera.speaker(), level.lilith as Node3D, "鏡頭拍莉莉絲")
+	_finish_dialogue(0)
+	assert_eq(s.quests.stage_of("ch1_main"), "aptitude")
+	await tree.physics_frame
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_CRYSTAL")
+	assert_true(level.crystal_use.enabled, "可以摸水晶了")
+	assert_false(level.is_alarm_ringing())
+	# 把手放上去：警報、畫面中間寫「全屬性：無」
+	player.global_position = Vector3(GuildScenery.CRYSTAL_POS.x, 0.05, GuildScenery.STAFF_LINE_Z + 0.6)
+	await tree.physics_frame
+	assert_false(level.crystal_use.interact_hint().is_empty(), "走近有提示")
+	await _press_interact()
+	assert_true(level.is_alarm_ringing(), "按下去警報就響")
+	assert_eq(s.state.get_flag(GuildHall.FLAG_CRYSTAL), true)
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_CRYSTAL_LINE1", "CH1_CRYSTAL_LINE2"]))
+	assert_false(level.crystal_use.enabled, "只測一次")
+	await _frames(2)
+	assert_true(level.scenery.crystal_light.light_color.r > level.scenery.crystal_light.light_color.b, "水晶變紅")
+	assert_eq(s.quests.stage_of("ch1_main"), "aptitude", "雷歐還沒講話")
+	# 大廳一陣嘲笑，雷歐走過來
+	var leo: Npc = level.party["Leo"] as Npc
+	var leo_start: Vector3 = leo.global_position
+	await _frames(int(GuildHall.ALARM_LEO_WALKS * 60.0) + 10)
+	assert_true(hud.bark_keys().has("BARK_ADV_LAUGH_A") or hud.bark_keys().has("BARK_ADV_LAUGH_B"), "冒險者笑出來")
+	assert_true(leo.is_walking(), "雷歐走過來")
+	await _until_dialogue(int(GuildHall.ALARM_TIMEOUT * 60.0))
+	assert_true(leo.global_position.distance_to(leo_start) > 3.0, "他離開佈告欄了")
+	assert_true(leo.global_position.distance_to(player.global_position) < 3.5, "走到諾恩旁邊（%.1f m）" % leo.global_position.distance_to(player.global_position))
+	runner = _game().get("dialogue") as DialogueRunner
+	assert_eq(str(runner.current().get("speaker", "")), "SPK_LEO")
+	runner.advance()
+	runner.advance()
+	assert_eq(str(runner.current().get("speaker", "")), Sera.NAME_KEY, "角落的席菈道歉")
+	await _frames(3)
+	assert_eq(level.talk_camera.speaker(), level.sera as Node3D, "鏡頭帶到角落的她")
+	_finish_dialogue(0)
+	assert_eq(s.state.get_flag(GuildHall.FLAG_LEO_LEFT), true)
+	assert_eq(s.quests.stage_of("ch1_main"), "take_quest")
+	assert_eq(s.state.checkpoint, "ch1_guild_quest")
+	# 雷歐小隊走出大門、消失；水晶暗掉
+	assert_true(leo.is_walking() and leo.leave_on_arrival)
+	assert_true(level.party.is_empty())
+	await _frames(3)
+	assert_false(level.is_alarm_ringing())
+	assert_true(level.scenery.crystal_light.light_energy < 0.5, "水晶暗掉了")
+	for i: int in 900:
+		await tree.physics_frame
+		if not is_instance_valid(leo):
+			break
+	assert_false(is_instance_valid(leo), "雷歐走出去了")
+	assert_true(level.lilith_use.enabled, "可以跟莉莉絲說話")
+
+
+func test_lilith_hands_over_the_green_request_then_sera_asks_to_come_along() -> void:
+	_game().call("new_game", false)
+	var s: GameSession = _session()
+	for flag: String in [GuildHall.FLAG_REGISTERED, GuildHall.FLAG_CRYSTAL, GuildHall.FLAG_LEO_LEFT]:
+		s.set_flag(flag, true)
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	assert_true(player.global_position.distance_to(GuildHall.COUNTER_FRONT) < 0.5, "讀檔：站在櫃檯前面")
+	assert_true(level.party.is_empty(), "雷歐小隊已經走了")
+	assert_true(level.sera.global_position.distance_to(GuildHall.SERA_CORNER) < 0.3)
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_LILITH")
+	# 跟莉莉絲說話：綠色委託單
+	assert_false(level.lilith_use.interact_hint().is_empty(), "櫃檯前有「說話」的提示")
+	await _press_interact()
+	assert_true(bool(_game().call("is_in_dialogue")))
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_eq(runner.current_text(), "DLG_CH1_QUEST_001")
+	_finish_dialogue(0)
+	assert_eq(s.state.get_flag(GuildHall.FLAG_QUEST), true)
+	assert_eq(s.quests.stage_of("ch1_main"), "sera_asks")
+	assert_false(level.lilith_use.enabled)
+	# 席菈從角落走過來
+	var sera: Sera = level.sera
+	var far: float = sera.global_position.distance_to(player.global_position)
+	await _frames(30)
+	assert_true(sera.puppet().move_speed > 0.0 and sera.puppet().move_speed < 3.0, "她用走的（%.1f m/s）" % sera.puppet().move_speed)
+	assert_true(sera.global_position.distance_to(player.global_position) < far - 0.5, "朝諾恩走過來")
+	await _until_dialogue(600)
+	assert_true(sera.global_position.distance_to(player.global_position) < GuildHall.SERA_TALK_DIST + 0.3)
+	runner = _game().get("dialogue") as DialogueRunner
+	runner.advance()
+	runner.advance()
+	runner.advance()
+	assert_eq(runner.current_text(), "DLG_CH1_ASK_004", "劇本那一句：能讓我跟你一起去嗎？")
+	assert_eq(runner.visible_choices.size(), 2)
+	assert_true(runner.choose(1))
+	runner.advance()
+	assert_false(bool(_game().call("is_in_dialogue")))
+	assert_eq(int(s.state.get_flag("sera.affinity", 0)), 10, "回答加好感度")
+	assert_eq(s.quests.stage_of("ch1_main"), "leave_guild")
+	assert_eq(s.state.checkpoint, "ch1_guild_leave")
+	assert_eq(s.state.get_flag(CorruptForest.FLAG_JOINED, false), false, "要到森林口會合才開始跟")
+	# 她先跑出大門（回去拿面具）
+	await _frames(20)
+	assert_true(hud.bark_keys().has("BARK_SERA_GUILD_GO"))
+	assert_true(sera.puppet().move_speed > 3.0, "用跑的")
+	for i: int in 600:
+		await tree.physics_frame
+		if level.sera == null:
+			break
+	assert_true(level.sera == null, "席菈出去了")
+	# 諾恩走出大門：一張卡，播完換到腐敗之森
+	assert_eq(str(_game().get("last_level_request")), "")
+	player.global_position = GuildScenery.DOOR_POS + Vector3(0.2, 0.05, -0.8)
+	await _frames(3)
+	assert_eq(s.state.get_flag(GuildHall.FLAG_LEFT), true)
+	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera")
+	assert_eq(s.state.checkpoint, "ch1_forest_gate")
+	assert_not_null(level.card, "換關卡的那張卡")
+	assert_eq(level.card.title_text(), tr("CARD_FOREST_TITLE"))
+	assert_eq(str(_game().get("last_level_request")), "", "卡還沒播完")
+	level.card.finish()
+	assert_eq(str(_game().get("last_level_request")), "corrupt_forest")
+	# 存檔在森林口：按繼續不會回到大廳
+	var again := GameSession.new(QuestDB.load_default(), _dir)
+	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "corrupt_forest")
+
+
+func test_continue_after_sera_left_starts_at_the_counter_ready_to_go() -> void:
+	# 存檔停在「可以出發了」的那個檢查點
+	var s := GameSession.new(QuestDB.load_default(), _dir)
+	s.new_game()
+	for flag: String in [GuildHall.FLAG_REGISTERED, GuildHall.FLAG_CRYSTAL, GuildHall.FLAG_LEO_LEFT, GuildHall.FLAG_QUEST, GuildHall.FLAG_SERA_ASKED]:
+		s.set_flag(flag, true)
+	_game().set("session", GameSession.new(QuestDB.load_default(), _dir))
+	assert_eq(_session().load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	assert_eq(_session().quests.stage_of("ch1_main"), "leave_guild")
+	var level: GuildHall = _load_level()
+	await _frames(5)
+	assert_true(level.sera == null, "席菈已經先走了")
+	assert_true(level.party.is_empty())
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	assert_true(player.global_position.distance_to(GuildHall.COUNTER_FRONT) < 0.5)
+	assert_false(bool(_game().call("is_in_dialogue")))
+	assert_eq((level.get_node("Hud") as Hud).objective_text_key(), "Q_CH1_OBJ_LEAVE")
+	assert_true(level.scenery.crystal_light.light_energy < 0.5, "測過的水晶是暗的")
+
+
+func test_epilogue_returns_to_the_guild_at_dusk_and_ends_the_chapter() -> void:
+	_game().call("new_game", false)
+	var s: GameSession = _session()
+	GuildHall.skip_to_return(s)
+	assert_eq(s.quests.stage_of("ch1_main"), "report")
+	assert_eq(s.state.checkpoint, "ch1_guild_return")
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	assert_true(level.is_epilogue() and level.scenery.evening, "傍晚")
+	assert_true(player.global_position.distance_to(GuildHall.ENTRANCE) < 0.5, "從大門走進來")
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_REPORT")
+	# 雷歐小隊先逃回來了、圍在櫃檯前；巡察官在二樓；席菈跟在後面；諾恩扛著核心
+	assert_eq(level.party.size(), 3)
+	for key: String in level.party:
+		assert_true((level.party[key] as Npc).global_position.z < -4.0, "%s 在櫃檯前" % key)
+	assert_not_null(level.inspector)
+	assert_true(absf(level.inspector.global_position.y - GuildScenery.LOFT_Y) < 0.01, "巡察官站在二樓")
+	assert_true(level.sera != null and level.sera.joined and level.sera.target == player, "席菈跟著諾恩")
+	assert_true(level.sera.global_position.distance_to(player.global_position) < 3.0)
+	assert_not_null(level.core, "扛著魔像核心")
+	assert_true(level.core.is_inside_tree() and level.core.global_position.distance_to(player.global_position + Vector3(0, 1.6, 0)) < 0.6)
+	await _frames(5)
+	assert_true(hud.bark_keys().has("BARK_LEO_RETURN"), "雷歐還在說那兩個人回不來了")
+	assert_false(bool(_game().call("is_in_dialogue")))
+	# 走近櫃檯：幾個人講話，最後鏡頭帶到二樓
+	player.global_position = Vector3(0.2, 0.05, GuildHall.REPORT_Z - 0.5)
+	await _until_dialogue(10)
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_eq(str(runner.current().get("speaker", "")), "SPK_LEO")
+	var seen: Array[String] = []
+	var guard: int = 0
+	while runner.is_running() and guard < 40:
+		guard += 1
+		var spk: String = str(runner.current().get("speaker", ""))
+		if not seen.has(spk):
+			seen.append(spk)
+		if spk == GuildHall.INSPECTOR_KEY:
+			await _frames(int(TalkCamera.BLEND_SEC * 60.0) + 4)
+			assert_eq(level.talk_camera.speaker(), level.inspector as Node3D, "最後一句：鏡頭帶到二樓的巡察官")
+			assert_true(level.talk_camera.global_position.y > GuildScenery.LOFT_Y, "鏡頭升到二樓的高度")
+		if not runner.visible_choices.is_empty():
+			runner.choose(0)
+		else:
+			runner.advance()
+	for spk: String in ["SPK_LEO", "SPK_ADVENTURER", "SPK_NOEN", "SPK_LILITH", Sera.NAME_KEY, GuildHall.INSPECTOR_KEY]:
+		assert_true(seen.has(spk), "%s 有講話" % spk)
+	assert_false(bool(_game().call("is_in_dialogue")))
+	assert_eq(str(s.state.get_flag("ch1.return_answer", "")), "credit")
+	assert_true(s.story_finished(), "第一章完")
+	assert_eq(s.state.get_flag("ch1.complete"), true)
+	# 隔一下「第一章　完」，播完回標題
+	assert_true(level.card == null)
+	await _frames(int(GuildHall.END_CARD_DELAY * 60.0) + 10)
+	assert_not_null(level.card, "章節卡")
+	assert_eq(level.card.title_text(), tr("CARD_END_TITLE"))
+	level.card.finish()
+	assert_eq(str(_game().get("last_level_request")), "title", "播完回標題")
+	# 「繼續」：回到傍晚的大廳，不會再演一次
+	level.free()
+	_game().set("session", GameSession.new(QuestDB.load_default(), _dir))
+	assert_eq(_session().load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	assert_true(_session().story_finished())
+	assert_eq(str(_game().call("level_for_checkpoint", _session().state.checkpoint)), "guild_hall")
+	level = _load_level()
+	await _frames(30)
+	assert_true(level.is_epilogue())
+	assert_false(bool(_game().call("is_in_dialogue")), "演過了")
+	assert_true(level.card == null)
+	assert_eq((level.get_node("Hud") as Hud).objective_text_key(), Hud.STORY_END_KEY)

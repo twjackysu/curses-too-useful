@@ -2,7 +2,7 @@ extends Node
 ## 遊戲流程外殼：持有 GameSession，負責新遊戲／繼續／切換關卡。
 ## 邏輯都在 GameSession（res://src/core/game_session.gd），這裡只做場景切換。
 ##
-## 開發用：`godot --path game -- --level=corrupt_forest` 直接開新遊戲進關卡（截圖驗證用，存檔寫到 DEV_SAVE_DIR）；
+## 開發用：`godot --path game -- --level=guild_hall`（或 corrupt_forest、ruined_altar）直接開新遊戲進關卡（截圖驗證用，存檔寫到 DEV_SAVE_DIR）；
 ## `-- --benchmark` 跑效能測試後結束（結果在 user://benchmark/）。
 
 signal level_loaded(level_id: String)
@@ -19,10 +19,14 @@ const PLAYTIME_MAX_STEP: float = 0.25
 const LEVELS: Dictionary = {
 	"corrupt_forest": "res://scenes/levels/corrupt_forest.tscn",
 	"ruined_altar": "res://scenes/levels/ruined_altar.tscn",
+	"guild_hall": "res://scenes/levels/guild_hall.tscn",
 	"benchmark": "res://scenes/bench/benchmark.tscn",
 }
 ## 檢查點 -> 關卡 id（沒列的都在 DEFAULT_LEVEL）
 const CHECKPOINT_LEVELS: Dictionary = {
+	"ch1_guild": "guild_hall",
+	"ch1_guild_quest": "guild_hall",
+	"ch1_guild_leave": "guild_hall",
 	"ch1_forest_gate": "corrupt_forest",
 	"ch1_with_sera": "corrupt_forest",
 	"ch1_slimes": "corrupt_forest",
@@ -32,16 +36,18 @@ const CHECKPOINT_LEVELS: Dictionary = {
 	"ch1_altar": "ruined_altar",
 	"ch1_boss": "ruined_altar",
 	"ch1_boss_down": "ruined_altar",
+	"ch1_guild_return": "guild_hall",
 }
 const DEFAULT_LEVEL: String = "corrupt_forest"
 ## `--level=…` 開發旗標用的存檔資料夾：不會蓋掉玩家真正的進度
 const DEV_SAVE_DIR: String = "user://saves_dev"
 const TITLE_SCENE: String = "res://scenes/boot/boot.tscn"
+const TITLE_REQUEST: String = "title"
 
 var session: GameSession
 ## false＝go_to_level 只記下要去哪、不真的換場景（測試把關卡直接掛在 root 底下：真的換會多出一個沒人管的關卡）
 var change_scenes: bool = true
-## 最近一次要去的關卡（測試看這個）
+## 最近一次要去的關卡（測試看這個；回標題記成 TITLE_REQUEST）
 var last_level_request: String = ""
 var dialogues: DialogueDB
 ## 進行中的對話（沒有則為 null）
@@ -205,4 +211,6 @@ func back_to_title() -> void:
 	Engine.time_scale = 1.0
 	_player_dead = false
 	dialogue = null
-	get_tree().change_scene_to_file(TITLE_SCENE)
+	last_level_request = TITLE_REQUEST
+	if change_scenes:
+		get_tree().change_scene_to_file(TITLE_SCENE)
