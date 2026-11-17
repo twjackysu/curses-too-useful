@@ -528,6 +528,54 @@
    },
    "prompt": "cute stylized anime manga fantasy game prop, bright appealing colors, vibrant hand-painted textures, readable silhouette, game-ready, no text, no logo, centered, standing on flat ground. A rusty cursed ring with a tiny red gem, oversized icon-like 3D model, faint red aura",
    "note": "詛咒飾品【生鏽的痛覺戒指】（面板與商店展示用）"
+  },
+  {
+   "id": "guild_patron_a",
+   "model": "tripo-v3.1",
+   "params": {
+    "texture_quality": "detailed",
+    "face_limit": 40000
+   },
+   "prompt": "Stylized anime JRPG 3D game character, modern anime action RPG party member style: slim young-adult body, youthful anime proportions about 5.5 heads tall, slightly large head, sturdy legs, anime face with medium-large eyes, clean cel-shaded hand-painted textures, detailed layered fantasy clothing, slightly worn. Full body, strict T-pose, arms straight out to the sides, legs slightly apart, facing forward, empty open hands. A stocky veteran adventurer in his fifties, short and broad-shouldered. Bald head, thick braided grey beard, cheerful red nose, bushy eyebrows. Dented iron pauldron on one shoulder, padded brown gambeson, wide leather belt with a big buckle, rolled-up sleeves, heavy boots.",
+   "negative_prompt": "weapon, sword, staff, lantern, wings, text, logo, base, pedestal",
+   "rig": {
+    "type": "biped",
+    "spec": "mixamo"
+   },
+   "animations": [],
+   "note": "公會大廳坐著喝酒的客人（老練的矮壯冒險者）。NEXT 打磨「④ 公會大廳留下的：大廳看起來很空」；GuildHall.PATRONS 的 PatronA"
+  },
+  {
+   "id": "guild_patron_b",
+   "model": "tripo-v3.1",
+   "params": {
+    "texture_quality": "detailed",
+    "face_limit": 40000
+   },
+   "prompt": "Stylized anime JRPG 3D game character, modern anime action RPG party member style: slim young-adult body, youthful anime proportions about 5.5 heads tall, slightly large head, sturdy legs, anime face with medium-large eyes, clean cel-shaded hand-painted textures, detailed layered fantasy clothing, slightly worn. Full body, strict T-pose, arms straight out to the sides, legs slightly apart, facing forward, empty open hands. A young woman about 22, apprentice mage adventurer. Long wavy dark teal hair tied loosely, round glasses, sleepy relaxed smile. Deep blue hooded robe with the hood down, short cape, brown leather satchel across the body, belt with scroll cases, knee-high soft boots.",
+   "negative_prompt": "weapon, sword, staff, lantern, wings, text, logo, base, pedestal",
+   "rig": {
+    "type": "biped",
+    "spec": "mixamo"
+   },
+   "animations": [],
+   "note": "公會大廳坐著的客人（見習魔法師）；GuildHall.PATRONS 的 PatronB"
+  },
+  {
+   "id": "guild_patron_c",
+   "model": "tripo-v3.1",
+   "params": {
+    "texture_quality": "detailed",
+    "face_limit": 40000
+   },
+   "prompt": "Stylized anime JRPG 3D game character, modern anime action RPG party member style: slim young-adult body, youthful anime proportions about 5.5 heads tall, slightly large head, sturdy legs, anime face with medium-large eyes, clean cel-shaded hand-painted textures, detailed layered fantasy clothing, slightly worn. Full body, strict T-pose, arms straight out to the sides, legs slightly apart, facing forward, empty open hands. A lanky young man about 25, scout adventurer. Messy blond hair, thin mustache, smug half-lidded eyes. Dark green leather jerkin with many straps, grey scarf, fingerless gloves, belt with daggers sheaths (empty), patched brown trousers, soft leather boots.",
+   "negative_prompt": "weapon, sword, staff, lantern, wings, text, logo, base, pedestal",
+   "rig": {
+    "type": "biped",
+    "spec": "mixamo"
+   },
+   "animations": [],
+   "note": "公會大廳坐著的客人（斥候）；GuildHall.PATRONS 的 PatronC"
   }
  ]
 }
