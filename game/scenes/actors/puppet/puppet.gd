@@ -29,7 +29,7 @@ const RUN_CLIP_SPEED: float = 3.2
 const FOOT_CONTACTS: PackedFloat32Array = [0.25, 0.75]
 const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "reach": 1.0, "give": 1.25}
 ## 站著不動的時候可以換成的樣子（模型的循環動作；程式人偶只會坐）
-const POSES: PackedStringArray = ["", "sit", "sit_drink", "laugh", "slump"]
+const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump"]
 ## 「釋放」的姿勢播多久。它不是 action：疊在站姿／走路／出手上面，不佔出手與閃避（放完同一幀照樣能出手）
 const RELEASE_POSE_TIME: float = 0.36
 ## 模型的手骨頭在手腕：手上的掛點往指尖移這麼多（掌心）
@@ -426,7 +426,7 @@ func _pose(speed_t: float) -> void:
 	if lying != "":
 		_pose_lying()
 		return
-	if sitting or (pose in ["sit", "sit_drink"] and action == "" and moving <= 0.0):
+	if sitting or (pose.begins_with("sit") and action == "" and moving <= 0.0):
 		_pose_sitting(breathe)
 		return
 	match action:

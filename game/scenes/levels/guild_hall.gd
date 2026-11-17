@@ -92,8 +92,9 @@ const SERA_FOLLOW_OFFSET: Vector3 = Vector3(-1.3, 0.0, 0.7)
 ## 有人走到離大門這麼近就開門（走出去的雷歐小隊、席菈、諾恩）；開關的速度（每秒幾成）
 const DOOR_NEAR: float = 3.2
 const DOOR_SPEED: float = 1.6
-## 莉莉絲兩手遞出去多久之後委託單出現在櫃檯上（give 的手伸到最前面）
-const SLIP_SHOW_SEC: float = 0.45
+## 莉莉絲兩手拿著委託單遞出來，手收回來的時候放到櫃檯上（give 播到這裡）；拿著的時候在右手腕往左多少（兩手中間）
+const SLIP_SHOW_SEC: float = 0.95
+const SLIP_IN_HANDS: Vector3 = Vector3(-0.15, 0.03, -0.05)
 ## 正在走出大門的人（門要為他們開）
 const LEAVING_GROUP: String = "guild_leaving"
 
@@ -186,6 +187,7 @@ func _ready() -> void:
 	# 連拍用（scripts/burst.sh）：`--registered --burst-on=alarm` 進場 1.2 秒後把手放上水晶，從那一刻開始拍。
 	# 截圖用：`--registered --demo=leo` 進場就摸水晶、雷歐直接站到旁邊開口（不等警報的那幾秒；配 `--talk-skip`）；
 	# `--registered --demo=alarm` 進場就摸水晶、照平常的時間軸（伸手、大家笑、雷歐走過來）；
+	# `--after-leo --demo=quest` 進場就跟莉莉絲說話（她兩手遞出委託單）；
 	# `--quest-taken --demo=sera` 席菈一開始就站在幾步外（不等她從角落走過來）；`--return --demo=end` 直接停在「第一章　完」
 	_burst_on = str(args.get("burst-on", ""))
 	_demo = str(args.get("demo", ""))
@@ -195,6 +197,10 @@ func _ready() -> void:
 			touch_crystal())
 	if _demo == "leo" or _demo == "alarm":
 		get_tree().create_timer(0.2).timeout.connect(touch_crystal)
+	elif _demo == "quest":
+		get_tree().create_timer(0.3).timeout.connect(func() -> void:
+			if _talk(QUEST_DIALOGUE, ["SPK_NOEN", LILITH_KEY]):
+				_hand_over_slip())
 	elif _demo == "sera" and sera != null:
 		sera.position = _beside_player(Vector3(-3.0, 0, 0.6))
 	elif _demo == "end":
@@ -357,9 +363,7 @@ func _build_interactables() -> void:
 	lilith_use = Interactable.create("TalkLilith", Vector3(0.0, 0.0, GuildScenery.STAFF_LINE_Z), "HINT_TALK_LILITH", 2.6)
 	lilith_use.used.connect(func(_by: PlayerController) -> void:
 		if _talk(QUEST_DIALOGUE, ["SPK_NOEN", LILITH_KEY]):
-			# 她兩手把委託單遞出來，放到櫃檯上
-			lilith.gesture("give")
-			get_tree().create_timer(SLIP_SHOW_SEC).timeout.connect(func() -> void: scenery.slip.visible = true))
+			_hand_over_slip())
 	add_child(lilith_use)
 	_refresh_interactables()
 
@@ -369,6 +373,23 @@ func _refresh_interactables() -> void:
 	lilith_use.enabled = stage() == STAGE_TAKE_QUEST
 	# 綠色委託單：莉莉絲拿出來之後就放在櫃檯上，到諾恩出發為止
 	scenery.slip.visible = Game.session.in_story() and _flag(FLAG_QUEST) and not is_epilogue()
+
+
+## 莉莉絲兩手拿著綠色委託單遞出來，手收回來的時候放到櫃檯上
+func _hand_over_slip() -> void:
+	lilith.gesture("give")
+	var held: UprightHeld = null
+	var hand: Node3D = lilith.puppet.hand("R")
+	if hand != null:
+		var copy := scenery.slip.duplicate() as Node3D
+		copy.visible = true
+		copy.transform = Transform3D.IDENTITY
+		held = UprightHeld.attach(copy, hand, lilith, SLIP_IN_HANDS)
+		held.name = "HeldSlip"
+	get_tree().create_timer(SLIP_SHOW_SEC).timeout.connect(func() -> void:
+		if held != null and is_instance_valid(held):
+			held.queue_free()
+		scenery.slip.visible = true)
 
 
 ## 把手放到水晶上：警報、畫面中間寫結果；之後的事照 _tick_alarm 的時間軸
@@ -476,12 +497,12 @@ func _turn_sera(delta: float) -> void:
 	sera.rotation.y = lerp_angle(sera.rotation.y, atan2(-to.x, -to.z), minf(delta * 3.0, 1.0))
 
 
-## 席菈坐在角落的凳子上（開場）／站起來（走過來問能不能一起去）
+## 席菈縮成一團坐在角落的凳子上（開場）／站起來（走過來問能不能一起去）
 func _seat_sera(on: bool) -> void:
 	if sera == null:
 		return
 	var p: Puppet = sera.puppet()
-	p.pose = "sit" if on else ""
+	p.pose = "sit_hunch" if on else ""
 	p.position.y = (SERA_STOOL_LIFT if p.uses_model() else SERA_STOOL_LIFT_PUPPET) if on else 0.0
 
 

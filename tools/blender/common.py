@@ -647,7 +647,7 @@ def release_action(a, frames=9):
     a.action("release", frames, fn, step=1)
 
 def social_actions(a):
-    """公會大廳的人用的動作（怪物不做）：坐著（sit、sit_drink）、笑（laugh）、累垮（slump）、伸手摸（reach）、遞東西（give），
+    """公會大廳的人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、伸手摸（reach）、遞東西（give），
     扛東西（idle_carry、walk_carry、run_carry：左手扶著扛在左肩上的東西，腳照平常走）。
     角度的意思跟 standard_actions 一樣：arm_pose 的 hang 離垂直往外、swing 往前擺、elbow 手肘往前彎、twist 整條手臂繞垂直軸（正＝往左前帶）。"""
     bones = a.arm.data.bones
@@ -673,6 +673,16 @@ def social_actions(a):
         # 兩手擱在大腿上
         a.arm_pose("Left", f, hang=7, swing=38 + b, elbow=48, twist=-6)
         a.arm_pose("Right", f, hang=9, swing=40 + b, elbow=50, twist=6)
+
+    def sit_hunch(f, t):
+        # 坐著縮成一團（大廳角落的席菈）：駝背、低著頭，兩手併在腿上
+        b = math.sin(t * math.tau)
+        seated(f, b)
+        a.rot("Spine", f, (X, -13 + 0.8 * b))
+        a.rot("Chest", f, (X, -10 + 1.0 * b))
+        a.rot("Head", f, (X, -15 - 0.6 * b), (Z, 4))
+        a.arm_pose("Left", f, hang=4, swing=34 + b, elbow=60, twist=-24)
+        a.arm_pose("Right", f, hang=4, swing=34 + b, elbow=60, twist=24)
 
     def sit_drink(f, t):
         # 坐著喝：前半擱著（杯子在大腿上方）、舉到嘴邊、仰頭喝一口、放回去
@@ -748,6 +758,7 @@ def social_actions(a):
 
     idle, walk, run = a.base_fns["idle"], a.base_fns["walk"], a.base_fns["run"]
     a.action("sit", 72, sit, step=6)
+    a.action("sit_hunch", 72, sit_hunch, step=6)
     a.action("sit_drink", 96, sit_drink, step=2)
     a.action("laugh", 30, laugh, step=1)
     a.action("slump", 72, slump, step=6)

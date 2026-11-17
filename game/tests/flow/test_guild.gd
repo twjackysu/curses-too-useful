@@ -139,7 +139,7 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	assert_not_null(level.sera)
 	assert_false(level.sera.joined, "席菈還沒結伴")
 	assert_true(level.sera.global_position.distance_to(GuildHall.SERA_CORNER) < 0.3, "她縮在角落")
-	assert_eq(level.sera.puppet().pose, "sit", "坐在凳子上")
+	assert_eq(level.sera.puppet().pose, "sit_hunch", "縮成一團坐在凳子上")
 	assert_true(level.sera.global_position.distance_to(player.global_position) > 12.0)
 	for marker: String in ["Lilith", "Crystal", "Sera", "GuildDoor"]:
 		assert_not_null(level.get_node_or_null(marker), "目標指引找得到 %s" % marker)
@@ -254,9 +254,12 @@ func test_lilith_hands_over_the_green_request_then_sera_asks_to_come_along() -> 
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(runner.current_text(), "DLG_CH1_QUEST_001")
 	assert_eq(level.lilith.puppet.action, "give", "莉莉絲兩手把委託單遞出來")
-	assert_false(level.scenery.slip.visible, "手還沒伸出來")
+	assert_false(level.scenery.slip.visible, "還在她手上")
+	assert_not_null(level.lilith.get_node_or_null("HeldSlip"), "她兩手拿著委託單")
 	await _frames(int(GuildHall.SLIP_SHOW_SEC * 60.0) + 6)
 	assert_true(level.scenery.slip.visible, "綠色委託單放到櫃檯上")
+	await tree.process_frame
+	assert_true(level.lilith.get_node_or_null("HeldSlip") == null, "手上的那張收掉了")
 	_finish_dialogue(0)
 	assert_eq(s.state.get_flag(GuildHall.FLAG_QUEST), true)
 	assert_eq(s.quests.stage_of("ch1_main"), "sera_asks")

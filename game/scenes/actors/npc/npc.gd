@@ -23,7 +23,7 @@ var _speed: float = 0.0
 var _look: Vector3 = Vector3.INF
 var _shape: CollisionShape3D
 var footsteps: Footsteps = Footsteps.new(STEP_DB, STEP_DB)
-## 站著不動時的樣子（Puppet.POSES：""、sit、sit_drink、laugh、slump）
+## 站著不動時的樣子（Puppet.POSES：""、sit、sit_hunch、sit_drink、laugh、slump）
 var pose: String = "":
 	set(value):
 		pose = value
