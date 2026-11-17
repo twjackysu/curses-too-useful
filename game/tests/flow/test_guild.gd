@@ -87,6 +87,8 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	assert_false(level.is_epilogue(), "開場是早上")
 	var player: PlayerController = level.get_node("Player") as PlayerController
 	assert_true(player.global_position.distance_to(GuildHall.ENTRANCE) < 0.5, "諾恩從大門走進來")
+	assert_true(level.scenery.door_open > 0.9, "剛走進來，門還開著")
+	assert_eq(level.scenery.door_hinges.size(), 2, "兩片門板")
 	var hall: Node3D = level.get_node("Hall") as Node3D
 	for part: String in ["Floor", "WallNorth", "WallSouth", "WallEast", "WallWest", "Ceiling", "Door", "Loft", "Counter", "CrystalLook", "Carpet"]:
 		assert_not_null(hall.get_node_or_null(part), "大廳有 %s" % part)
@@ -105,6 +107,26 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	await _frames(3)
 	Input.action_release("attack")
 	assert_ne(player.puppet().action, "attack", "在公會裡不揮劍")
+	assert_true(player.is_sheathed(), "劍收在背上")
+	assert_true(level.sera.holstered and level.sera.crossbow().get_parent() != level.sera.puppet().hand("R"), "席菈的手弩收在腰上")
+	# 坐在桌邊的客人：有模型的才擺（Tripo 還沒產的不拿別人的模型充數）
+	var seated: int = 0
+	var mug_probe: Node3D = PropModels.instance("quaternius/Mug")
+	var has_mug: bool = mug_probe != null
+	if mug_probe != null:
+		mug_probe.free()
+	for spec: Array in GuildHall.PATRONS:
+		var name: String = str(spec[0])
+		if GuildHall._first_with_model(spec[1] as Array) == "":
+			assert_false(level.patrons.has(name), "%s 沒有模型就不擺" % name)
+			continue
+		seated += 1
+		var who: Npc = level.patrons[name] as Npc
+		assert_eq(who.pose, str(spec[4]))
+		assert_eq(who.puppet.pose, str(spec[4]), "%s 坐著" % name)
+		if who.pose == "sit_drink" and has_mug:
+			assert_not_null(who.get_node_or_null("Held"), "%s 手上拿著杯子" % name)
+	assert_eq(level.patrons.size(), seated)
 	# 走不出牆、進不去櫃檯裡面
 	assert_eq(GuildScenery.keep_inside(Vector3(0, 0, 3)), Vector3(0, 0, 3))
 	assert_true(GuildScenery.keep_inside(Vector3(30, 0, 0)).x < GuildScenery.HALF_W)
@@ -117,6 +139,7 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	assert_not_null(level.sera)
 	assert_false(level.sera.joined, "席菈還沒結伴")
 	assert_true(level.sera.global_position.distance_to(GuildHall.SERA_CORNER) < 0.3, "她縮在角落")
+	assert_eq(level.sera.puppet().pose, "sit", "坐在凳子上")
 	assert_true(level.sera.global_position.distance_to(player.global_position) > 12.0)
 	for marker: String in ["Lilith", "Crystal", "Sera", "GuildDoor"]:
 		assert_not_null(level.get_node_or_null(marker), "目標指引找得到 %s" % marker)
@@ -125,6 +148,7 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	var hud: Hud = level.get_node("Hud") as Hud
 	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_REGISTER")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_GUILD_LINE1", "CH1_GUILD_LINE2"]), "一進來先說這是哪裡")
+	assert_false(hud.guide.shown, "中間的字還在，指引的菱形先不畫（不疊在字上）")
 	assert_false(level.scenery.slip.visible, "綠色委託單還沒拿出來")
 	assert_true(level.get_node_or_null("HallMurmur") != null or Sfx.stream("market_murmur") == null, "大廳的人聲")
 
@@ -157,6 +181,8 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	assert_false(level.crystal_use.interact_hint().is_empty(), "走近有提示")
 	await _press_interact()
 	assert_true(level.is_alarm_ringing(), "按下去警報就響")
+	assert_eq(player.puppet().action, "reach", "諾恩伸手摸水晶")
+	assert_true(hud.objective_held, "左上的「把手放到水晶上」先收起來")
 	assert_eq(s.state.get_flag(GuildHall.FLAG_CRYSTAL), true)
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_CRYSTAL_LINE1", "CH1_CRYSTAL_LINE2"]))
 	assert_false(level.crystal_use.enabled, "只測一次")
@@ -169,7 +195,12 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	await _frames(int(GuildHall.ALARM_LEO_WALKS * 60.0) + 10)
 	assert_true(hud.bark_keys().has("BARK_ADV_LAUGH_A") or hud.bark_keys().has("BARK_ADV_LAUGH_B"), "冒險者笑出來")
 	assert_true(leo.is_walking(), "雷歐走過來")
+	for key: String in ["AdventurerA", "AdventurerB"]:
+		assert_eq((level.crowd[key] as Npc).pose, "laugh", "%s 在笑" % key)
+	for key: String in ["LeoMage", "LeoTank"]:
+		assert_eq((level.party[key] as Npc).pose, "laugh", "%s 也在笑" % key)
 	await _until_dialogue(int(GuildHall.ALARM_TIMEOUT * 60.0))
+	assert_eq((level.crowd["AdventurerA"] as Npc).pose, "", "雷歐開口，大家安靜下來")
 	assert_true(leo.global_position.distance_to(leo_start) > 3.0, "他離開佈告欄了")
 	assert_true(leo.global_position.distance_to(player.global_position) < 3.5, "走到諾恩旁邊（%.1f m）" % leo.global_position.distance_to(player.global_position))
 	runner = _game().get("dialogue") as DialogueRunner
@@ -183,17 +214,23 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	assert_eq(s.state.get_flag(GuildHall.FLAG_LEO_LEFT), true)
 	assert_eq(s.quests.stage_of("ch1_main"), "take_quest")
 	assert_eq(s.state.checkpoint, "ch1_guild_quest")
+	assert_false(hud.objective_held, "下一個目標出來了")
 	# 雷歐小隊走出大門、消失；水晶暗掉
 	assert_true(leo.is_walking() and leo.leave_on_arrival)
 	assert_true(level.party.is_empty())
 	await _frames(3)
 	assert_false(level.is_alarm_ringing())
 	assert_true(level.scenery.crystal_light.light_energy < 0.5, "水晶暗掉了")
+	var door_opened: bool = false
 	for i: int in 900:
 		await tree.physics_frame
+		door_opened = door_opened or level.scenery.door_open > 0.9
 		if not is_instance_valid(leo):
 			break
 	assert_false(is_instance_valid(leo), "雷歐走出去了")
+	assert_true(door_opened, "大門為他們打開")
+	await _frames(int(60.0 / GuildHall.DOOR_SPEED) + 30)
+	assert_true(level.scenery.door_open < 0.05, "人走了，門關上")
 	assert_true(level.lilith_use.enabled, "可以跟莉莉絲說話")
 
 
@@ -216,6 +253,9 @@ func test_lilith_hands_over_the_green_request_then_sera_asks_to_come_along() -> 
 	assert_true(bool(_game().call("is_in_dialogue")))
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(runner.current_text(), "DLG_CH1_QUEST_001")
+	assert_eq(level.lilith.puppet.action, "give", "莉莉絲兩手把委託單遞出來")
+	assert_false(level.scenery.slip.visible, "手還沒伸出來")
+	await _frames(int(GuildHall.SLIP_SHOW_SEC * 60.0) + 6)
 	assert_true(level.scenery.slip.visible, "綠色委託單放到櫃檯上")
 	_finish_dialogue(0)
 	assert_eq(s.state.get_flag(GuildHall.FLAG_QUEST), true)
@@ -226,6 +266,8 @@ func test_lilith_hands_over_the_green_request_then_sera_asks_to_come_along() -> 
 	var far: float = sera.global_position.distance_to(player.global_position)
 	await _frames(30)
 	assert_true(sera.puppet().move_speed > 0.0 and sera.puppet().move_speed < 3.0, "她用走的（%.1f m/s）" % sera.puppet().move_speed)
+	assert_eq(sera.puppet().pose, "", "站起來了")
+	assert_eq(sera.puppet().position.y, 0.0)
 	assert_true(sera.global_position.distance_to(player.global_position) < far - 0.5, "朝諾恩走過來")
 	await _until_dialogue(600)
 	assert_true(sera.global_position.distance_to(player.global_position) < GuildHall.SERA_TALK_DIST + 0.3)
@@ -310,7 +352,14 @@ func test_epilogue_returns_to_the_guild_at_dusk_and_ends_the_chapter() -> void:
 	assert_true(absf(level.inspector.global_position.y - GuildScenery.LOFT_Y) < 0.01, "巡察官站在二樓")
 	assert_true(level.sera != null and level.sera.joined and level.sera.target == player, "席菈跟著諾恩")
 	assert_true(level.sera.global_position.distance_to(player.global_position) < 3.0)
+	for key: String in level.party:
+		assert_eq((level.party[key] as Npc).pose, "slump", "%s 累垮了" % key)
+	assert_true(player.is_sheathed())
+	assert_true(level.sera.holstered)
 	assert_not_null(level.core, "扛著魔像核心")
+	assert_true(level.core.is_carried_by(player.get_node("Body") as Node3D))
+	if player.puppet().uses_model():
+		assert_true(player.puppet().carry, "左手扶著扛在肩上的核心")
 	assert_true(level.core.is_inside_tree() and level.core.global_position.distance_to(player.global_position + Vector3(0, 1.6, 0)) < 0.6)
 	await _frames(5)
 	assert_true(hud.bark_keys().has("BARK_LEO_RETURN"), "雷歐還在說那兩個人回不來了")
@@ -331,6 +380,10 @@ func test_epilogue_returns_to_the_guild_at_dusk_and_ends_the_chapter() -> void:
 			await _frames(int(TalkCamera.BLEND_SEC * 60.0) + 4)
 			assert_eq(level.talk_camera.speaker(), level.inspector as Node3D, "最後一句：鏡頭帶到二樓的巡察官")
 			assert_true(level.talk_camera.global_position.y > GuildScenery.LOFT_Y, "鏡頭升到二樓的高度")
+			assert_true(level.talk_camera.global_position.z < level.inspector.global_position.z, "從他背後往下看諾恩")
+			assert_true(level.aura.emitting, "諾恩身上冒出黑氣")
+		elif level.aura != null:
+			assert_false(level.aura.emitting, "其他句沒有黑氣")
 		if not runner.visible_choices.is_empty():
 			runner.choose(0)
 		else:

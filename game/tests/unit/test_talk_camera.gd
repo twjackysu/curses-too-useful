@@ -78,3 +78,17 @@ func test_glide_bulges_away_from_a_head_in_the_way() -> void:
 	assert_true(TalkCamera.detour(Vector3(0, 2, 0), Vector3(0, 2, 4), through).is_finite())
 	assert_eq(TalkCamera.detour(from, from, heads), Vector3.ZERO)
 
+
+
+## 過肩鏡位（二樓的巡察官往下看諾恩）：鏡頭在講話的人背後、比他的頭高，看著對方的胸口
+func test_over_shoulder_shot_looks_past_the_speaker_at_the_target() -> void:
+	var speaker := Vector3(0.9, 3.5, -8.0)
+	var target := Vector3(0.2, 0.0, -2.5)
+	var t: Transform3D = TalkCamera.over_shoulder(speaker, target)
+	assert_true(t.origin.z < speaker.z - 0.5, "在他背後（%s）" % str(t.origin))
+	assert_true(t.origin.y > speaker.y + 1.6, "比他的頭高")
+	var aim: Vector3 = target + Vector3.UP * TalkCamera.OVER_AIM
+	var fwd: Vector3 = -t.basis.z
+	assert_true(fwd.dot((aim - t.origin).normalized()) > 0.999, "看著對方的胸口")
+	# 講話的人在畫面裡（偏一邊、在前景），不是在鏡頭後面
+	assert_true(fwd.dot((speaker + Vector3.UP * 1.5 - t.origin).normalized()) > 0.5, "他在畫面前景")

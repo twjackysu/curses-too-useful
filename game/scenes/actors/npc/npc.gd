@@ -1,11 +1,16 @@
 class_name Npc
 extends StaticBody3D
-## 站在場景裡的人（公會大廳的櫃檯小姐、冒險者、雷歐小隊、二樓的巡察官）：站著、轉過去看某個地方、走到某個地方。
-## 不會被打、不做決定——要他做什麼由關卡叫（walk_to、face）。站著的時候擋路（一個膠囊，只在 GuildScenery.PEOPLE_LAYER：
+## 站在場景裡的人（公會大廳的櫃檯小姐、冒險者、雷歐小隊、二樓的巡察官）：站著、轉過去看某個地方、走到某個地方，
+## 坐著、笑、累垮（pose）、伸手或遞東西（gesture）。走路時會從諾恩旁邊繞過去（不穿過他），腳落地有腳步聲。
+## 不會被打、不做決定——要他做什麼由關卡叫（walk_to、face、pose）。站著的時候擋路（一個膠囊，只在 GuildScenery.PEOPLE_LAYER：
 ## 擋人不擋鏡頭）；走路的時候不擋（不會把諾恩推開或卡住）。外型用 Puppet（有模型用模型，沒有就是程式人偶）。
 
 const TURN_SPEED: float = 7.0
 const ARRIVE_DIST: float = 0.12
+## 走路的路上諾恩在這個距離內、又在前面，就往旁邊偏開
+const AVOID_DIST: float = 1.2
+## 腳步聲（比諾恩自己的小一點）
+const STEP_DB: float = -16.0
 
 var character_id: String = ""
 var puppet: Puppet
@@ -17,6 +22,13 @@ var _path: Array[Vector3] = []
 var _speed: float = 0.0
 var _look: Vector3 = Vector3.INF
 var _shape: CollisionShape3D
+var footsteps: Footsteps = Footsteps.new(STEP_DB, STEP_DB)
+## 站著不動時的樣子（Puppet.POSES：""、sit、sit_drink、laugh、slump）
+var pose: String = "":
+	set(value):
+		pose = value
+		if puppet != null:
+			puppet.pose = value
 
 
 ## facing_deg：0＝面向 −Z（北），180＝面向南邊的大門
@@ -42,7 +54,9 @@ func _ready() -> void:
 	puppet = Puppet.new()
 	puppet.name = "Puppet"
 	puppet.character_id = character_id
+	puppet.pose = pose
 	add_child(puppet)
+	puppet.footfall.connect(func() -> void: footsteps.stomp(self))
 	ContactShadow.attach(self, 0.5, 0.5)
 
 
@@ -63,6 +77,11 @@ func walk_path(points: Array[Vector3], speed: float = 1.5) -> void:
 
 func is_walking() -> bool:
 	return _goal.is_finite()
+
+
+## 一次性的手勢（Puppet.ACTION_TIME 的 reach、give），做完回到原本的樣子
+func gesture(action_name: String) -> void:
+	puppet.play_action(action_name)
 
 
 ## 轉過去看 point（站著的時候）
@@ -93,7 +112,7 @@ func _physics_process(delta: float) -> void:
 			if leave_on_arrival:
 				queue_free()
 			return
-		dir = step.normalized()
+		dir = _steer_around_player(step.normalized())
 		global_position += dir * _speed * delta
 		puppet.set_move_speed(_speed)
 	elif _look.is_finite():
@@ -104,3 +123,18 @@ func _physics_process(delta: float) -> void:
 		dir = dir.normalized()
 	if dir != Vector3.ZERO:
 		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
+
+
+## 諾恩擋在前面就往旁邊偏（離他越近偏越多），走過去之後自己會轉回去朝著目的地
+func _steer_around_player(dir: Vector3) -> Vector3:
+	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return dir
+	var to_player: Vector3 = player.global_position - global_position
+	to_player.y = 0.0
+	var d: float = to_player.length()
+	if d >= AVOID_DIST or d < 0.01 or to_player.dot(dir) <= 0.0:
+		return dir
+	var right: Vector3 = dir.cross(Vector3.UP)
+	var away: float = -1.0 if right.dot(to_player) > 0.0 else 1.0
+	return (dir + right * away * 2.5 * (1.0 - d / AVOID_DIST)).normalized()

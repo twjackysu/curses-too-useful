@@ -85,6 +85,11 @@ var vials_fired: int = 0
 var last_vial: SeraVial
 var _puppet: Puppet
 var _crossbow: Node3D
+## 手弩收在右腰上（公會大廳：不打架的地方）；false＝拿在右手
+var holstered: bool = false:
+	set(value):
+		holstered = value
+		_holster(value)
 
 
 func _ready() -> void:
@@ -404,6 +409,22 @@ func _build_crossbow() -> void:
 	model.rotation_degrees = CROSSBOW_ROT
 	model.position = CROSSBOW_OFFSET
 	_crossbow.add_child(model)
+	_holster(holstered)
+
+
+## 收在右腰上的樣子（骨盆的掛點的座標：+X 右、+Y 上、+Z 背後）：弩口朝下掛著
+const HOLSTER_AT: Vector3 = Vector3(0.22, -0.02, 0.04)
+
+
+func _holster(on: bool) -> void:
+	if _crossbow == null or _puppet == null:
+		return
+	var holder: Node3D = _puppet.joint("hips") if on else _puppet.hand("R")
+	if holder == null or _crossbow.get_parent() == holder:
+		return
+	_crossbow.get_parent().remove_child(_crossbow)
+	holder.add_child(_crossbow)
+	_crossbow.transform = Transform3D(Basis.IDENTITY, HOLSTER_AT) if on else Transform3D.IDENTITY
 
 
 static func _stand_in_crossbow() -> Node3D:

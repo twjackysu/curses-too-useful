@@ -20,6 +20,9 @@ const WALL_MARGIN: float = 0.45
 ## 大門（南牆中間）與走出去的那條線
 const DOOR_POS: Vector3 = Vector3(0, 0, HALF_L)
 const DOOR_SIZE: Vector2 = Vector2(2.6, 3.3)
+## 門開到底轉幾度（往屋裡開）。門洞裡那片天光貼在門框前面、門板後面（南牆是整片的，門後沒有洞）
+const DOOR_SWING_DEG: float = 78.0
+const DOOR_DAYLIGHT_Z: float = -0.04
 ## 櫃檯那一排：中間是櫃檯，兩邊各兩個矮櫃接成一條長吧台；這條線以北是櫃檯裡面（上面是二樓的迴廊），客人進不去
 const COUNTER_POS: Vector3 = Vector3(0, 0, -8.0)
 const COUNTER_STRETCH: float = 1.45
@@ -27,6 +30,9 @@ const STAFF_LINE_Z: float = -7.35
 ## 適性測試水晶：放在櫃檯右邊第一個矮櫃上
 const CRYSTAL_POS: Vector3 = Vector3(2.0, 1.0, -8.0)
 const BOARD_POS: Vector3 = Vector3(-7.5, 0, 0.0)
+## 西北角武器架旁邊的凳子（開場席菈縮著坐在上面）與它的高度
+const STOOL_POS: Vector3 = Vector3(-6.3, 0, -6.4)
+const STOOL_TOP: float = 0.58
 const SIGN_POS: Vector3 = Vector3(7.2, 0, 0.1)
 ## 二樓的迴廊：地板的高度、前緣（欄杆）在哪
 const LOFT_Y: float = 3.5
@@ -57,6 +63,10 @@ var evening: bool = false
 var crystal: Node3D
 var crystal_light: OmniLight3D
 var windows: Array[MeshInstance3D] = []
+## 大門的兩片門板（門軸；set_door_open 轉它們）
+var door_hinges: Array[Node3D] = []
+## 門開了多少（0～1）
+var door_open: float = 0.0
 ## 莉莉絲拿出來的那張綠色委託單（放在櫃檯上；關卡在她拿出來的時候才讓它出現）
 var slip: Node3D
 var _root: Node3D
@@ -93,6 +103,14 @@ func set_crystal(alarm: float, dead: bool) -> void:
 	_crystal_glow.emission_energy_multiplier = power
 	crystal_light.light_color = c
 	crystal_light.light_energy = 0.15 if dead else 1.2 + 4.0 * alarm
+
+
+## 大門開到 amount（0＝關著、1＝全開）：兩片門板往屋裡轉
+func set_door_open(amount: float) -> void:
+	door_open = clampf(amount, 0.0, 1.0)
+	for i: int in door_hinges.size():
+		var side: float = -1.0 if i == 0 else 1.0
+		door_hinges[i].rotation.y = deg_to_rad(DOOR_SWING_DEG) * door_open * -side
 
 
 static func wood(tint: Color, along: Vector3, plank: float = 0.26, wear: float = 0.0) -> ShaderMaterial:
@@ -220,19 +238,33 @@ func _build_shell() -> void:
 	for z: float in [-10.0, -5.0, 0.0, 5.0, 10.0]:
 		_box(beams, Vector3(HALF_W * 2.0, 0.42, 0.36), Vector3(0, HEIGHT - 0.21, z), beam_mat)
 	_box(beams, Vector3(0.4, 0.3, HALF_L * 2.0), Vector3(0, HEIGHT - 0.57, 0), wood(BEAM_WOOD, Vector3(0, 0, 1), 0.4))
-	# 大門：兩片門板＋門框，都是貼在南牆前面的面
+	# 大門：門框＋兩片會往裡面開的門板（set_door_open），門洞是一片亮的天光（門開了才看得到；屋外沒有東西，走出去的人走到光前面消失）
 	var door := Node3D.new()
 	door.name = "Door"
 	_root.add_child(door)
 	_quad("DoorFrame", DOOR_SIZE + Vector2(0.5, 0.25), DOOR_POS + Vector3(0, (DOOR_SIZE.y + 0.25) * 0.5, -0.02), Vector3(0, 180, 0), wood(DARK_WOOD * 0.7, Vector3(0, 1, 0), 0.5)).reparent(door)
-	_quad("DoorLeaves", DOOR_SIZE, DOOR_POS + Vector3(0, DOOR_SIZE.y * 0.5, -0.04), Vector3(0, 180, 0), wood(Color(0.4, 0.24, 0.13), Vector3(0, 1, 0), 0.32)).reparent(door)
+	var outside := StandardMaterial3D.new()
+	outside.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	outside.albedo_color = Color(1.0, 0.62, 0.36) if evening else Color(1.0, 0.95, 0.82)
+	outside.disable_fog = true
+	_quad("DoorDaylight", DOOR_SIZE, DOOR_POS + Vector3(0, DOOR_SIZE.y * 0.5, DOOR_DAYLIGHT_Z), Vector3(0, 180, 0), outside).reparent(door)
+	var leaf_mat: ShaderMaterial = wood(Color(0.4, 0.24, 0.13), Vector3(0, 1, 0), 0.32)
 	var iron := StandardMaterial3D.new()
 	iron.albedo_color = Color(0.13, 0.12, 0.13)
 	iron.metallic = 0.6
 	iron.roughness = 0.5
-	for y: float in [0.55, 2.6]:
-		_quad("DoorBand", Vector2(DOOR_SIZE.x, 0.14), DOOR_POS + Vector3(0, y, -0.06), Vector3(0, 180, 0), iron).reparent(door)
-	_quad("DoorGap", Vector2(0.05, DOOR_SIZE.y), DOOR_POS + Vector3(0, DOOR_SIZE.y * 0.5, -0.06), Vector3(0, 180, 0), iron).reparent(door)
+	var half: float = DOOR_SIZE.x * 0.5
+	for side: float in [-1.0, 1.0]:
+		# 門軸在兩邊的門框上，門板往中間伸
+		var hinge := Node3D.new()
+		hinge.name = "DoorHingeL" if side < 0.0 else "DoorHingeR"
+		hinge.position = DOOR_POS + Vector3(side * half, 0, -0.07)
+		door.add_child(hinge)
+		door_hinges.append(hinge)
+		_quad("DoorLeaf", Vector2(half, DOOR_SIZE.y), Vector3(-side * half * 0.5, DOOR_SIZE.y * 0.5, 0), Vector3(0, 180, 0), leaf_mat).reparent(hinge, false)
+		for y: float in [0.55, 2.6]:
+			_quad("DoorBand", Vector2(half, 0.14), Vector3(-side * half * 0.5, y, -0.02), Vector3(0, 180, 0), iron).reparent(hinge, false)
+		_quad("DoorEdge", Vector2(0.05, DOOR_SIZE.y), Vector3(-side * (half - 0.025), DOOR_SIZE.y * 0.5, -0.02), Vector3(0, 180, 0), iron).reparent(hinge, false)
 	# 窗：受光的那一側亮（早上東邊、傍晚西邊），另一側是背光的天色
 	for side: float in [-1.0, 1.0]:
 		var lit: bool = (side > 0.0) != evening
@@ -405,7 +437,7 @@ func _build_furniture() -> void:
 	_block("CornerBlockSE", Vector3(1.9, 1.2, 1.6), Vector3(6.8, 0.6, 10.0))
 	_prop("quaternius/WeaponStand", Vector3(-7.25, 0, -5.0), 90.0)
 	_block("StandBlock", Vector3(1.1, 1.2, 1.5), Vector3(-7.3, 0.6, -5.0))
-	_prop("quaternius/Stool", Vector3(-6.3, 0, -6.4), 20.0)
+	_prop("quaternius/Stool", STOOL_POS, 20.0)
 	_prop("quaternius/Shield_Wooden", Vector3(-HALF_W + 0.02, 2.5, 5.0), 90.0, 1.4)
 	_prop("quaternius/Shield_Wooden", Vector3(HALF_W - 0.02, 2.5, 5.0), -90.0, 1.4)
 	# 門兩邊的旗子（桿子從牆上伸進屋裡）

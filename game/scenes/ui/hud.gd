@@ -19,6 +19,8 @@ const SAVED_SHOW_SEC: float = 2.2
 const RELEASE_HINT_KEY: String = "HUD_RELEASE_HINT"
 
 var _objective: Label
+## true＝左上的目標先收起來（關卡在演的時候：水晶的警報響著，「把手放到水晶上」已經做了，下一個目標還沒出來）
+var objective_held: bool = false
 var _objective_box: VBoxContainer
 ## 目標下面那一行操作提示（任務階段的 hint；裡面的 {attack} 這類動作名換成現在裝置的按鍵）
 var _hint: Label
@@ -274,7 +276,7 @@ func _process(delta: float) -> void:
 		_refresh_hint()
 	# 對話中鏡頭在講話的人臉上（TalkCamera）：左上的目標與操作提示先收起來，講完再回來
 	var talking: bool = Game.is_in_dialogue()
-	_objective_box.visible = _objective.text != "" and not talking
+	_objective_box.visible = _objective.text != "" and not talking and not objective_held
 	_refresh_checklist(talking)
 	# 左下的狀態列與生命條也是：對話框會蓋到它們的右半邊（字被切掉一半）
 	status.visible = not talking
@@ -296,7 +298,8 @@ func _process(delta: float) -> void:
 	_refresh_potion(pc, view_h, delta)
 	if talking:
 		potion.visible = false
-	guide.refresh(get_parent(), player, get_viewport().get_camera_3d(), combat.in_combat, delta)
+	# 畫面中間那兩行字還在的時候先不畫指引的菱形（一進公會時菱形正好疊在字的中間）
+	guide.refresh(get_parent(), player, get_viewport().get_camera_3d(), combat.in_combat or not center_lines().is_empty(), delta)
 	_update_barks(delta)
 
 

@@ -407,7 +407,7 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 		_return_in = RETURN_DELAY
 		# 地上的核心飛到諾恩的左肩旁邊（結尾他就是這樣扛回公會的）
 		if core != null and is_instance_valid(core):
-			core.carry_on(_player.get_node("Body") as Node3D, CORE_TAKE_SEC)
+			core.carry_on(_player.get_node("Body") as Node3D, CORE_TAKE_SEC, _player.puppet())
 
 
 func _mark(node_name: String, at: Vector3) -> void:

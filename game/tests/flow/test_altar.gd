@@ -522,7 +522,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	await _frames(3)
 	assert_eq(hud.banner_text(), "CH1_GOT_CORE")
 	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_REPORT")
-	assert_eq(level.core.get_parent(), player.get_node("Body"), "核心飛到諾恩身上（結尾就是這樣扛回公會）")
+	assert_true(level.core.is_carried_by(player.get_node("Body") as Node3D), "核心飛到諾恩身上（結尾就是這樣扛回公會）")
 	assert_false(player.health.is_dead())
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
@@ -538,7 +538,11 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	# 打完繼續待在這一關：魔像沉下去、被釋放之後關卡照樣跑（光環跟著牠一起沒了）
 	await _frames(600)
 	assert_false(is_instance_valid(golem), "魔像沉進地面、不在了")
-	assert_true(is_instance_valid(level.core) and level.core.position.distance_to(GolemCore.CARRY_POS) < 0.01, "核心在他的左肩旁邊")
+	var body: Node3D = player.get_node("Body") as Node3D
+	assert_true(is_instance_valid(level.core) and level.core.is_carried_by(body), "核心扛在他身上")
+	assert_true(level.core.global_position.distance_to(body.to_global(GolemCore.CARRY_POS)) < 0.35, "在他的左肩上")
+	if player.puppet().uses_model():
+		assert_true(player.puppet().carry, "換成扛東西的動作（左手扶著）")
 	assert_false(is_instance_valid(level.finisher), "側面的鏡頭收掉了")
 	assert_true((player.get_node("CameraRig/Pitch/SpringArm3D/Camera3D") as Camera3D).current, "鏡頭還給玩家")
 	assert_true(level.plague_level() < 0.05, "石板的縫不亮了")
@@ -590,7 +594,7 @@ func test_retry_restarts_the_fight_and_a_save_after_the_golem_fell_resumes_the_t
 	assert_true(bool(_game().call("is_in_dialogue")), "戰後那段話接著講")
 	_finish_dialogue(0)
 	assert_eq(_session().quests.stage_of("ch1_main"), "report")
-	assert_eq(level.core.get_parent(), level.get_node("Player/Body"), "講完：核心到諾恩的肩上")
+	assert_true(level.core.is_carried_by(level.get_node("Player/Body") as Node3D), "講完：核心到諾恩的肩上")
 
 
 ## 整場照真的時間打一遍（階段不縮短）：一個不會閃的「玩家」——平常站在魔像面前一直砍；凝視的前兆一開始就跑到那道光上站著；

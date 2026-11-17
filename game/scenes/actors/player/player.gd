@@ -91,8 +91,11 @@ const WEAPONS: Dictionary = {
 const DEFAULT_WEAPON: String = "rusty_sword"
 const WEAPON_FLAG: String = "noen.weapon"
 var weapon_id: String = DEFAULT_WEAPON
-## true＝這一關不能動手（公會大廳）：出手與釋放的按鍵沒有反應，閃避照常
-var peaceful: bool = false
+## true＝這一關不能動手（公會大廳）：出手與釋放的按鍵沒有反應，閃避照常；劍收到背上
+var peaceful: bool = false:
+	set(value):
+		peaceful = value
+		_sheathe(value)
 const SWORD_SCALE: float = 0.42
 const SWORD_GRIP: Vector3 = Vector3(0.0, 0.1, 0.0)
 
@@ -220,6 +223,14 @@ func _ready() -> void:
 ## 對話開始時轉過去面向這個地方（講完就不管了，照平常的往哪走面向哪）。
 func talk_to(point: Vector3) -> void:
 	_talk_point = point
+
+
+## 一次性的手勢（Puppet 的 reach：伸手摸水晶），先轉過去面向 point
+func gesture(action_name: String, point: Vector3) -> void:
+	var to_p: Vector3 = point - global_position
+	if Vector2(to_p.x, to_p.z).length() > 0.05:
+		_body.rotation.y = atan2(-to_p.x, -to_p.z)
+	_puppet.play_action(action_name)
 
 
 ## 身體現在面向哪（水平的單位向量）
@@ -978,6 +989,33 @@ func shake(amount: float) -> void:
 
 func shake_amount() -> float:
 	return _shake
+
+
+## 劍背在背上的樣子（胸口的掛點的座標：+X 右、+Y 上、+Z 背後）：劍柄在右肩後上方、劍身斜斜往左下
+const SHEATHED_AT: Vector3 = Vector3(0.15, 0.25, 0.17)
+const SHEATHED_BLADE: Vector3 = Vector3(-0.45, -0.89, 0.0)
+
+
+## 收劍（劍掛到背上）／拔劍（回到右手）。劍的節點 −Y 是劍尖的方向、原點在握把。
+func _sheathe(on: bool) -> void:
+	if _weapon == null or _puppet == null:
+		return
+	var holder: Node3D = _puppet.joint("chest") if on else _puppet.hand("R")
+	if holder == null or _weapon.get_parent() == holder:
+		return
+	_weapon.get_parent().remove_child(_weapon)
+	holder.add_child(_weapon)
+	if on:
+		var up: Vector3 = -SHEATHED_BLADE.normalized()
+		var back := Vector3(0, 0, 1)
+		_weapon.transform = Transform3D(Basis(up.cross(back).normalized(), up, back), SHEATHED_AT)
+	else:
+		_weapon.transform = Transform3D.IDENTITY
+
+
+## 劍在背上嗎（公會大廳）
+func is_sheathed() -> bool:
+	return _weapon != null and _weapon.get_parent() != _puppet.hand("R")
 
 
 ## 右手拿劍（模型掛在手的掛點上）。沒有任何模型檔＝空手（KayKit 的劍在 git 裡，平常不會發生）。
