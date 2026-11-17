@@ -17,7 +17,8 @@ loop 自己的美術待辦（不是給 Jacky 的需求單）。來源優先順�
 | 主角 | `noen_rank_f_v2`（諾恩）、`sheila_rank_f`（席菈） | **都在遊戲裡**（`PlayerController`、`Sera`） |
 | 人物（mixamo 骨架） | `leo`、`leo_party_mage`、`leo_party_tank` | **在遊戲裡**（廢棄祭壇：倒在地上的雷歐小隊；遊戲裡的 id 是 `leo`、`leo_mage`、`leo_tank`） |
 | 人物（mixamo 骨架） | `lilith`、`royal_inspector`、`guild_adventurer_a`、`guild_adventurer_b` | **在遊戲裡**（公會大廳：櫃檯的莉莉絲、兩個冒險者、結尾二樓的巡察官） |
-| 人物（mixamo 骨架） | `black_market_merchant` | 還沒（⑤ 城鎮） |
+| 人物（mixamo 骨架） | `black_market_merchant` | **在遊戲裡**（11/18：公會大廳角落坐著喝酒的客人；⑤ 城鎮的黑市商人也是他） |
+| 人物（mixamo 骨架） | `guild_patron_a`～`c`（老練的矮壯冒險者、見習魔法師、斥候） | **11/18 排進佇列、還沒產**（約 165 點）：公會大廳坐著的客人，`GuildHall.PATRONS` 的位子已經留好 |
 | 怪物 | `enemy_poison_slime`、`enemy_mold_slime`、`enemy_miasma_wolf`（四足骨架＋走路）、`enemy_spore_treant`（雙足骨架） | **都在遊戲裡**（`Slime`、`MoldSlime`、`MiasmaWolf`、`SporeTreant`） |
 | 怪物 | `boss_plague_golem`（雙足骨架；48140 面，收件檢查的上限另外開到 52000） | **在遊戲裡**（`PlagueGolem`，3.6 m） |
 | 武器 | `weapon_rusty_miasma_sword`、`weapon_alchemy_crossbow`、`weapon_ominous_split_blade` | **在遊戲裡**（諾恩右手的兩把、席菈右手） |
@@ -32,7 +33,7 @@ loop 自己的美術待辦（不是給 Jacky 的需求單）。來源優先順�
 - **顏色貼圖是灰的**（預覽圖有顏色、模型的貼圖沒有；11/15 掃過全部）：`prop_glow_toxic_mushroom`（已經在遊戲裡，顏色改用 `glow_mushroom.gdshader` 照形狀算，不重產）、`prop_ruined_altar`（11/16 接了，一樣用 shader 算：`ruin_stone.gdshader`——藍灰的石塊、苔、會亮的符文；沒有重產）。其他的貼圖都有顏色。
 - **Quaternius 的 CC0 小物**（`art-inbox/props/`）第一次用進遊戲（公會大廳）：長桌、長凳、凳子、木桶、木箱、吊燈、壁燈、旗子、書櫃、矮櫃、杯盤、武器架、盾、瓶子、書——清單是 `scripts/gen_props.sh` 的 `QUAT`。
 - 沒用到的在 `art-inbox/tripo/_unused/`（那裡有 README）；不刪。
-- 點數：第一批約 500、第二批 1015；餘額約 1985（≈19.85 美元）。預算上限 100 美元。
+- 點數：第一批約 500、第二批 1015；餘額約 1985（≈19.85 美元）。11/18 排了三個客人（約 165 點，還沒產）。預算上限 100 美元。
 
 ## 之後可能要排的
 
