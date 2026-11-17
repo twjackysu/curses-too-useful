@@ -28,12 +28,12 @@ declare -A SRC=(
   [guild_adventurer_b]="art-inbox/tripo/guild_adventurer_b/guild_adventurer_b_rig.glb"
   [royal_inspector]="art-inbox/tripo/royal_inspector/royal_inspector_rig.glb"
 )
-# 給 tripo_character.py 的參數：--height 身高（m）
+# 給 tripo_character.py 的參數：--height 身高（m）、--keep-rest 不扳正休息姿勢（怪物）
 declare -A ARGS=(
   [noen]="--height 1.74"
   [sheila]="--height 1.65"
-  [spore_treant]="--height 2.60"
-  [plague_golem]="--height 3.60"
+  [spore_treant]="--height 2.60 --keep-rest"
+  [plague_golem]="--height 3.60 --keep-rest"
   [leo]="--height 1.82"
   [leo_mage]="--height 1.64"
   [leo_tank]="--height 1.92"

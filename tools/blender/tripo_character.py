@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 import bpy
-from mathutils import Matrix, Vector
+from mathutils import Matrix, Quaternion, Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import common as c  # noqa: E402
@@ -31,12 +31,95 @@ NEEDED = ("Hips", "Spine", "Chest", "Head", "LeftUpperArm", "LeftLowerArm", "Lef
           "RightLowerLeg", "RightFoot")
 
 
+# 休息姿勢的修正（2026-11-17，Jacky：「走路很怪、外八」）：Tripo 綁出來的 T 字站姿每個角色不一樣——
+# 諾恩的腳尖往外 24°、兩腿張開 6～9°、大拇指朝上（手心朝前）；席菈幾乎是正的。common.py 的動作只會讓腿前後擺、
+# 手臂往下放，原本的歪斜整段帶著走：走路外八、手心朝前像在討東西。所以先把休息姿勢扳正，再做動作。
+# 改的是骨架的休息姿勢（網格跟著變形後重設），所以遊戲裡掛在手上的劍、手弩方向不變：掛點的方向是照
+# 「手肘 → 手腕」與角色的前方算的（puppet.gd 的 _model_joint），跟手骨頭自己轉了幾度無關。
+LEG_OUT_MAX = 4.0   # 腿往外張最多幾度（從骨盆到腳踝；原本比這小的不動）
+TOE_OUT_MAX = 7.0   # 腳尖往外最多幾度（自然站姿的一點點外開；原本比這小的不動）
+PALM_SPLIT = 0.5    # 手心轉向分給前臂幾成、其餘給手腕（全部放前臂，手肘的皮會扭成麻花）
+PALM_MAX = 100.0    # 算出來要轉超過這麼多度，多半是大拇指的骨頭抓錯了（拳頭、爪子）：不轉
+
+
+def straighten_rest(arm, meshes):
+    bones = arm.data.bones
+    up, fwd = Vector((0, 0, 1)), Vector((0, 1, 0))  # 上面已經把臉轉到 +Y
+    hips = bones["Hips"].head_local
+    turns = {}  # 骨頭 → 在骨架座標裡要轉的四元數（子骨頭會被父骨頭帶著走）
+    notes = []
+    for side in ("Left", "Right"):
+        hip = bones[side + "UpperLeg"].head_local
+        out = Vector((hip.x - hips.x, 0, 0)).normalized()  # 這一邊的「往外」
+        leg = bones[side + "Foot"].head_local - hip
+        o, f, z = leg.dot(out), leg.dot(fwd), leg.dot(up)
+        spread = math.degrees(math.atan2(o, -z))
+        if spread > LEG_OUT_MAX:
+            o = -z * math.tan(math.radians(LEG_OUT_MAX))
+        target = (out * o + fwd * f + up * z).normalized()
+        toes_name = side + "Toes"
+        rot = leg.normalized().rotation_difference(target)
+        yaw = 0.0
+        if toes_name in bones:
+            foot = bones[toes_name].head_local - bones[side + "Foot"].head_local
+            yaw = math.degrees(math.atan2(foot.dot(out), foot.dot(fwd)))
+            want = min(yaw, TOE_OUT_MAX)
+            toe = (fwd * math.cos(math.radians(want)) + out * math.sin(math.radians(want)))
+
+            def frame(axis, hint):
+                h = Vector((hint.x, hint.y, 0)) - axis * Vector((hint.x, hint.y, 0)).dot(axis)
+                h.normalize()
+                return Matrix((axis, h, axis.cross(h))).transposed()
+
+            m = frame(target, toe) @ frame(leg.normalized(), foot).inverted()
+            rot = m.to_quaternion()
+        turns[side + "UpperLeg"] = rot
+        notes.append(f"{side} 腿張 {spread:.0f}°、腳尖外 {yaw:.0f}°")
+
+        elbow, wrist = bones[side + "LowerArm"].head_local, bones[side + "Hand"].head_local
+        axis = (wrist - elbow).normalized()
+        thumb = next((b for b in bones if b.name.split(":")[-1] == side + "HandThumb1"), None)
+        if thumb is None:
+            continue
+        u = thumb.head_local - wrist
+        u = (u - axis * u.dot(axis)).normalized()
+        f2 = (fwd - axis * fwd.dot(axis)).normalized()
+        roll = math.atan2(axis.dot(u.cross(f2)), u.dot(f2))  # 把大拇指轉到朝前（手放下來手心就朝大腿）
+        if abs(math.degrees(roll)) > PALM_MAX:
+            notes.append(f"{side} 手心要轉 {math.degrees(roll):.0f}° 太多、不轉")
+            continue
+        turns[side + "LowerArm"] = Quaternion(axis, roll * PALM_SPLIT)
+        turns[side + "Hand"] = Quaternion(axis, roll * (1.0 - PALM_SPLIT))
+        notes.append(f"{side} 手心轉 {math.degrees(roll):.0f}°")
+    for name, q in turns.items():
+        pb = arm.pose.bones[name]
+        r = bones[name].matrix_local.to_3x3().to_quaternion()
+        pb.rotation_mode = "QUATERNION"
+        pb.rotation_quaternion = r.inverted() @ q @ r
+    bpy.context.view_layer.update()
+    for o in meshes:
+        mod = next(m for m in o.modifiers if m.type == "ARMATURE")
+        name = mod.name
+        if o.data.shape_keys is not None:
+            o.shape_key_clear()
+        with bpy.context.temp_override(object=o, active_object=o, selected_objects=[o]):
+            bpy.ops.object.modifier_apply(modifier=name)
+        o.modifiers.new(name, "ARMATURE").object = arm
+    with bpy.context.temp_override(object=arm, active_object=arm, selected_objects=[arm]):
+        bpy.ops.object.mode_set(mode="POSE")
+        bpy.ops.pose.armature_apply(selected=False)
+        bpy.ops.object.mode_set(mode="OBJECT")
+    print("[tripo] 休息姿勢扳正：" + "、".join(notes))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--name", default="character")
     ap.add_argument("--height", type=float, default=1.65, help="腳底到頭頂（公尺）")
+    ap.add_argument("--keep-rest", action="store_true",
+                    help="不扳正休息姿勢（怪物：張開的腿、外八、握拳是設計，扳正反而怪）")
     args = ap.parse_args()
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -81,10 +164,13 @@ def main():
     arm.matrix_basis = Matrix.Identity(4)
     bpy.context.view_layer.update()
 
+    if not args.keep_rest:
+        straighten_rest(arm, meshes)
+
     def head(bone):
         return arm.matrix_world @ arm.data.bones[bone].head_local
 
-    face = (head("LeftUpperArm") - head("RightUpperArm")).cross(Vector((0, 0, 1))).normalized()
+    face =(head("LeftUpperArm") - head("RightUpperArm")).cross(Vector((0, 0, 1))).normalized()
     segs = {}
     for side in ("Left", "Right"):
         segs[side + "UpperArm"] = (head(side + "UpperArm"), head(side + "LowerArm"))
