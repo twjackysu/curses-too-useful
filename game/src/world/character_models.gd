@@ -19,9 +19,19 @@ const ANIM_MAP: Dictionary = {
 	"attack3": ["light_attack_03"],
 	"release": ["release"],
 	"shoot": ["shoot"],
+	# 公會大廳的人（tools/blender/common.py 的 social_actions；怪物沒有）：站著以外的樣子（Puppet.pose）、一次性的手勢、扛東西（Puppet.carry）
+	"sit": ["sit"],
+	"sit_drink": ["sit_drink"],
+	"laugh": ["laugh"],
+	"slump": ["slump"],
+	"reach": ["reach"],
+	"give": ["give"],
+	"idle_carry": ["idle_carry"],
+	"walk_carry": ["walk_carry"],
+	"run_carry": ["run_carry"],
 }
 ## 會循環播放的動作
-const LOOPING: PackedStringArray = ["idle", "walk", "run"]
+const LOOPING: PackedStringArray = ["idle", "walk", "run", "sit", "sit_drink", "laugh", "slump", "idle_carry", "walk_carry", "run_carry"]
 ## 掛點骨骼：小寫、去掉 Mixamo 前綴（Godot 匯入時 "mixamorig:" 會變成 "mixamorig_"）後比對（Mixamo、Blender Rigify／一般命名）
 const HAND_BONES: Dictionary = {
 	"L": ["lefthand", "hand_l", "hand.l", "l_hand"],

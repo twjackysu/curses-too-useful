@@ -10,7 +10,7 @@ func _make() -> Puppet:
 
 func test_states_follow_speed() -> void:
 	var p: Puppet = _make()
-	assert_eq(Puppet.STATES, PackedStringArray(["idle", "walk", "run", "dodge", "attack", "shoot"]), "狀態名固定")
+	assert_eq(Puppet.STATES, PackedStringArray(["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give"]), "狀態名固定")
 	assert_eq(p.current_state(), "idle")
 	p.set_move_speed(1.6)
 	assert_eq(p.current_state(), "walk")

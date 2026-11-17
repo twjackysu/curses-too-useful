@@ -4,7 +4,8 @@ extends Node3D
 ## 關節是 Node3D 樞紐（不是 Skeleton3D），膠囊肢體掛在樞紐上；角色面向 -Z。
 ##
 ## 對外介面固定，之後換成有骨架的模型＋AnimationTree 時，外部（PlayerController 等）不用改：
-##   set_move_speed(m/s)、play_action("dodge"|"attack"|"shoot")、current_state() ∈ STATES、hand("L"|"R")
+##   set_move_speed(m/s)、play_action("dodge"|"attack"|"shoot"|"reach"|"give")、current_state() ∈ STATES、hand("L"|"R")
+##   公會大廳的人：pose（站著不動的時候換成坐、笑、累垮）、carry（扛著東西：左手扶在左肩上，腳照常走）
 ## STATES 也就是將來 AnimationTree 狀態機的狀態名。
 ##
 ## 正式模型：設 character_id（"noen"、"sheila"…），CharacterModels 找得到匯入過的 GLB 就用模型＋AnimationPlayer，
@@ -14,7 +15,7 @@ extends Node3D
 ## 走路或跑步時，每隻腳落地的那一刻發一次（腳步聲照這個播）
 signal footfall
 
-const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot"]
+const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give"]
 const WALK_MIN_SPEED: float = 0.3
 ## 這個速度以上用跑的動作。諾恩平常移動 3.4 m/s 是小跑：以前用「走路」的動作加速到 1.6 倍，腿還是跟不上，
 ## 看起來在地上滑（Jacky 2026-11-14：「走路的音效跟走路速度差很多」）。
@@ -26,7 +27,9 @@ const WALK_CLIP_SPEED: float = 1.3
 const RUN_CLIP_SPEED: float = 3.2
 ## 一圈步態（0～1）裡腳落地的兩個時間點：大腿擺到最前面的那一刻
 const FOOT_CONTACTS: PackedFloat32Array = [0.25, 0.75]
-const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9}
+const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "reach": 1.0, "give": 1.25}
+## 站著不動的時候可以換成的樣子（模型的循環動作；程式人偶只會坐）
+const POSES: PackedStringArray = ["", "sit", "sit_drink", "laugh", "slump"]
 ## 「釋放」的姿勢播多久。它不是 action：疊在站姿／走路／出手上面，不佔出手與閃避（放完同一幀照樣能出手）
 const RELEASE_POSE_TIME: float = 0.36
 ## 模型的手骨頭在手腕：手上的掛點往指尖移這麼多（掌心）
@@ -50,6 +53,10 @@ const SIT_HIP_HEIGHT: float = 0.5
 @export var sitting: bool = false
 ## 正式模型 id（CharacterModels.path_for）；空字串＝程序人偶
 @export var character_id: String = ""
+## 沒在走、沒在做一次性動作的時候的樣子（POSES）：""＝平常站著。模型沒有那段動作就照平常站
+var pose: String = ""
+## 扛著東西（魔像核心）：站、走、跑都換成左手舉到左肩上扶著的版本；模型沒有就照平常
+var carry: bool = false
 ## 直接指定模型場景（測試、工具）；優先於 character_id
 var model_scene: PackedScene = null
 ## 用模型時：模型根節點、動畫播放器、骨架；用程序人偶時都是 null
@@ -271,6 +278,12 @@ func _emit_footfalls() -> void:
 func _animate_model() -> void:
 	var state: String = current_state()
 	var name_found: String = CharacterModels.find_animation(anim, state)
+	if state == "idle" and pose != "":
+		var posed: String = CharacterModels.find_animation(anim, pose)
+		name_found = posed if posed != "" else name_found
+	elif carry and state in ["idle", "walk", "run"]:
+		var carried: String = CharacterModels.find_animation(anim, state + "_carry")
+		name_found = carried if carried != "" else name_found
 	if state == "attack" and attack_variant > 0:
 		var variant: String = CharacterModels.find_animation(anim, "attack%d" % (attack_variant + 1))
 		name_found = variant if variant != "" else name_found
@@ -413,7 +426,7 @@ func _pose(speed_t: float) -> void:
 	if lying != "":
 		_pose_lying()
 		return
-	if sitting:
+	if sitting or (pose in ["sit", "sit_drink"] and action == "" and moving <= 0.0):
 		_pose_sitting(breathe)
 		return
 	match action:
@@ -423,6 +436,8 @@ func _pose(speed_t: float) -> void:
 			_pose_attack(action_time / float(ACTION_TIME["attack"]))
 		"shoot":
 			_pose_shoot(action_time / float(ACTION_TIME["shoot"]))
+		"reach", "give":
+			_pose_reach(action_time / float(ACTION_TIME[action]), action == "give")
 
 
 ## 仰躺（車上的傷者）：整個人繞骨盆轉成水平、臉朝上、頭朝 +Z，胸口慢慢起伏。
@@ -513,6 +528,17 @@ func _pose_shoot(t: float) -> void:
 	var aim: float = smoothstep(0.0, 0.3, t) * (1.0 - smoothstep(0.8, 1.0, t))
 	_rot("shoulder_R", Vector3(1.5 * aim, 0, 0.1))
 	_rot("elbow_R", Vector3(0.25 * (1.0 - aim), 0, 0))
+
+
+## 伸手往前（摸水晶）／兩手往前遞（給委託單）：伸出去 → 停著 → 收回。
+func _pose_reach(t: float, both: bool) -> void:
+	var r: float = smoothstep(0.0, 0.35, t) * (1.0 - smoothstep(0.75, 1.0, t))
+	_rot("shoulder_R", Vector3(1.3 * r, 0, 0.12 - 0.1 * r))
+	_rot("elbow_R", Vector3(0.25 + 0.2 * r, 0, 0))
+	if both:
+		_rot("shoulder_L", Vector3(1.3 * r, 0, -0.12 + 0.1 * r))
+		_rot("elbow_L", Vector3(0.25 + 0.2 * r, 0, 0))
+	_rot("spine", Vector3(-0.12 * r, 0, 0))
 
 
 ## 舉過頭往下劈：舉起（0～35%）→ 劈下（35～60%）→ 收回。

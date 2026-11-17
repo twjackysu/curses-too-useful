@@ -27,13 +27,14 @@ declare -A SRC=(
   [guild_adventurer_a]="art-inbox/tripo/guild_adventurer_a/guild_adventurer_a_rig.glb"
   [guild_adventurer_b]="art-inbox/tripo/guild_adventurer_b/guild_adventurer_b_rig.glb"
   [royal_inspector]="art-inbox/tripo/royal_inspector/royal_inspector_rig.glb"
+  [black_market_merchant]="art-inbox/tripo/black_market_merchant/black_market_merchant_rig.glb"
 )
-# 給 tripo_character.py 的參數：--height 身高（m）、--keep-rest 不扳正休息姿勢（怪物）
+# 給 tripo_character.py 的參數：--height 身高（m）、--keep-rest 不扳正休息姿勢（怪物）、--no-social 不做大廳的人用的動作（怪物）
 declare -A ARGS=(
   [noen]="--height 1.74"
   [sheila]="--height 1.65"
-  [spore_treant]="--height 2.60 --keep-rest"
-  [plague_golem]="--height 3.60 --keep-rest"
+  [spore_treant]="--height 2.60 --keep-rest --no-social"
+  [plague_golem]="--height 3.60 --keep-rest --no-social"
   [leo]="--height 1.82"
   [leo_mage]="--height 1.64"
   [leo_tank]="--height 1.92"
@@ -41,6 +42,7 @@ declare -A ARGS=(
   [guild_adventurer_a]="--height 1.72"
   [guild_adventurer_b]="--height 1.62"
   [royal_inspector]="--height 1.80"
+  [black_market_merchant]="--height 1.70"
 )
 
 todo=()

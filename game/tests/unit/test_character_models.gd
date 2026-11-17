@@ -56,6 +56,38 @@ func test_missing_dodge_falls_back_to_roll() -> void:
 	await tree.process_frame
 
 
+## 公會大廳的人：站著不動時換成 pose 那一段（坐、笑、累垮），走起來照常走；扛東西（carry）的站、走換成 *_carry；
+## 模型沒有那一段就照平常（怪物、舊的模型）
+func test_pose_and_carry_pick_their_own_clips() -> void:
+	var p: Puppet = _puppet(_fake_model(["idle", "walk", "sit", "laugh", "idle_carry", "walk_carry", "reach"]))
+	p.pose = "sit"
+	p.advance(0.016)
+	assert_eq(p.model_animation, "sit", "坐著")
+	assert_eq(p.anim.get_animation("sit").loop_mode, Animation.LOOP_LINEAR, "坐著是循環的")
+	p.set_move_speed(1.5)
+	p.advance(0.016)
+	assert_eq(p.model_animation, "walk", "站起來走就是走路")
+	p.set_move_speed(0.0)
+	p.pose = "slump"
+	p.advance(0.016)
+	assert_eq(p.model_animation, "idle", "沒有累垮的動作：照平常站")
+	p.pose = ""
+	p.carry = true
+	p.advance(0.016)
+	assert_eq(p.model_animation, "idle_carry")
+	p.set_move_speed(1.5)
+	p.advance(0.016)
+	assert_eq(p.model_animation, "walk_carry", "扛著走")
+	p.set_move_speed(0.0)
+	p.play_action("reach")
+	p.advance(0.016)
+	assert_eq(p.model_animation, "reach", "伸手")
+	p.advance(Puppet.ACTION_TIME["reach"] as float)
+	assert_eq(p.current_state(), "idle", "做完回到站著")
+	p.queue_free()
+	await tree.process_frame
+
+
 ## 循環動作的 `_loop` 結尾也認得（席菈試作的 GLB 走路叫 walk_loop）；照樣循環播放
 func test_loop_suffixed_animations_are_found() -> void:
 	var p: Puppet = _puppet(_fake_model(["Armature|idle_loop", "Armature|walk_loop"], true, ""))
