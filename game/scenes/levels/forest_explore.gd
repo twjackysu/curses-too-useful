@@ -22,6 +22,8 @@ const MUSHROOM_SPOTS: Array[Vector3] = [
 	Vector3(33.0, 0, -53.5), Vector3(36.0, 0, -67.0), Vector3(-5.5, 0, -63.0),
 ]
 const MUSHROOM_SIZE: float = 1.3
+## 可以採的毒蕈、可以吃的野果腳下那一圈光（ForestScenery.pickup_ring）多大：路邊當擺設的沒有
+const PICKUP_RING_RADIUS: float = 1.1
 ## 三種陷阱（劇本：一般遊戲要閃，這裡要故意踩進去）。毒氣噴發口：一小團比瘴氣濃的毒（PoisonMist）；
 ## 麻痺蜘蛛網（WebTrap）：x、z、網張開的方向（度）；腐敗野果：走近按鍵吃一顆，過一下子才再長
 const VENT_SPOTS: Array[Vector3] = [Vector3(-3.6, 0, -31.5), Vector3(4.6, 0, -40.5), Vector3(18.5, 0, -39.0), Vector3(5.5, 0, -55.5)]
@@ -198,6 +200,7 @@ func _spawn_mushrooms() -> void:
 		look.scale = Vector3.ONE * MUSHROOM_SIZE
 		m.add_child(look)
 		m.add_child(_sparkles(Color(0.5, 0.95, 1.0)))
+		m.add_child(ForestScenery.pickup_ring(PICKUP_RING_RADIUS, Color(0.45, 0.95, 1.0)))
 		m.used.connect(_on_mushroom_used.bind(i))
 		level.add_child(m)
 		mushrooms.append(m)
@@ -542,6 +545,7 @@ func _spawn_traps() -> void:
 		look.scale = Vector3.ONE * 1.15
 		bush.add_child(look)
 		bush.add_child(_sparkles(Color(1.0, 0.45, 0.35)))
+		bush.add_child(ForestScenery.pickup_ring(PICKUP_RING_RADIUS, Color(1.0, 0.5, 0.35)))
 		bush.used.connect(_on_fruit_eaten.bind(i))
 		level.add_child(bush)
 		bushes.append(bush)
@@ -555,6 +559,7 @@ func _tick_traps(delta: float) -> void:
 			_regrow[i] = maxf(_regrow[i] - delta, 0.0)
 		bushes[i].enabled = _regrow[i] <= 0.0
 		(bushes[i].get_node("Sparkles") as CPUParticles3D).emitting = bushes[i].enabled
+		(bushes[i].get_node("PickupRing") as Node3D).visible = bushes[i].enabled
 	for vent: PoisonMist in vents:
 		if vent.contains(player.global_position) and Game.session.state.grant_once("ch1.vent_bark") and sera.joined:
 			hud.show_bark(sera, "BARK_SERA_VENT", 3.2, Sera.NAME_KEY)

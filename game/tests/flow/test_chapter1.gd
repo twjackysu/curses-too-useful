@@ -865,13 +865,16 @@ func test_slimes_glow_green_in_the_purple_fog_and_mushrooms_have_colour() -> voi
 	assert_true(absf(slime.glow_level() - 1.0) < 0.001, "還沒蓄力：平常的亮度（%.2f）" % slime.glow_level())
 	player.global_position = slime.global_position + Vector3(0, 0.05, 1.2)
 	var peak: float = 1.0
+	var peak_range: float = 0.0
 	for i: int in 240:
 		await tree.physics_frame
 		peak = maxf(peak, slime.glow_level())
+		peak_range = maxf(peak_range, glow.omni_range)
 		if slime.brain.state == EnemyBrain.State.STRIKE:
 			break
 	assert_true(peak > EnemyActor.GLOW_WINDUP * 0.8, "蓄力要撲的時候越來越亮（最亮 %.2f 倍）" % peak)
 	assert_true(absf(glow.light_energy - EnemyActor.GLOW_ENERGY * slime.glow_level()) < 0.001, "腳下的燈跟身上的邊一起亮")
+	assert_true(peak_range > EnemyActor.GLOW_RANGE * 1.5, "蓄力的時候腳下那一圈綠光照得更大（最大 %.1f m）" % peak_range)
 	slime.health.apply_damage(9999.0, {"source": player})
 	for i: int in 90:
 		await tree.process_frame
@@ -1041,6 +1044,10 @@ func test_gathering_five_mushrooms_brings_the_scream_and_the_road_to_the_altar()
 	for slime: Slime in level.slimes:
 		slime.set_physics_process(false)
 	assert_eq(explore.mushrooms_left(), ForestExplore.MUSHROOM_SPOTS.size(), "七朵都在")
+	for m: Interactable in explore.mushrooms:
+		assert_not_null(m.get_node_or_null("PickupRing"), "可以採的腳下有一圈光（路邊當擺設的沒有）：%s" % m.name)
+	for child: Node in level.get_node("Forest").get_children():
+		assert_true(child.get_node_or_null("PickupRing") == null, "路邊當擺設的毒蕈與灌木沒有光圈")
 	assert_not_null(level.get_node_or_null("AltarGate"), "祭壇路口有標記")
 	assert_true(hud.checklist_lines().is_empty(), "還沒開放：右上角沒有清單")
 	# 還沒打完史萊姆：往北走不過去，毒蕈也不能採
@@ -1198,12 +1205,14 @@ func test_traps_are_supplies_vent_web_and_rotten_fruit() -> void:
 	assert_true(hud.bark_keys().has("BARK_SERA_FRUIT"))
 	await tree.physics_frame
 	assert_false(bush.enabled, "剛吃過，要等它再長")
+	assert_false((bush.get_node("PickupRing") as Node3D).visible, "吃過的那一叢腳下的光圈收起來")
 	bush.use(player)
 	assert_true(absf(player.status_effects.rate("weakness") - 1.0) < 0.01, "還沒長出來不能連吃")
 	explore._regrow[0] = 0.02
 	for i: int in 4:
 		await tree.physics_frame
 	assert_true(bush.enabled, "過一下子再長出來")
+	assert_true((bush.get_node("PickupRing") as Node3D).visible, "長出來了光圈又出現")
 	assert_eq(hud.status.rows.size(), 4, "狀態列四格：中毒、麻痺、緩速、衰弱")
 
 

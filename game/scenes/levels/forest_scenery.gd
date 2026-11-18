@@ -14,6 +14,7 @@ const MUSHROOM_SHADER: Shader = preload("res://src/world/glow_mushroom.gdshader"
 const GROUND_SHADER: Shader = preload("res://src/world/forest_ground.gdshader")
 const SKY_SHADER: Shader = preload("res://src/world/forest_sky.gdshader")
 const SWAY_SHADER: Shader = preload("res://src/world/wind_sway.gdshader")
+const RING_SHADER: Shader = preload("res://src/world/pickup_ring.gdshader")
 ## 樹與灌木隨風擺（wind_sway.gdshader）：從多高開始擺、擺到多高、最多擺幾公尺（模型自己的座標）
 const TREE_SWAY: Vector3 = Vector3(1.2, 6.5, 0.16)
 const BUSH_SWAY: Vector3 = Vector3(0.15, 1.6, 0.07)
@@ -352,6 +353,23 @@ static func paint_mushroom(model: Node3D) -> void:
 				mat.set_shader_parameter("detail", src.albedo_texture)
 				mat.set_shader_parameter("normal_map", src.normal_texture)
 			mi.set_surface_override_material(surface, mat)
+
+
+## 「這個可以拿」的地面光圈（pickup_ring.gdshader）：平放在腳下、一圈一圈往外擴。radius＝公尺。節點名 PickupRing。
+static func pickup_ring(radius: float, color: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = "PickupRing"
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * radius * 2.0
+	quad.orientation = PlaneMesh.FACE_Y
+	var mat := ShaderMaterial.new()
+	mat.shader = RING_SHADER
+	mat.set_shader_parameter("color", color)
+	quad.material = mat
+	mi.mesh = quad
+	mi.position = Vector3(0, 0.04, 0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
 
 
 ## 地圖上認得出來的地方：祭壇路口的斷柱與倒下的橫樑、營火旁坐的圓木與行李。只是場景（擋人的碰撞有）。

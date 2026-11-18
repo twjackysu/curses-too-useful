@@ -306,14 +306,16 @@ const RIM_POWER: float = 4.5
 const GLOW_ENERGY: float = 1.1
 const GLOW_RANGE: float = 2.2
 const GLOW_Y: float = 0.15
-## 蓄力蓄滿時亮到平常的幾倍
-const GLOW_WINDUP: float = 2.0
+## 蓄力蓄滿時亮到平常的幾倍、腳下的燈照多大一圈（平常的幾倍）：從玩的距離看得出「牠要撲了」（2 倍、燈不變大時只看得出裙邊亮一點）
+const GLOW_WINDUP: float = 2.8
+const GLOW_WINDUP_RANGE: float = 1.8
 const GLOW_OUT_SEC: float = 0.35
 
 var _rim: ShaderMaterial
 var _glow: OmniLight3D
 var _glow_level: float = 1.0
 var _glow_look: Node3D
+var _glow_range: float = GLOW_RANGE
 
 
 ## 身上的綠邊現在多亮（平常 1、蓄滿 GLOW_WINDUP、倒下後 0）、腳下的燈、蓋了幾塊（測試用）。
@@ -367,6 +369,7 @@ func add_toxic_glow(look: Node3D, lamp_range: float = GLOW_RANGE) -> void:
 	_glow.light_color = RIM_COLOR
 	_glow.light_energy = GLOW_ENERGY
 	_glow.omni_range = lamp_range
+	_glow_range = lamp_range
 	_glow.omni_attenuation = 1.3
 	_glow.shadow_enabled = false
 	_glow.position = Vector3(0, GLOW_Y, 0)
@@ -380,6 +383,7 @@ func _set_glow(level: float) -> void:
 	_glow_level = level
 	_rim.set_shader_parameter("strength", level)
 	_glow.light_energy = GLOW_ENERGY * level
+	_glow.omni_range = _glow_range * lerpf(1.0, GLOW_WINDUP_RANGE, clampf((level - 1.0) / (GLOW_WINDUP - 1.0), 0.0, 1.0))
 
 
 ## 倒下：綠光跟著熄掉（身體還要躺一下才沉下去）

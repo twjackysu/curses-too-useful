@@ -24,7 +24,14 @@ while read -r name frames flags; do
   [[ -z "$name" || "$name" == \#* ]] && continue
   [[ -n "${SHOTS_ONLY:-}" && "$name" != "$SHOTS_ONLY" ]] && continue
   if [[ "$MODE" == "--fetch-baseline" && ! -s "$BASE/$name.png" ]]; then
-    curl -fsSL --retry 3 -o "$BASE/$name.png" "$RELEASE_URL/$name.png" || rm -f "$BASE/$name.png"
+    # CI 上傳的圖名字前面有編號（例：10-forest-view.png）：整包 screens.zip 抓一次，找「編號-名稱」那一張
+    ZIP="$ROOT/build/shots-baseline/.screens.zip"
+    [[ -s "$ZIP" ]] || curl -fsSL --retry 3 -o "$ZIP" "$RELEASE_URL/screens.zip" || rm -f "$ZIP"
+    if [[ -s "$ZIP" ]]; then
+      hit="$(unzip -Z1 "$ZIP" | grep -E "(^|/)[0-9]+-$name\.png$" | head -1 || true)"
+      [[ -n "$hit" ]] && unzip -p "$ZIP" "$hit" > "$BASE/$name.png"
+    fi
+    [[ -s "$BASE/$name.png" ]] || rm -f "$BASE/$name.png"
   fi
   # shellcheck disable=SC2086
   "$ROOT/scripts/screenshot.sh" "$OUT/$name.png" "$frames" $flags > /dev/null 2>&1 || echo "截圖 $name 失敗" >&2
