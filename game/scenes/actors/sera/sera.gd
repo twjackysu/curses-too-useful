@@ -19,9 +19,12 @@ const ASK_ACTION: String = "ask_sera"
 const TURN_SPEED: float = 8.0
 const GRAVITY: float = 18.0
 const SNAP_DIST: float = 18.0
-## 手弩在手上的擺法（模型的長邊是 +Y、握的地方在原點：scripts/gen_props.sh）
-const CROSSBOW_ROT: Vector3 = Vector3(0, 0, 180)
-const CROSSBOW_OFFSET: Vector3 = Vector3(0.0, 0.02, 0.0)
+## 手弩在手上的擺法。模型（scripts/gen_props.sh）：弩身沿 +Y、前端的金色弓臂在 −Y、木頭的槍托往 −X 斜伸出去，
+## 原點在弩身中段（不是槍托）。手的掛點：−Y＝往指尖、−Z＝大拇指那一側。
+## 照拿手槍的樣子擺：弩身順著前臂、弓臂朝指尖那一頭（往前），槍托從大拇指那一側往小指那一側穿過手心（模型 −X → 手 +Z）＝繞 Y 轉 90°；
+## 再把槍托靠上面那一段（模型 (−0.13, 0.13)）移到手心。在 Blender 裡從側面算圖量的（11/19）。
+const CROSSBOW_ROT: Vector3 = Vector3(0, 90, 0)
+const CROSSBOW_OFFSET: Vector3 = Vector3(0.0, -0.13, -0.13)
 ## 離瘴氣的邊緣還有這麼遠就先戴上面具；離開之後過這麼久才拿下來（在邊緣走來走去不會一直戴戴脫脫）
 const MASK_MARGIN: float = 1.0
 const MASK_OFF_DELAY: float = 1.5
@@ -422,8 +425,9 @@ func _build_crossbow() -> void:
 	_holster(holstered)
 
 
-## 收在右腰上的樣子（骨盆的掛點的座標：+X 右、+Y 上、+Z 背後）：弩口朝下掛著
-const HOLSTER_AT: Vector3 = Vector3(0.22, -0.02, 0.04)
+## 收在右腰上的樣子（骨盆的掛點的座標：+X 右、+Y 上、+Z 背後）：弩口朝下掛著、槍托朝後。
+## 手上的那一段位移（CROSSBOW_OFFSET）也會跟過來：弩身的中段放在 (0.22, −0.02, 0.04)
+const HOLSTER_AT: Vector3 = Vector3(0.22, -0.02, 0.04) - CROSSBOW_OFFSET
 
 
 func _holster(on: bool) -> void:
