@@ -22,7 +22,7 @@
 
 - 標題畫面背景（`game/scenes/boot/title_fog.gdshader`）
 - 遊戲圖示（`game/icon.svg`）
-- 音效與配樂：打擊、閃避風聲、腳步、毒霧、玻璃瓶、介面音、標題配樂（`scripts/gen_sfx.py`，只用 Python 標準函式庫合成，建置時產生、不進 git）
+- 音效與配樂：打擊、閃避風聲、腳步、毒霧、玻璃瓶、席菈的手弩（射、碎、裝填）、介面音、標題配樂（`scripts/gen_sfx.py`，只用 Python 標準函式庫合成，建置時產生、不進 git）
 - 人物的動作（站、走、跑、閃、出手、舉弩射擊、釋放；`tools/blender/common.py` 用程式寫的關鍵影格，套在 Tripo 的模型上）
 - 模型找不到時的替身（程式拼的人偶、球、圓柱）
 
