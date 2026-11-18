@@ -1,5 +1,5 @@
 shader_type spatial;
-// 腐敗之森的地面：一大片平面，顏色照世界座標用雜訊混——暗土、苔、發紫的腐葉，路與空地是比較亮的土，毒沼是濕的黑泥，
+// 腐敗之森的地面：一大片平面（外圍照高度圖往上推成土坡：ForestMap.height_mask()，只是看的、碰撞還是平的），顏色照世界座標用雜訊混——暗土、苔、發紫的腐葉，路與空地是比較亮的土，毒沼是濕的黑泥，
 // 邊緣是不規則的（不是一條直線），近處灑一些落葉。全部用算的，沒有貼圖。
 // moss 跟 tools/blender/tripo_prop.py 的 MOSS 同一個顏色：樹的模型自帶的土丘改塗成它，才會跟地面接起來。
 
@@ -14,6 +14,8 @@ uniform vec3 bog_glow : source_color = vec3(0.16, 0.42, 0.2);
 // 樹腳下長苔：關卡把每棵樹的位置畫成一張小圖（R＝離樹多近），這裡照它把地面換成苔
 uniform sampler2D moss_mask : hint_default_black, filter_linear, repeat_disable;
 uniform float ground_size = 140.0;
+// 高度圖（R＝公尺）：路網附近是 0，走不到的外圍隆起
+uniform sampler2D height_map : hint_default_black, filter_linear, repeat_disable;
 
 varying vec3 world_pos;
 
@@ -33,6 +35,16 @@ float fbm(vec2 p) {
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec2 uv = world_pos.xz / ground_size + 0.5;
+	float h = texture(height_map, uv).r;
+	// 法線照旁邊四點的高度差算（坡面才吃得到月光的明暗）
+	float texel = 1.0 / float(textureSize(height_map, 0).x);
+	float dx = texture(height_map, uv + vec2(texel, 0.0)).r - texture(height_map, uv - vec2(texel, 0.0)).r;
+	float dz = texture(height_map, uv + vec2(0.0, texel)).r - texture(height_map, uv - vec2(0.0, texel)).r;
+	float span = 2.0 * texel * ground_size;
+	VERTEX.y += h;
+	NORMAL = normalize(vec3(-dx / span, 1.0, -dz / span));
+	world_pos.y += h;
 }
 
 void fragment() {

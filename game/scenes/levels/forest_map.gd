@@ -15,6 +15,13 @@ const PATH_DIRT_HALF: float = 2.6
 const MASK_FALLOFF: float = 3.0
 ## 離路與空地超過這麼遠就是走丟了（關卡把人擋回來）
 const STRAY_LIMIT: float = 15.0
+## 外圍的土坡（只是看的，碰撞還是平的）：離路網這麼遠開始隆起、這麼遠到最高——坡腳就在走丟的界線外面一點，
+## 玩家被擋回來的地方看得到前面是一道坡
+const RELIEF_START: float = 16.0
+const RELIEF_FULL: float = 36.0
+## 坡最高幾公尺（再乘上 0.55～1 的起伏）
+const RELIEF_MAX: float = 8.0
+const HEIGHT_MASK_SIZE: int = 128
 
 const ENTRANCE: Vector2 = Vector2(0, 34)
 const GLADE: Vector3 = Vector3(0, -15, 8.0)
@@ -37,6 +44,8 @@ const PATHS: Array[Vector4] = [
 ]
 
 static var _mask: Image
+static var _heights: Image
+static var _relief_noise: FastNoiseLite
 
 
 ## 空地的中心（世界座標，地面上）
@@ -136,3 +145,51 @@ static func trail_mask() -> Image:
 				img.set_pixel(x, y, Color(bare, wet, 0.0))
 	_mask = img
 	return _mask
+
+
+## 離路網多遠（路的中線、空地的邊；跟走丟的判定是同一個距離）
+static func trail_reach(p: Vector2) -> float:
+	return p.distance_to(nearest_on_trail(p))
+
+
+## 地面多高（公尺）：路網附近是平的，走不到的外圍慢慢隆起成一道一道的土坡，坡上照雜訊有高有低。純函式（照算的，不是照圖）。
+static func height(p: Vector2) -> float:
+	var rise: float = smoothstep(RELIEF_START, RELIEF_FULL, trail_reach(p))
+	if rise <= 0.0:
+		return 0.0
+	if _relief_noise == null:
+		_relief_noise = FastNoiseLite.new()
+		_relief_noise.seed = 20261118
+		_relief_noise.frequency = 0.035
+	return rise * RELIEF_MAX * (0.55 + 0.45 * (_relief_noise.get_noise_2d(p.x, p.y) * 0.5 + 0.5))
+
+
+## 整片地面的高度圖（算一次就留著）：一格 SIZE / HEIGHT_MASK_SIZE 公尺，值是公尺。forest_ground.gdshader 照它把地面往上推。
+static func height_mask() -> Image:
+	if _heights != null:
+		return _heights
+	var img := Image.create_empty(HEIGHT_MASK_SIZE, HEIGHT_MASK_SIZE, false, Image.FORMAT_RF)
+	var per_meter: float = float(HEIGHT_MASK_SIZE) / SIZE
+	var half: float = SIZE * 0.5
+	for y: int in HEIGHT_MASK_SIZE:
+		for x: int in HEIGHT_MASK_SIZE:
+			img.set_pixel(x, y, Color(height(Vector2((float(x) + 0.5) / per_meter - half, (float(y) + 0.5) / per_meter - half)), 0.0, 0.0))
+	_heights = img
+	return _heights
+
+
+## 地面在這一點的高度——照高度圖做雙線性內插（跟 shader 裡 GPU 讀圖一樣），種在坡上的樹與草才會剛好貼著畫出來的地面。
+static func ground_y(p: Vector2) -> float:
+	var img: Image = height_mask()
+	var u: float = (p.x / SIZE + 0.5) * float(HEIGHT_MASK_SIZE) - 0.5
+	var v: float = (p.y / SIZE + 0.5) * float(HEIGHT_MASK_SIZE) - 0.5
+	var x0: int = floori(u)
+	var y0: int = floori(v)
+	var fx: float = u - float(x0)
+	var fy: float = v - float(y0)
+	var last: int = HEIGHT_MASK_SIZE - 1
+	var a: float = img.get_pixel(clampi(x0, 0, last), clampi(y0, 0, last)).r
+	var b: float = img.get_pixel(clampi(x0 + 1, 0, last), clampi(y0, 0, last)).r
+	var c: float = img.get_pixel(clampi(x0, 0, last), clampi(y0 + 1, 0, last)).r
+	var d: float = img.get_pixel(clampi(x0 + 1, 0, last), clampi(y0 + 1, 0, last)).r
+	return lerpf(lerpf(a, b, fx), lerpf(c, d, fx), fy)

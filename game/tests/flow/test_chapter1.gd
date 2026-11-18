@@ -188,6 +188,21 @@ func test_moss_mask_is_white_under_trees_and_black_elsewhere() -> void:
 
 
 ## 地圖（ForestMap）：路與空地不種樹、不長草；地面的遮罩在路上是白的、樹林裡是黑的、毒沼另外記一層；走太遠會被拉回來。
+## 外圍的土坡：玩家走得到的地方（離路網 STRAY_LIMIT 以內）一律是平的，走不到的外圍才隆起；樹與草貼著畫出來的地面。
+func test_ground_rises_only_where_noen_cannot_walk() -> void:
+	for p: Vector2 in [Vector2(0, 20), Vector2(ForestMap.STRAY_LIMIT, 0), Vector2(-24, -46), Vector2(40, -64), Vector2(0, -80)]:
+		assert_eq(ForestMap.height(p), 0.0, "路、空地與走丟的界線上是平的：%s" % str(p))
+	var stray: Vector3 = ForestMap.keep_inside(Vector3(-60.0, 0.0, 10.0))
+	assert_true(ForestMap.ground_y(ForestMap.flat(stray)) < 0.05, "被拉回來的地方腳下還是平的（%.2f m）" % ForestMap.ground_y(ForestMap.flat(stray)))
+	var far := Vector2(-60.0, 10.0)
+	assert_true(ForestMap.height(far) > ForestMap.RELIEF_MAX * 0.5, "走不到的外圍是坡（%.1f m）" % ForestMap.height(far))
+	assert_true(absf(ForestMap.ground_y(far) - ForestMap.height(far)) < 0.6, "照高度圖內插的高度跟算的差不多")
+	var img: Image = ForestMap.height_mask()
+	assert_eq(img.get_width(), ForestMap.HEIGHT_MASK_SIZE)
+	var t: Vector3 = ForestScenery.on_ground(Vector3(-60.0, 0.0, 10.0))
+	assert_true(t.y > 0.5 and t.y <= ForestMap.ground_y(far) + 0.001, "坡上的樹墊高、但不高過它腳下的地面（%.2f）" % t.y)
+
+
 func test_tree_variation_stays_in_range_and_differs_by_spot() -> void:
 	var seen: Dictionary = {}
 	for i: int in 50:

@@ -2,6 +2,7 @@ class_name ForestScenery
 extends RefCounted
 ## 腐敗之森看得到的東西：天空與光、地面、樹、草、路邊的小東西、飄著的孢子。只是場景——規則與劇情在 CorruptForest，地圖在 ForestMap。
 ## 地面是一片平面（顏色、路與空地的邊緣、落葉、毒沼都在 forest_ground.gdshader 裡算），上面長一團一團的草（GrassTufts）。
+## 玩家走不到的外圍是土坡（ForestMap.height）：只是畫出來的，碰撞還是平的；種在坡上的樹與草照 ForestMap.ground_y 墊高。
 ## 樹、毒蕈、灌木是 Tripo 的模型（scripts/gen_props.sh 擺正後放 assets/props/tripo/，不進 git）；檔案不在就用程式拼的替身。
 
 const TREE_MODEL: String = "tripo/prop_corrupt_tree"
@@ -30,6 +31,8 @@ const DEEP_GRASS_PATCHES: int = 420
 ## 樹腳下那一圈苔的半徑（公尺，再乘上樹的大小）：比模型自帶的土丘（約 3 m）大一圈，土丘才會埋在苔裡
 const TREE_MOSS_RADIUS: float = 4.4
 const MOSS_MASK_SIZE: int = 384
+## 地面的網格切成幾格（每邊）：外圍的土坡靠它彎起來
+const GROUND_CELLS: int = 100
 ## 孢子跟著玩家飄：這麼大的一塊（公尺，半邊長）
 const SPORE_BOX: Vector3 = Vector3(16.0, 1.5, 22.0)
 
@@ -85,13 +88,19 @@ static func build_ground(level: Node3D, trees: PackedVector3Array) -> void:
 	var mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(ForestMap.SIZE, ForestMap.SIZE)
+	# 外圍的土坡是 shader 照高度圖把頂點往上推的：網格要切細（一格 2 m）
+	plane.subdivide_width = GROUND_CELLS - 1
+	plane.subdivide_depth = GROUND_CELLS - 1
 	var mat := ShaderMaterial.new()
 	mat.shader = GROUND_SHADER
 	mat.set_shader_parameter("ground_size", ForestMap.SIZE)
+	mat.set_shader_parameter("height_map", ImageTexture.create_from_image(ForestMap.height_mask()))
 	mat.set_shader_parameter("moss_mask", ImageTexture.create_from_image(moss_mask(trees)))
 	mat.set_shader_parameter("trail_mask", ImageTexture.create_from_image(ForestMap.trail_mask()))
 	plane.material = mat
 	mesh.mesh = plane
+	# 頂點被 shader 往上推過：外框要包住坡頂，影子與裁切才不會把坡切掉
+	mesh.custom_aabb = AABB(Vector3(-ForestMap.SIZE * 0.5, -0.5, -ForestMap.SIZE * 0.5), Vector3(ForestMap.SIZE, ForestMap.RELIEF_MAX + 1.0, ForestMap.SIZE))
 	body.add_child(mesh)
 	level.add_child(body)
 
@@ -116,7 +125,7 @@ static func build_forest(level: Node3D, rng: RandomNumberGenerator, keep_out: Ca
 		placed += 1
 		if not ForestMap.tree_ok(ForestMap.flat(p)):
 			continue
-		forest.add_child(tree(p, size, yaw))
+		forest.add_child(tree(on_ground(p), size, yaw))
 		trees.append(Vector3(p.x, size, p.z))
 	for i: int in 9:
 		var side: float = -1.0 if i % 2 == 0 else 1.0
@@ -135,7 +144,7 @@ static func build_forest(level: Node3D, rng: RandomNumberGenerator, keep_out: Ca
 		if minf(ForestMap.path_distance(ForestMap.flat(p)), ForestMap.clearing_distance(ForestMap.flat(p))) > DEEP_TREE_REACH or crowded(trees, p, 3.2):
 			continue
 		var size: float = deep.randf_range(0.85, 1.35)
-		forest.add_child(tree(p, size, deep.randf_range(0.0, TAU)))
+		forest.add_child(tree(on_ground(p), size, deep.randf_range(0.0, TAU)))
 		trees.append(Vector3(p.x, size, p.z))
 		placed += 1
 	var spots: PackedVector3Array = _grass_spots(rng, trees, GRASS_PATCHES, Rect2(-28.0, -38.0, 56.0, 64.0))
@@ -149,6 +158,14 @@ static func _entrance_tree_ok(p: Vector3) -> bool:
 	if absf(p.x) < ForestMap.PATH_HALF_WIDTH and p.z > ForestMap.GLADE.y:
 		return false
 	return Vector2(p.x - ForestMap.GLADE.x, p.z - ForestMap.GLADE.y).length() >= ForestMap.GLADE.z + 1.5
+
+
+## 樹種在坡上：放在樹腳下一圈（模型自帶的土丘約 1.5 m 寬）最低的那一點的高度，下坡那一側才不會懸空。
+static func on_ground(p: Vector3) -> Vector3:
+	var lowest: float = ForestMap.ground_y(ForestMap.flat(p))
+	for side: Vector2 in [Vector2(1.5, 0.0), Vector2(-1.5, 0.0), Vector2(0.0, 1.5), Vector2(0.0, -1.5)]:
+		lowest = minf(lowest, ForestMap.ground_y(ForestMap.flat(p) + side))
+	return Vector3(p.x, lowest, p.z)
 
 
 static func crowded(trees: PackedVector3Array, p: Vector3, gap: float) -> bool:
@@ -172,6 +189,7 @@ static func _grass_spots(rng: RandomNumberGenerator, trees: PackedVector3Array, 
 		for i: int in rng.randi_range(8, 22):
 			var p: Vector3 = center + Vector3(rng.randfn(0.0, spread), 0.0, rng.randfn(0.0, spread))
 			if ForestMap.grass_ok(ForestMap.flat(p)) and not ForestMap.in_swamp(ForestMap.flat(p)):
+				p.y = ForestMap.ground_y(ForestMap.flat(p))
 				spots.append(p)
 	return spots
 
