@@ -435,6 +435,7 @@ func test_after_the_first_reversal_sera_and_noen_talk_once() -> void:
 	var player: PlayerController = level.get_node("Player") as PlayerController
 	player.global_position = CorruptForest.MIASMA_POS + Vector3(0, 0.05, 0)
 	assert_false(bool(_game().call("is_in_dialogue")), "一進場可以直接走，不先講話")
+	var facing_before: Vector3 = player.facing()
 	var frames: int = 0
 	while not bool(_game().call("is_in_dialogue")) and frames < 240:
 		await tree.physics_frame
@@ -451,13 +452,20 @@ func test_after_the_first_reversal_sera_and_noen_talk_once() -> void:
 	assert_true(level.sera.global_position.distance_to(before) < 0.05, "講話的時候席菈站著")
 	var hud: Hud = level.get_node("Hud") as Hud
 	assert_true(player.status_effects.has("poison"), "身上還有毒")
-	assert_false(hud.status.visible or hud.combat.visible, "對話中左下的狀態列與生命條收起來（對話框會蓋到它們）")
+	assert_true(hud.status.visible and hud.combat.visible, "對話中左下的狀態列與生命條照樣看得到（講的就是「你的血在回」）")
+	var box: DialogueBox = level.get_node("DialogueBox") as DialogueBox
+	var view_h: float = hud.get_viewport().get_visible_rect().size.y
+	assert_true(hud.combat.lift > 0.0, "往上讓開")
+	assert_true(view_h - 142.0 - hud.combat.lift < box.panel_top(), "生命條在對話框上面（生命條 %.0f、框 %.0f）" % [view_h - 142.0 - hud.combat.lift, box.panel_top()])
+	assert_true(hud.status.position.y + hud.status.size.y < box.panel_top(), "狀態列也在對話框上面")
 	for i: int in 4:
 		runner.advance()
 	assert_false(bool(_game().call("is_in_dialogue")), "四句講完")
 	for i: int in 120:
 		await tree.physics_frame
-	assert_true(hud.status.visible and hud.combat.visible, "講完就回來")
+	assert_true(hud.status.visible and hud.combat.visible and hud.combat.lift == 0.0, "講完就回到原位")
+	assert_false(player.is_turning_back(), "諾恩轉回去了")
+	assert_true(player.facing().dot(facing_before) > 0.98, "講完面向對話前的方向，不是一直對著身後的席菈（%s → %s）" % [str(facing_before), str(player.facing())])
 	assert_false(bool(_game().call("is_in_dialogue")), "只講一次")
 
 

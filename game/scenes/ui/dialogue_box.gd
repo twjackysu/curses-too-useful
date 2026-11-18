@@ -18,7 +18,12 @@ var _hold := HoldToSkip.new(HOLD_SKIP_SEC)
 var _mouse_before: Input.MouseMode = Input.MOUSE_MODE_VISIBLE
 
 
+## Hud 用：對話框在哪（左下的生命條要讓到它上面）
+const GROUP: String = "dialogue_box"
+
+
 func _ready() -> void:
+	add_to_group(GROUP)
 	layer = 20
 	_build()
 	_panel.hide()
@@ -64,6 +69,11 @@ func attach(r: DialogueRunner) -> void:
 
 func is_open() -> bool:
 	return _panel.visible
+
+
+## 對話框的上緣在畫面的哪個高度（像素；有選項、字多的時候框會往上長）
+func panel_top() -> float:
+	return _panel.get_global_rect().position.y
 
 
 func is_revealing() -> bool:

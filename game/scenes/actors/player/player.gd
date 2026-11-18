@@ -70,6 +70,8 @@ var _shoulder: float = SHOULDER_OFFSET
 ## 對話中要面向的地方（INF＝沒有）；轉得比走路慢，看得出是「轉過去聽她講」
 const TALK_TURN_SPEED: float = 6.0
 var _talk_point: Vector3 = Vector3.INF
+## 開始對話前面向哪（講完轉回去：跟在後面的席菈講完話，他不會一直背對著要走的方向）；NAN＝沒有要轉回去
+var _talk_return_yaw: float = NAN
 var _dodge_left: float = 0.0
 var _dodge_cooldown: float = 0.0
 var _dodge_dir: Vector3 = Vector3.ZERO
@@ -220,9 +222,16 @@ func _ready() -> void:
 	_build_lock_marker()
 
 
-## 對話開始時轉過去面向這個地方（講完就不管了，照平常的往哪走面向哪）。
+## 對話開始時轉過去面向這個地方；講完轉回對話前的方向（自己先走了就照平常的往哪走面向哪）。
 func talk_to(point: Vector3) -> void:
 	_talk_point = point
+	if is_nan(_talk_return_yaw):
+		_talk_return_yaw = _body.rotation.y
+
+
+## 講完了、還在轉回對話前的方向
+func is_turning_back() -> bool:
+	return not is_nan(_talk_return_yaw)
 
 
 ## 一次性的手勢（Puppet 的 reach：伸手摸水晶），先轉過去面向 point
@@ -374,7 +383,13 @@ func _physics_process(delta: float) -> void:
 
 	if not talking:
 		_talk_point = Vector3.INF
-	if talking and _talk_point.is_finite():
+	if horizontal.length() > 0.3 or lock_target != null:
+		_talk_return_yaw = NAN  # 自己走了、鎖定了：照平常的轉法
+	if not talking and not is_nan(_talk_return_yaw):
+		_body.rotation.y = lerp_angle(_body.rotation.y, _talk_return_yaw, clampf(TALK_TURN_SPEED * delta, 0.0, 1.0))
+		if absf(angle_difference(_body.rotation.y, _talk_return_yaw)) < 0.02:
+			_talk_return_yaw = NAN
+	elif talking and _talk_point.is_finite():
 		# 對話中轉過去面向講話的對象（TalkCamera 開場時叫 talk_to）
 		var to_p: Vector3 = _talk_point - global_position
 		if Vector2(to_p.x, to_p.z).length() > 0.05:

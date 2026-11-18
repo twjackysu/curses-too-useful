@@ -62,6 +62,9 @@ var _center_keys: PackedStringArray = []
 ## 中間那兩行字平常的高度（show_center_lines 算的）；對話中改放在 CENTER_TALK_Y
 const CENTER_TALK_Y: float = 44.0
 const CENTER_SLIDE_SPEED: float = 1400.0
+## 對話中左下的狀態列與生命條往上讓：離對話框上緣多遠、滑多快（像素／秒）
+const TALK_LIFT_GAP: float = 18.0
+const TALK_LIFT_SPEED: float = 1200.0
 var _center_y: float = 0.0
 var _center_tween: Tween
 var _text_back: StyleBoxFlat  # 中央兩行字與左上目標共用的暗底
@@ -271,6 +274,15 @@ func _build() -> void:
 	potion_confirm.decided.connect(_on_potion_decided)
 
 
+## 對話中左下那一組要往上讓多少：生命條（在畫面底下往上 142 px）的下緣到對話框上緣之間留 TALK_LIFT_GAP
+func _talk_lift() -> float:
+	var box: DialogueBox = get_tree().get_first_node_in_group(DialogueBox.GROUP) as DialogueBox
+	if box == null or not box.is_open():
+		return 0.0
+	var view_h: float = get_viewport().get_visible_rect().size.y
+	return maxf(view_h - 142.0 + TALK_LIFT_GAP - box.panel_top(), 0.0)
+
+
 func _process(delta: float) -> void:
 	if App.last_device != _hint_device:
 		_refresh_hint()
@@ -278,9 +290,9 @@ func _process(delta: float) -> void:
 	var talking: bool = Game.is_in_dialogue()
 	_objective_box.visible = _objective.text != "" and not talking and not objective_held
 	_refresh_checklist(talking)
-	# 左下的狀態列與生命條也是：對話框會蓋到它們的右半邊（字被切掉一半）
-	status.visible = not talking
-	combat.visible = not talking
+	# 左下的狀態列與生命條：對話框會蓋到它們的右半邊，所以對話中整組往上讓到對話框上面
+	# （瘴氣裡那一段講的就是「你的血在回」：邊聽邊看得到生命往上爬）
+	combat.lift = move_toward(combat.lift, _talk_lift() if talking else 0.0, TALK_LIFT_SPEED * delta)
 	# 中間那兩行字（第一次反轉的說明）還亮著就開始對話時：移到畫面最上面，不蓋住講話的人的臉
 	_center.position.y = move_toward(_center.position.y, CENTER_TALK_Y if talking else _center_y, CENTER_SLIDE_SPEED * delta)
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
@@ -294,7 +306,7 @@ func _process(delta: float) -> void:
 	reversal.refresh(pc.reversal_cue if pc != null else null)
 	# 戰鬥 HUD 的諾恩名字在 size.y-174；狀態一列 34，往上長
 	var view_h: float = get_viewport().get_visible_rect().size.y
-	status.position = Vector2(56.0, view_h - 182.0 - status.custom_minimum_size.y)
+	status.position = Vector2(56.0, view_h - 182.0 - status.custom_minimum_size.y - combat.lift)
 	_refresh_potion(pc, view_h, delta)
 	if talking:
 		potion.visible = false

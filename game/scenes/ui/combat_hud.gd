@@ -23,6 +23,8 @@ var bars_shown: bool = false
 ## Hud 設定：不在戰鬥、身上也沒狀態時照樣顯示
 var force_bars: bool = false
 
+## 往上讓多少（像素）：對話中讓到對話框上面（Hud 設）
+var lift: float = 0.0
 var _noen_name: Label
 var _alpha: float = 0.0
 
@@ -73,7 +75,7 @@ func _enemy_near(pos: Vector3) -> bool:
 
 
 func _origin() -> Vector2:
-	return Vector2(56.0, size.y - 150.0)
+	return Vector2(56.0, size.y - 150.0 - lift)
 
 
 func _draw() -> void:
