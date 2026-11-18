@@ -6,6 +6,7 @@ extends Camera3D
 ## 誰是誰由關卡登記：`cast[說話者的 key] = 那個角色`；沒登記的說話者（旁白）就停在上一個鏡位。
 ## 只看 `Game.dialogue`，不接訊號：倒下重來、回標題把對話直接清掉的時候也會自己回去。
 ## 有 `talk_to(位置)` 的角色（諾恩）在對話開始時會被叫去面向對方——跟在後面的席菈開口時他才不會背對著她講話。
+## 對話資料寫了 `"shot": "two"` 的那一句改成兩人同框（`two_shot`）；漫符、手勢、講話時頭會動在 `TalkActing`（這個鏡頭底下的子節點）。
 
 ## 鏡頭離講話的人多遠（沿著「講話的人 → 聽的人」的方向）、往旁邊偏多少、多高
 const DIST: float = 2.2
@@ -31,11 +32,21 @@ const OVER_BACK: float = 1.35
 const OVER_SIDE: float = 0.8
 const OVER_HEIGHT: float = 2.15
 const OVER_AIM: float = 1.0
+## 兩人同框：鏡頭在兩人連線的玩家那一側，往聽的人那邊偏一點（看得到講話的人的臉）；兩人左右各留多少空間、最近多近、看多高
+const TWO_MARGIN: float = 0.7
+const TWO_MIN_DIST: float = 2.2
+const TWO_TOWARD_LISTENER: float = 0.3
+const TWO_AIM: float = 1.2
+## 對準兩人之間偏講話的人一點（0.5＝正中間）：講話的人離畫面中間近一點
+const TWO_FAVOR: float = 0.44
 
 var cast: Dictionary[String, Node3D] = {}
 
 var _home: Camera3D
 var _speaker: String = ""
+## 現在的鏡位是照哪一句、哪一種鏡位算的（換句子但同一個人、同一種鏡位就不動）
+var _framing: String = ""
+var acting: TalkActing
 var _shot: Transform3D
 ## 滑過去／滑回來的路上往旁邊繞多少（弧的最高點；兩端是 0）
 var _detour: Vector3 = Vector3.ZERO
@@ -61,6 +72,24 @@ static func over_shoulder(speaker: Vector3, target: Vector3) -> Transform3D:
 	var right: Vector3 = Vector3.UP.cross(back).normalized()
 	var eye: Vector3 = speaker + back * OVER_BACK + right * OVER_SIDE + Vector3.UP * OVER_HEIGHT
 	return Transform3D(Basis.looking_at(target + Vector3.UP * OVER_AIM - eye, Vector3.UP), eye)
+
+
+## 兩人同框：鏡頭在兩人連線上玩家鏡頭的那一側（不跨線），兩個人都在畫面裡、左右各留 TWO_MARGIN；
+## 往聽的人那邊偏一點，講話的人（面向聽的人）的臉看得到。speaker、listener 是兩人腳下的位置
+static func two_shot(speaker: Vector3, listener: Vector3, home: Vector3) -> Transform3D:
+	var flat := Vector3(listener.x - speaker.x, 0.0, listener.z - speaker.z)
+	var along: Vector3 = flat.normalized() if flat.length() > 0.05 else Vector3.RIGHT
+	var mid: Vector3 = (speaker + listener) * 0.5
+	var side: Vector3 = along.cross(Vector3.UP)
+	if (home - mid).dot(side) < 0.0:
+		side = -side
+	# 畫面寬一半的 tan（16:9）
+	var half_w: float = tan(deg_to_rad(TALK_FOV) * 0.5) * 16.0 / 9.0
+	var dist: float = maxf((flat.length() * 0.5 + TWO_MARGIN) / half_w, TWO_MIN_DIST)
+	var dir: Vector3 = (side + along * TWO_TOWARD_LISTENER).normalized()
+	var aim: Vector3 = speaker.lerp(listener, TWO_FAVOR) + Vector3.UP * TWO_AIM
+	var eye: Vector3 = mid + dir * dist + Vector3.UP * EYE_HEIGHT
+	return Transform3D(Basis.looking_at(aim - eye, Vector3.UP), eye)
 
 
 static func aim_point(speaker: Vector3, drop: float = 0.0) -> Vector3:
@@ -105,6 +134,18 @@ func speaker() -> Node3D:
 	return _member(_speaker)
 
 
+## 說話者的 key 對到的角色（沒登記、已經不在場上回傳 null）
+func member(key: String) -> Node3D:
+	return _member(key)
+
+
+func _ready() -> void:
+	acting = TalkActing.new()
+	acting.name = "TalkActing"
+	acting.camera = self
+	add_child(acting)
+
+
 ## 跟玩家的鏡頭一樣在物理幀更新（PlayerController._follow_rig）：兩邊同一拍，滑過去不會抖
 func _physics_process(delta: float) -> void:
 	var r: DialogueRunner = Game.dialogue
@@ -119,9 +160,12 @@ func _physics_process(delta: float) -> void:
 		return
 	if running:
 		var who: Node3D = _member(key)
-		if who != null and key != _speaker:
+		var kind: String = str(r.current().get("shot", ""))
+		var framing: String = key + "|" + kind
+		if who != null and framing != _framing:
 			_speaker = key
-			_shot = _frame(who)
+			_framing = framing
+			_shot = _frame(who, kind)
 			_detour = _clear_detour()
 		_blend = minf(_blend + delta / BLEND_SEC, 1.0)
 	else:
@@ -149,6 +193,7 @@ func _enter() -> void:
 		return
 	_home = cam
 	_speaker = ""
+	_framing = ""
 	_blend = 0.0
 	global_transform = cam.global_transform
 	fov = cam.fov
@@ -166,6 +211,7 @@ func _leave() -> void:
 	current = false
 	_home = null
 	_speaker = ""
+	_framing = ""
 	_blend = 0.0
 	_detour = Vector3.ZERO
 
@@ -197,7 +243,7 @@ func _clear_detour() -> Vector3:
 	return d
 
 
-func _frame(who: Node3D) -> Transform3D:
+func _frame(who: Node3D, kind: String = "") -> Transform3D:
 	var looked: Node3D = who.get_meta(LOOK_META) as Node3D if who.has_meta(LOOK_META) else null
 	if looked != null and is_instance_valid(looked):
 		return over_shoulder(who.global_position, looked.global_position)
@@ -205,8 +251,14 @@ func _frame(who: Node3D) -> Transform3D:
 	var home: Vector3 = _home.global_position
 	var from: Vector3 = who.global_position
 	var drop: float = drop_of(who)
-	var s: Transform3D = shot(from, other.global_position if other != null else home, home, drop)
-	var aim: Vector3 = aim_point(from, drop)
+	var s: Transform3D
+	var aim: Vector3
+	if kind == "two" and other != null and drop_of(other) <= 0.0 and drop <= 0.0:
+		s = two_shot(from, other.global_position, home)
+		aim = from.lerp(other.global_position, TWO_FAVOR) + Vector3.UP * TWO_AIM
+	else:
+		s = shot(from, other.global_position if other != null else home, home, drop)
+		aim = aim_point(from, drop)
 	var query := PhysicsRayQueryParameters3D.create(aim, s.origin, WORLD_MASK)
 	var skip: Array[RID] = []
 	for key: String in cast:

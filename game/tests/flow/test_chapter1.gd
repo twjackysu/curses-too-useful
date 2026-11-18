@@ -357,12 +357,15 @@ func test_talk_camera_shows_whoever_is_speaking_then_hands_back() -> void:
 	var arrived: float = Vector2(cam.global_position.x - player.global_position.x, cam.global_position.z - player.global_position.z).length()
 	assert_true(closest > minf(arrived, TalkCamera.HEAD_CLEAR) - 0.1, "鏡頭滑過去時離諾恩的頭最近 %.2f m（到位之後 %.2f m）" % [closest, arrived])
 	assert_eq(tree.root.get_viewport().get_camera_3d(), cam as Camera3D)
-	var to_sera: Vector3 = (TalkCamera.aim_point(sera.global_position) - cam.global_position).normalized()
-	assert_true((-cam.global_basis.z).dot(to_sera) > 0.999, "滑到位之後對著席菈")
-	assert_true(cam.global_position.distance_to(sera.global_position) < 3.4, "是近景（離她 %.1f m）" % cam.global_position.distance_to(sera.global_position))
-	assert_true(absf(cam.fov - TalkCamera.TALK_FOV) < 0.1)
+	# 第一句是兩人同框（對話資料 shot: two）：兩個人都在畫面裡、看得到她的臉
+	var fwd: Vector3 = -cam.global_basis.z
+	for who: Node3D in [sera as Node3D, player as Node3D]:
+		var v: Vector3 = who.global_position + Vector3.UP * 1.3 - cam.global_position
+		assert_true(v.normalized().dot(fwd) > cos(deg_to_rad(TalkCamera.TALK_FOV * 0.85)), "%s 在畫面裡" % who.name)
 	var sera_face: Vector3 = -sera.global_basis.z
-	assert_true(sera_face.dot((cam.global_position - sera.global_position).normalized()) > 0.5, "拍到的是她的臉，不是後腦勺")
+	assert_true(sera_face.dot((cam.global_position - sera.global_position).normalized()) > 0.3, "拍得到她的臉，不是後腦勺")
+	assert_true(absf(cam.fov - TalkCamera.TALK_FOV) < 0.1)
+	assert_true(cam.acting.marks().size() == 1 and cam.acting.marks()[0].kind == "sweat", "她頭上冒一滴汗")
 	var to_her: Vector3 = sera.global_position - player.global_position
 	to_her.y = 0.0
 	assert_true(player.facing().dot(to_her.normalized()) > 0.95, "諾恩轉過去面向她")
@@ -375,8 +378,15 @@ func test_talk_camera_shows_whoever_is_speaking_then_hands_back() -> void:
 	var to_noen: Vector3 = (TalkCamera.aim_point(player.global_position) - cam.global_position).normalized()
 	assert_true((-cam.global_basis.z).dot(to_noen) > 0.999, "換人講就切過去，不是慢慢搖")
 	assert_true(player.facing().dot((cam.global_position - player.global_position).normalized()) > 0.5, "拍到的是他的臉")
-	# 講完：滑回玩家的鏡頭
+	# 再換她講（沒有寫鏡位）：她的上半身近景
 	runner.advance()
+	await tree.physics_frame
+	await tree.physics_frame
+	var to_sera: Vector3 = (TalkCamera.aim_point(sera.global_position) - cam.global_position).normalized()
+	assert_true((-cam.global_basis.z).dot(to_sera) > 0.999, "切到她的近景")
+	assert_true(cam.global_position.distance_to(sera.global_position) < 3.4, "是近景（離她 %.1f m）" % cam.global_position.distance_to(sera.global_position))
+	assert_true(sera_face.dot((cam.global_position - sera.global_position).normalized()) > 0.5, "拍到的是她的臉")
+	# 講完：滑回玩家的鏡頭
 	runner.advance()
 	assert_false(bool(_game().call("is_in_dialogue")))
 	for i: int in int(TalkCamera.BLEND_SEC * 60.0) + 6:

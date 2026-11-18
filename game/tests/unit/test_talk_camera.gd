@@ -92,3 +92,30 @@ func test_over_shoulder_shot_looks_past_the_speaker_at_the_target() -> void:
 	assert_true(fwd.dot((aim - t.origin).normalized()) > 0.999, "看著對方的胸口")
 	# 講話的人在畫面裡（偏一邊、在前景），不是在鏡頭後面
 	assert_true(fwd.dot((speaker + Vector3.UP * 1.5 - t.origin).normalized()) > 0.5, "他在畫面前景")
+
+
+## 兩人同框：兩個人都在畫面裡、鏡頭在玩家那一側、往聽的人那邊偏（看得到講話的人的臉）
+func test_two_shot_frames_both_from_the_players_side() -> void:
+	var speaker := Vector3(0, 0, 0)
+	var listener := Vector3(2.2, 0, 0)
+	for home: Vector3 in [Vector3(1, 2, 5), Vector3(1, 2, -5)]:
+		var t: Transform3D = TalkCamera.two_shot(speaker, listener, home)
+		assert_true(signf(t.origin.z) == signf(home.z), "在玩家鏡頭那一側（%s）" % str(t.origin))
+		assert_true(t.origin.x > 1.1, "往聽的人那邊偏（%s）" % str(t.origin))
+		var cam := Camera3D.new()
+		cam.fov = TalkCamera.TALK_FOV
+		var fwd: Vector3 = -t.basis.z
+		var half_w: float = tan(deg_to_rad(TalkCamera.TALK_FOV) * 0.5) * 16.0 / 9.0
+		var half_h: float = tan(deg_to_rad(TalkCamera.TALK_FOV) * 0.5)
+		for who: Vector3 in [speaker, listener]:
+			for h: float in [0.3, 1.6]:
+				var v: Vector3 = who + Vector3.UP * h - t.origin
+				var depth: float = v.dot(fwd)
+				assert_true(depth > 0.5, "在鏡頭前面")
+				assert_true(absf(v.dot(t.basis.x)) / depth < half_w * 0.95, "左右在畫面裡（%s 高 %.1f）" % [str(who), h])
+				assert_true(absf(v.dot(t.basis.y)) / depth < half_h * 1.02, "上下在畫面裡（%s 高 %.1f）" % [str(who), h])
+		cam.free()
+		# 講話的人面向聽的人（+X）：鏡頭在他臉的那一邊（他前面的半邊）
+		assert_true((t.origin - speaker).dot(Vector3.RIGHT) > 0.0, "看得到講話的人的臉")
+	var same: Transform3D = TalkCamera.two_shot(Vector3.ZERO, Vector3.ZERO, Vector3(0, 2, 4))
+	assert_true(same.origin.is_finite() and absf(same.basis.determinant() - 1.0) < 0.001)
