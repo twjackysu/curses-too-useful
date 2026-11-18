@@ -35,6 +35,9 @@ const GESTURES: PackedStringArray = ["nod", "bow", "point", "chest", "shrug", "f
 ## 講話時頭動多少（弧度；點頭、左右轉、歪頭）與動起來／停下來多快（每秒）
 const NOD_AMP: Vector3 = Vector3(0.075, 0.05, 0.04)
 const TALK_EASE: float = 5.0
+## 低頭／抬頭多少（弧度）與轉過去多快（每秒）
+const HEAD_TILT: Dictionary = {"": 0.0, "down": -0.38, "up": 0.16}
+const TILT_SPEED: float = 1.6
 ## 站著不動的時候可以換成的樣子（模型的循環動作；程式人偶只會坐）
 const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump"]
 ## 「釋放」的姿勢播多久。它不是 action：疊在站姿／走路／出手上面，不佔出手與閃避（放完同一幀照樣能出手）
@@ -92,6 +95,9 @@ var breath: float = 0.0
 ## 正在講話（對話時 TalkActing 設）：頭會點、會晃。停下來的時候慢慢回到原本的樣子
 var talking: bool = false
 var _talk_w: float = 0.0
+## 講這一句時頭低著還是抬著（HEAD_TILT 的 key；TalkActing 設）
+var head: String = ""
+var _tilt: float = 0.0
 
 ## true＝模型吃場景的光、平塗（toon 漫射）——Jacky 2026-11-13 看了兩種的圖選的（「會受環境光影響比較好」）。
 ## false＝照原檔（VRoid 範例角色是「不受光」：暗的地方人還是亮的）；只剩開發旗標 `-- --char-unlit` 會關（Game 讀）。
@@ -122,6 +128,16 @@ func talk_weight() -> float:
 	return smoothstep(0.0, 1.0, _talk_w)
 
 
+## 頭現在低著（負）或抬著（正）多少弧度
+func head_tilt() -> float:
+	return _tilt
+
+
+## 疊在動作上面的頭的角度（角色自己的座標）：講話時的點頭晃頭 × talk_weight ＋ 低頭／抬頭
+func head_offset() -> Vector3:
+	return nod_angles() * talk_weight() + Vector3(_tilt, 0.0, 0.0)
+
+
 ## 講話時頭的角度（點頭、左右轉、歪頭；角色自己的座標，乘上 talk_weight 才是真的轉多少）：
 ## 幾個不同快慢的波疊起來，不會一直同一個節奏
 func nod_angles() -> Vector3:
@@ -132,9 +148,9 @@ func nod_angles() -> Vector3:
 		NOD_AMP.z * sin(t * TAU * 1.1 + 2.0))
 
 
-## 同一個角度換到骨架的座標（模型被轉了半圈的話左右、前後反過來）
-func nod_angles_skeleton() -> Vector3:
-	var a: Vector3 = nod_angles()
+## head_offset() 換到骨架的座標（模型被轉了半圈的話左右、前後反過來）
+func head_offset_skeleton() -> Vector3:
+	var a: Vector3 = head_offset()
 	return a if _model_back.z > 0.0 else Vector3(-a.x, a.y, -a.z)
 
 
@@ -272,6 +288,7 @@ func advance(delta: float) -> void:
 			action = ""
 			action_time = 0.0
 	_talk_w = move_toward(_talk_w, 1.0 if talking else 0.0, delta * TALK_EASE)
+	_tilt = move_toward(_tilt, float(HEAD_TILT.get(head, 0.0)), delta * TILT_SPEED)
 	var release_t: float = 1.0 - release_left / RELEASE_POSE_TIME
 	release_left = maxf(release_left - delta, 0.0)
 	if model != null:
@@ -457,8 +474,7 @@ func _pose(speed_t: float) -> void:
 	_rot("elbow_R", Vector3(0.25 + arm_amp * 0.6, 0, 0))
 	_rot("spine", Vector3(-lean, s * 0.08 * moving, 0))
 	_rot("chest", Vector3(0.02 * breathe, -s * 0.1 * moving, 0))
-	var nod: Vector3 = nod_angles() * talk_weight()
-	_rot("neck", Vector3(lean * 0.6, 0, 0) + nod)
+	_rot("neck", Vector3(lean * 0.6, 0, 0) + head_offset())
 	var hips: Node3D = joint("hips")
 	if hips != null:
 		hips.position.y = HIP_HEIGHT - absf(c) * 0.05 * moving + 0.006 * breathe

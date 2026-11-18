@@ -136,9 +136,9 @@ func test_text_if_validation() -> void:
 ## 演出的欄位（漫符、手勢、鏡位）只能寫認得的值；遊戲裡的對話每一段都至少有一句有演出
 func test_staging_fields() -> void:
 	var ok: PackedStringArray = DialogueDB.validate_dialogue({"id": "x", "start": "a", "nodes": {
-		"a": {"speaker": "S", "text": "T", "emote": "sweat", "act": "bow", "shot": "two"}}})
+		"a": {"speaker": "S", "text": "T", "emote": "sweat", "act": "bow", "shot": "two", "head": "down"}}})
 	assert_eq(ok, PackedStringArray())
-	for field: String in ["emote", "act", "shot"]:
+	for field: String in ["emote", "act", "shot", "head"]:
 		var bad: PackedStringArray = DialogueDB.validate_dialogue({"id": "x", "start": "a", "nodes": {
 			"a": {"speaker": "S", "text": "T", field: "dance"}}})
 		assert_true(bad.size() == 1 and bad[0].contains(field), "%s 寫錯要報錯" % field)

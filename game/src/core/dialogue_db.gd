@@ -11,8 +11,9 @@ extends RefCounted
 ##     "bye":   {"speaker": "SPK_...", "text": "DLG_..."}          ← 沒有 next／choices＝結束
 ##     "dead":  {"speaker": "SPK_...", "text": "DLG_預設", "text_if": [{"if": {...條件}, "text": "DLG_..."}]}
 ##              ← 依狀態換台詞（第一個成立的），流程不變
-##     "x":     {..., "emote": "sweat", "act": "bow", "shot": "two"}
-##              ← 演出（都可以不寫）：講話的人頭上冒的漫符（EMOTES）、這一句開頭做的手勢（ACTS）、鏡位（SHOTS：two＝兩人同框）
+##     "x":     {..., "emote": "sweat", "act": "bow", "shot": "two", "head": "down"}
+##              ← 演出（都可以不寫）：講話的人頭上冒的漫符（EMOTES）、這一句開頭做的手勢（ACTS）、鏡位（SHOTS：two＝兩人同框）、
+##                講這一句時頭低著還是抬著（HEADS）
 ##   }
 ## }
 ## next 與 choices 不能同時存在；所有 next 都要指向存在的節點；每個節點都要能從 start 走到。
@@ -24,6 +25,8 @@ const EMOTES: PackedStringArray = ["sweat", "anger", "sparkle", "blush", "shock"
 const ACTS: PackedStringArray = ["nod", "bow", "point", "chest", "shrug", "fist", "wave"]
 ## 鏡位：不寫＝講話的人的近景；two＝兩人同框
 const SHOTS: PackedStringArray = ["two"]
+## 講這一句時頭的樣子：down＝低著頭（不好意思、難過），up＝抬起頭
+const HEADS: PackedStringArray = ["down", "up"]
 
 ## dialogue_id -> 對話資料
 var dialogues: Dictionary = {}
@@ -126,7 +129,7 @@ static func validate_dialogue(d: Dictionary) -> PackedStringArray:
 					var te: String = StoryLogic.validate_condition((v as Dictionary)["if"])
 					if te != "":
 						out.append("節點 %s 的 text_if：%s" % [nid, te])
-		for pair: Array in [["emote", EMOTES], ["act", ACTS], ["shot", SHOTS]]:
+		for pair: Array in [["emote", EMOTES], ["act", ACTS], ["shot", SHOTS], ["head", HEADS]]:
 			var field: String = str(pair[0])
 			if n.has(field) and not (pair[1] as PackedStringArray).has(str(n[field])):
 				out.append("節點 %s 的 %s 不認得：%s" % [nid, field, str(n[field])])

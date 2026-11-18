@@ -19,12 +19,14 @@
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_003",
       "emote": "gloom",
+      "head": "down",
       "next": "l03"
     },
     "l03": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_004",
       "emote": "gloom",
+      "head": "down",
       "next": "ask"
     },
     "ask": {
@@ -63,6 +65,7 @@
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_A",
       "emote": "blush",
+      "head": "up",
       "next": "end"
     },
     "b": {

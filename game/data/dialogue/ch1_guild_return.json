@@ -38,6 +38,7 @@
       "emote": "blush",
       "act": "chest",
       "shot": "two",
+      "head": "down",
       "choices": [
         {
           "text": "DLG_CH1_RETURN_CHOICE_A",
@@ -70,6 +71,7 @@
       "text": "DLG_CH1_RETURN_A",
       "emote": "blush",
       "act": "nod",
+      "head": "up",
       "next": "l07"
     },
     "b": {
@@ -77,6 +79,7 @@
       "text": "DLG_CH1_RETURN_B",
       "emote": "blush",
       "act": "fist",
+      "head": "up",
       "next": "l07"
     },
     "l07": {

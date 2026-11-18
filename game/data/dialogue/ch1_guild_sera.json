@@ -21,6 +21,7 @@
       "text": "DLG_CH1_ASK_003",
       "emote": "gloom",
       "act": "chest",
+      "head": "down",
       "next": "ask"
     },
     "ask": {
@@ -29,6 +30,7 @@
       "emote": "sweat",
       "act": "bow",
       "shot": "two",
+      "head": "down",
       "choices": [
         {
           "text": "DLG_CH1_ASK_CHOICE_A",
@@ -59,7 +61,8 @@
         "set": {
           "ch1.sera_asked": true
         }
-      }
+      },
+      "head": "up"
     },
     "b": {
       "speaker": "SPK_SHEILA",
@@ -70,7 +73,8 @@
         "set": {
           "ch1.sera_asked": true
         }
-      }
+      },
+      "head": "up"
     }
   }
 }

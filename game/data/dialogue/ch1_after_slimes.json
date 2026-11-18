@@ -23,6 +23,7 @@
       "emote": "sweat",
       "act": "chest",
       "shot": "two",
+      "head": "down",
       "choices": [
         {
           "text": "DLG_CH1_AFTER_CHOICE_A",
@@ -58,7 +59,8 @@
         "set": {
           "ch1.after_slimes_talked": true
         }
-      }
+      },
+      "head": "up"
     },
     "b": {
       "speaker": "SPK_SHEILA",

@@ -2,7 +2,8 @@ class_name TalkActing
 extends Node
 ## 對話的演出（TalkCamera 底下的子節點，用它登記的 `cast`）：每一句開頭照對話資料讓講話的人
 ## 冒漫符（`emote`，MangaMark）、做手勢（`act`，Puppet 的一次性動作；坐著、躺著、走著的人不做），
-## 字還在浮現的那段時間講話的人頭會點、會晃（`Puppet.talking`）。換下一句前一句的漫符就收起來。
+## 字還在浮現的那段時間講話的人頭會點、會晃（`Puppet.talking`）；寫了 `head` 的那一句低著頭／抬起頭（`Puppet.head`）。
+## 換下一句前一句的漫符就收起來、頭回到原本的樣子。
 ## 跟 TalkCamera 一樣只看 `Game.dialogue`，不接訊號。
 
 ## 講話的時間＝這一句的字數 ÷ 對話框浮現的速度，最短這麼久
@@ -65,6 +66,7 @@ func _on_line(r: DialogueRunner) -> void:
 	_marks.clear()
 	if _speaking != null and is_instance_valid(_speaking):
 		_speaking.talking = false
+		_speaking.head = ""
 	_speaking = null
 	_talk_left = 0.0
 	if r == null or camera == null:
@@ -85,5 +87,6 @@ func _on_line(r: DialogueRunner) -> void:
 	if act != "" and puppet.can_gesture() and not who.has_meta(TalkCamera.DROP_META):
 		puppet.play_action(act)
 	_speaking = puppet
+	puppet.head = str(n.get("head", ""))
 	_talk_left = maxf(float(tr(r.current_text()).length()) / DialogueBox.CHARS_PER_SEC, MIN_TALK_SEC)
 	puppet.talking = true

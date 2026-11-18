@@ -27,6 +27,7 @@
       "emote": "blush",
       "act": "chest",
       "shot": "two",
+      "head": "down",
       "choices": [
         {
           "text": "DLG_CH1_AFTERBOSS_CHOICE_A",
@@ -59,6 +60,7 @@
       "text": "DLG_CH1_AFTERBOSS_A",
       "emote": "sparkle",
       "act": "fist",
+      "head": "up",
       "next": "end"
     },
     "b": {

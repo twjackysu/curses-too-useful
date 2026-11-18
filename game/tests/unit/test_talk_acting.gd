@@ -6,7 +6,7 @@ func _dialogue_db() -> DialogueDB:
 	var db := DialogueDB.new()
 	db.add_dialogue({"id": "t_act", "start": "a", "nodes": {
 		"a": {"speaker": "SPK_A", "text": "DLG_CH1_ASK_001", "emote": "sweat", "act": "bow", "next": "b"},
-		"b": {"speaker": "SPK_B", "text": "DLG_CH1_ASK_002", "emote": "blush", "next": "c"},
+		"b": {"speaker": "SPK_B", "text": "DLG_CH1_ASK_002", "emote": "blush", "head": "down", "next": "c"},
 		"c": {"speaker": "SPK_A", "text": "DLG_CH1_ASK_003"}}})
 	assert_eq(db.errors, PackedStringArray())
 	return db
@@ -53,12 +53,17 @@ func test_each_line_pops_its_mark_plays_its_gesture_and_moves_the_head() -> void
 	assert_eq(marks[0].kind, "blush")
 	assert_true(marks[0].get_parent() == b)
 	assert_true(b.puppet.talking and not a.puppet.talking, "換人講")
+	assert_eq(b.puppet.head, "down", "這一句低著頭")
+	for i: int in 30:
+		await tree.physics_frame
+	assert_true(b.puppet.head_tilt() < -0.2, "頭慢慢低下去（%.2f）" % b.puppet.head_tilt())
 	# 坐著的人不做手勢
 	a.pose = "sit"
 	r.advance()
 	await tree.physics_frame
 	await tree.physics_frame
 	assert_eq(cam.acting.marks().size(), 0, "沒有漫符的那一句什麼都不冒")
+	assert_eq(b.puppet.head, "", "換下一句頭回到原本的樣子")
 	r.advance()
 	await tree.physics_frame
 	assert_false(r.is_running())
