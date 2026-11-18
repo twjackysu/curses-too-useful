@@ -35,8 +35,8 @@ const MASK_OFF_DELAY: float = 1.5
 const FUMBLE_MASK_AT: float = 0.68
 ## 面具掛在頭的骨頭上：往上、往臉的前面移這麼多（公尺）
 const MASK_OFFSET: Vector3 = Vector3(0.0, -0.005, -0.115)
-## 還沒結伴時，諾恩走到這麼近她才轉過來
-const NOTICE_DIST: float = 9.0
+## 還沒結伴時，諾恩走到這麼近她才轉過來（9 m 的時候玩家從森林口走三秒多她就停了，很多人只看得到她往前走的那一段）
+const NOTICE_DIST: float = 7.0
 ## 猶豫時轉身的速度（比平常慢：看得出她轉過去、又回頭）；還沒轉到這個程度（面向與要走的方向的內積）先不邁步
 const HESITATE_TURN_SPEED: float = 5.0
 const HESITATE_FACING: float = 0.6

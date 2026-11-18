@@ -6,11 +6,18 @@ extends Node3D
 const ARC_HEIGHT: float = 1.1
 const CHEST_Y: float = 1.15
 const LIQUID: Color = Color(0.75, 0.35, 1.0)
-## 煙霧彈砸開的那一圈煙：貼著地面從諾恩腳邊往外滾（不往上冒：他站在中間，煙不能蓋住他），滾到 SMOKE_REACH 公尺左右就散掉
+## 煙霧彈砸開的那一圈煙：貼著地面從諾恩腳邊往外滾（不往上冒：他站在中間，煙不能蓋住他），滾到 SMOKE_REACH 公尺左右就散掉。
+## 每一團邊滾邊從 SMOKE_GROW.x 倍長到 .y 倍；頭 SMOKE_FADE_IN 的壽命是透明的（剛冒出來還貼在他腳邊的那幾幀不蓋到小腿）。
+## SMOKE_Y＝最小的那一團剛好不插進地面；長大之後插進去的部分靠 proximity fade 淡掉（看不到一條平的邊）
 const SMOKE_SEC: float = 1.1
 const SMOKE_PUFFS: int = 22
 const SMOKE_REACH: float = 1.9
-const SMOKE_Y: float = 0.3
+const SMOKE_SIZE: float = 0.85
+const SMOKE_GROW: Vector2 = Vector2(0.6, 1.25)
+const SMOKE_FADE_IN: float = 0.2
+## 離地面（或任何東西）這麼近的部分就淡掉
+const SMOKE_FADE_GROUND: float = 0.35
+const SMOKE_Y: float = SMOKE_SIZE * 0.6 * 0.5 + 0.02
 
 var target: PlayerController
 var source: String = ""
@@ -104,8 +111,8 @@ func _land() -> void:
 	get_tree().create_timer(maxf(1.0, SMOKE_SEC + 0.1) if smoky else 1.0).timeout.connect(queue_free)
 
 
-## 一圈貼著地面往外滾的煙：一開始衝得快、馬上被拖慢（停在 SMOKE_REACH 附近），邊滾邊變淡。每一團一樣大
-## （ParticleLook 的看板材質不看粒子的縮放：scale_amount 設了也沒用）。
+## 一圈貼著地面往外滾的煙：一開始衝得快、馬上被拖慢（停在 SMOKE_REACH 附近），邊滾邊變大、變淡。
+## ParticleLook 的看板材質預設不看粒子的縮放：這裡打開 billboard_keep_scale，scale_amount_curve 才有作用。
 ## 顏色是藥水的顏色加白；半透明、不發光（跟濺開的藥水點分得出來）。
 func _smoke_ring() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
@@ -131,12 +138,23 @@ func _smoke_ring() -> CPUParticles3D:
 	p.damping_min = v0 / SMOKE_SEC
 	p.damping_max = v0 / SMOKE_SEC
 	var fade := Gradient.new()
-	fade.offsets = PackedFloat32Array([0.0, 0.12, 0.55, 1.0])
-	fade.colors = PackedColorArray([Color(1, 1, 1, 0.2), Color(1, 1, 1, 0.42), Color(1, 1, 1, 0.26), Color(1, 1, 1, 0)])
+	fade.offsets = PackedFloat32Array([0.0, SMOKE_FADE_IN, SMOKE_FADE_IN + 0.12, 0.6, 1.0])
+	fade.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0.08), Color(1, 1, 1, 0.42), Color(1, 1, 1, 0.26), Color(1, 1, 1, 0)])
 	p.color_ramp = fade
+	var grow := Curve.new()
+	grow.min_value = 0.0
+	grow.max_value = SMOKE_GROW.y
+	grow.add_point(Vector2(0.0, SMOKE_GROW.x), 0.0, 1.6)
+	grow.add_point(Vector2(1.0, SMOKE_GROW.y), 0.4, 0.0)
+	p.scale_amount_curve = grow
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.85, 0.85)
-	quad.material = ParticleLook.material(liquid.lerp(Color.WHITE, 0.35))
+	quad.size = Vector2(SMOKE_SIZE, SMOKE_SIZE)
+	var mat: StandardMaterial3D = ParticleLook.material(liquid.lerp(Color.WHITE, 0.35))
+	mat.billboard_keep_scale = true
+	# 長大之後下半團會插進地面：碰到地面的地方淡掉（soft particles），不然看得到一條平的邊
+	mat.proximity_fade_enabled = true
+	mat.proximity_fade_distance = SMOKE_FADE_GROUND
+	quad.material = mat
 	p.mesh = quad
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return p

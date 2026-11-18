@@ -341,7 +341,7 @@ func test_noen_starts_alone_meets_sera_at_the_miasma_and_she_joins_with_her_mask
 	assert_eq(sera.vials_fired, 0)
 	assert_false(bool(_game().call("is_in_dialogue")), "離得遠不會開口")
 	# 走近：她先出聲、轉過來
-	player.global_position = CorruptForest.SERA_WAIT_POS + Vector3(0.6, 0.05, 7.0)
+	player.global_position = CorruptForest.SERA_WAIT_POS + Vector3(0.6, 0.05, Sera.NOTICE_DIST - 1.5)
 	for i: int in 40:
 		await tree.physics_frame
 	assert_true(hud.bark_keys().has("BARK_SERA_NOTICE"), "看到諾恩先出聲")
@@ -630,6 +630,11 @@ func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 		assert_true(vial.smoke.flatness == 1.0 and vial.smoke.gravity.y < 1.0, "貼著地面往四面八方")
 		assert_eq(vial.smoke.explosiveness, 1.0, "一次全部出來（還沒出來的粒子會在腳邊畫成一團黑的）")
 		assert_eq(ParticleLook.untextured(vial).size(), 0, "煙是圓的軟邊，不是方塊")
+		var smat: StandardMaterial3D = vial.smoke.mesh.surface_get_material(0) as StandardMaterial3D
+		assert_true(smat.billboard_keep_scale and vial.smoke.scale_amount_curve.sample(1.0) > vial.smoke.scale_amount_curve.sample(0.0) * 1.5,
+			"每一團邊滾邊變大（看板材質要留粒子的縮放）")
+		assert_true(smat.proximity_fade_enabled, "插進地面的地方淡掉（沒有一條平的邊）")
+		assert_eq(vial.smoke.color_ramp.get_color(0).a, 0.0, "剛冒出來還貼在他腳邊時是透明的（不蓋到小腿）")
 	assert_true(player.reversal_cue.is_playing(), "反轉的回饋自己播了")
 	for i: int in 3:
 		await tree.physics_frame
