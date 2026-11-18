@@ -188,6 +188,18 @@ func test_moss_mask_is_white_under_trees_and_black_elsewhere() -> void:
 
 
 ## 地圖（ForestMap）：路與空地不種樹、不長草；地面的遮罩在路上是白的、樹林裡是黑的、毒沼另外記一層；走太遠會被拉回來。
+func test_tree_variation_stays_in_range_and_differs_by_spot() -> void:
+	var seen: Dictionary = {}
+	for i: int in 50:
+		var v: Vector3 = ForestScenery.variation(Vector3(float(i) * 3.7 - 80.0, 0.0, float(i * 7 % 23) * 4.1 - 40.0))
+		assert_true(v.x >= 0.86 and v.x <= 1.06 and v.y >= 0.9 and v.y <= 1.28 and v.z >= 0.0 and v.z < 1.0, "寬高倍數與顏色的數在範圍裡：%s" % str(v))
+		seen[snappedf(v.y, 0.02)] = true
+		var tint: Color = ForestScenery.tree_tint(v.z)
+		assert_true(tint.r > 0.7 and tint.g > 0.7 and tint.b > 0.7, "顏色只偏一點、不會變黑：%s" % str(tint))
+	assert_true(seen.size() > 10, "不同位置的樹不一樣高（%d 種）" % seen.size())
+	assert_eq(ForestScenery.variation(Vector3(3, 0, -5)), ForestScenery.variation(Vector3(3, 0, -5)), "同一個位置每次都一樣")
+
+
 func test_forest_map_keeps_trails_clear_and_pulls_strays_back() -> void:
 	assert_false(ForestMap.tree_ok(Vector2(0, 8)), "森林口的路上不種樹")
 	assert_false(ForestMap.tree_ok(Vector2(0, -15)), "史萊姆空地不種樹")
@@ -227,6 +239,31 @@ func test_level_builds_with_markers_miasma_slimes_and_a_clear_path() -> void:
 		if tree_node is StaticBody3D:
 			assert_true(ForestMap.tree_ok(ForestMap.flat((tree_node as Node3D).position)), "樹不擋路：%s" % str((tree_node as Node3D).position))
 	assert_true(level._no_tree_here(CorruptForest.MIASMA_POS), "瘴氣裡不種樹")
+	# 天空：星星與月亮（forest_sky.gdshader），月亮在北邊、地平線上面；霧只蓋天空的一部分
+	var env: Environment = (level.get_node("WorldEnvironment") as WorldEnvironment).environment
+	var night := env.sky.sky_material as ShaderMaterial
+	assert_true(night != null and night.shader == ForestScenery.SKY_SHADER, "天空是自己畫的夜空（星星、月亮）")
+	var moon_dir: Vector3 = night.get_shader_parameter("moon_dir")
+	assert_true(moon_dir.z < -0.8 and moon_dir.y > 0.15 and moon_dir.y < 0.4, "月亮在北邊、低低的（往北走看得到）：%s" % str(moon_dir))
+	assert_true(env.volumetric_fog_sky_affect < 0.5, "霧不把星星蓋掉")
+	# 樹隨風擺、每棵高矮胖瘦與顏色不一樣
+	var heights: Dictionary = {}
+	var swaying: int = 0
+	var trees_seen: int = 0
+	for tree_node: Node in level.get_node("Forest").get_children():
+		if not tree_node is StaticBody3D:
+			continue
+		trees_seen += 1
+		var look: Node3D = (tree_node as Node3D).get_child(1) as Node3D
+		heights[Vector2(look.scale.x, look.scale.y).snappedf(0.001)] = true
+		for mi: Node in look.find_children("*", "MeshInstance3D", true, false):
+			var mat := (mi as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+			if mat != null and mat.shader == ForestScenery.SWAY_SHADER:
+				swaying += 1
+				break
+	if PropModels.scene_for(ForestScenery.TREE_MODEL) != null:
+		assert_eq(swaying, trees_seen, "每一棵樹都會隨風擺")
+		assert_true(heights.size() > trees_seen / 2, "樹的高矮胖瘦每棵不一樣（%d 種／%d 棵）" % [heights.size(), trees_seen])
 	var grass: MultiMeshInstance3D = level.get_node_or_null("Forest/GrassTufts") as MultiMeshInstance3D
 	assert_not_null(grass, "有草叢")
 	assert_true(grass.multimesh.instance_count > 3000, "草叢不只幾叢（%d）" % grass.multimesh.instance_count)

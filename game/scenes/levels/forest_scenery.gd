@@ -11,6 +11,15 @@ const BUSH_MODEL: String = "tripo/prop_rotten_fruit_bush"
 const GLOW_PROP_LAYER: int = 1 << 1
 const MUSHROOM_SHADER: Shader = preload("res://src/world/glow_mushroom.gdshader")
 const GROUND_SHADER: Shader = preload("res://src/world/forest_ground.gdshader")
+const SKY_SHADER: Shader = preload("res://src/world/forest_sky.gdshader")
+const SWAY_SHADER: Shader = preload("res://src/world/wind_sway.gdshader")
+## 樹與灌木隨風擺（wind_sway.gdshader）：從多高開始擺、擺到多高、最多擺幾公尺（模型自己的座標）
+const TREE_SWAY: Vector3 = Vector3(1.2, 6.5, 0.16)
+const BUSH_SWAY: Vector3 = Vector3(0.15, 1.6, 0.07)
+## 月亮在天上的方向：北偏東 8°、仰角 15°（站在森林口往北看，路的上方偏右）。月光（Moon）是從玩家背後照過來的，兩個不一致是故意的
+const MOON_DIR: Vector3 = Vector3(0.134, 0.259, -0.956)
+## 體積霧蓋天空蓋多少（1＝跟地上一樣濃，看不到星星與月亮）
+const FOG_SKY: float = 0.3
 ## 森林口那一帶的樹（位置跟只有入口的時候一樣）、北邊加出來的樹
 const TREE_COUNT: int = 46
 const DEEP_TREE_COUNT: int = 120
@@ -25,18 +34,15 @@ const MOSS_MASK_SIZE: int = 384
 const SPORE_BOX: Vector3 = Vector3(16.0, 1.5, 22.0)
 
 
-## 黃昏的紫黑森林：頭頂暗、地平線泛紫的天，冷的月光、暗紫的環境光，
-## 體積霧讓遠處的樹一層一層淡進紫色裡（畫質低時 QualityPreset 換成深度霧）。
+## 黃昏的紫黑森林：頭頂暗、地平線泛紫、灑著星星的天（forest_sky.gdshader），往北看得到一輪月亮；冷的月光、暗紫的環境光，
+## 體積霧讓遠處的樹一層一層淡進紫色裡（畫質低時 QualityPreset 換成深度霧）。霧只蓋天空的一部分（FOG_SKY），星星才透得出來。
 static func build_environment(level: Node3D) -> void:
-	var dusk := ProceduralSkyMaterial.new()
-	dusk.sky_top_color = Color(0.05, 0.03, 0.1)
-	dusk.sky_horizon_color = Color(0.3, 0.19, 0.4)
-	dusk.sky_curve = 0.25
-	dusk.ground_horizon_color = dusk.sky_horizon_color
-	dusk.ground_bottom_color = Color(0.07, 0.05, 0.11)
-	dusk.sun_angle_max = 6.0
+	var night := ShaderMaterial.new()
+	night.shader = SKY_SHADER
+	night.set_shader_parameter("moon_dir", MOON_DIR)
 	var sky := Sky.new()
-	sky.sky_material = dusk
+	sky.sky_material = night
+	sky.radiance_size = Sky.RADIANCE_SIZE_32  # 環境光與反射都不從天空取（下面），不用算大的
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
@@ -50,6 +56,7 @@ static func build_environment(level: Node3D) -> void:
 	env.volumetric_fog_albedo = Color(0.5, 0.38, 0.62)
 	env.volumetric_fog_emission = Color(0.05, 0.03, 0.08)
 	env.volumetric_fog_length = 70.0
+	env.volumetric_fog_sky_affect = FOG_SKY
 	env.glow_enabled = true
 	env.glow_intensity = 0.5
 	var we := WorldEnvironment.new()
@@ -207,10 +214,62 @@ static func tree(at: Vector3, size: float, yaw: float) -> Node3D:
 		cyl.material = bark
 		mesh.mesh = cyl
 		mesh.position = Vector3(0, 3.0, 0)
+		mesh.scale = Vector3.ONE * size
 		look = mesh
-	look.scale = Vector3.ONE * size
+	else:
+		# 每棵長得不太一樣：高矮胖瘦、顏色偏一點（只有一種樹的模型，照位置算、每次都一樣）
+		var v: Vector3 = variation(at)
+		look.scale = Vector3(size * v.x, size * v.y, size * v.x)
+		sway(look, TREE_SWAY, tree_tint(v.z))
 	body.add_child(look)
 	return body
+
+
+## 照位置算的三個 0～1 之間的亂數換成：寬（x）、高（y）的倍數，與顏色偏移用的一個數（z）。純函式。
+static func variation(at: Vector3) -> Vector3:
+	var h1: float = fposmod(sin(at.x * 12.9898 + at.z * 78.233) * 43758.5453, 1.0)
+	var h2: float = fposmod(sin(at.x * 39.346 + at.z * 11.135) * 24634.6345, 1.0)
+	var h3: float = fposmod(sin(at.x * 73.156 + at.z * 52.235) * 17563.2189, 1.0)
+	return Vector3(lerpf(0.86, 1.06, h1), lerpf(0.9, 1.28, h2), h3)
+
+
+## 樹的顏色偏移：大多偏暗紫一點或偏青一點，少數亮一點。乘在模型的顏色上。
+static func tree_tint(t: float) -> Color:
+	if t < 0.4:
+		return Color(0.82, 0.78, 0.95).lerp(Color.WHITE, t / 0.4 * 0.5)
+	if t < 0.8:
+		return Color(0.8, 0.95, 0.92).lerp(Color.WHITE, (t - 0.4) / 0.4 * 0.5)
+	return Color(1.08, 1.02, 1.1)
+
+
+## 把模型的材質換成會隨風擺的（wind_sway.gdshader；顏色、法線、粗糙度照原本的貼圖）。
+## params＝(從多高開始擺, 擺到多高, 最多擺幾公尺)。同一個原本的材質只換一次（記在它的 meta 上，所有的樹共用）。
+static func sway(model: Node3D, params: Vector3, tint: Color = Color.WHITE) -> void:
+	var meshes: Array[Node] = model.find_children("*", "MeshInstance3D", true, false)
+	if model is MeshInstance3D:
+		meshes.append(model)
+	for n: Node in meshes:
+		var mi := n as MeshInstance3D
+		for surface: int in mi.mesh.get_surface_count():
+			var src := mi.get_active_material(surface) as BaseMaterial3D
+			if src == null:
+				continue
+			var key: String = "sway_%d_%d_%d" % [int(params.x * 100.0), int(params.y * 100.0), int(params.z * 1000.0)]
+			var mat: ShaderMaterial = src.get_meta(key) if src.has_meta(key) else null
+			if mat == null:
+				mat = ShaderMaterial.new()
+				mat.shader = SWAY_SHADER
+				mat.set_shader_parameter("albedo_tex", src.albedo_texture)
+				mat.set_shader_parameter("normal_tex", src.normal_texture)
+				mat.set_shader_parameter("has_normal", src.normal_enabled and src.normal_texture != null)
+				mat.set_shader_parameter("orm_tex", src.roughness_texture)
+				mat.set_shader_parameter("has_orm", src.roughness_texture != null)
+				mat.set_shader_parameter("sway_from", params.x)
+				mat.set_shader_parameter("sway_height", params.y)
+				mat.set_shader_parameter("sway_amount", params.z)
+				src.set_meta(key, mat)
+			mi.set_surface_override_material(surface, mat)
+		mi.set_instance_shader_parameter("tint", Vector3(tint.r, tint.g, tint.b))
 
 
 ## 路邊的小東西（夜光毒蕈、灌木）。glows＝夜光毒蕈：顏色照形狀算、旁邊掛一盞青色的小燈（節點名 Glow）。
@@ -230,6 +289,8 @@ static func small_prop(model: String, at: Vector3, yaw: float, glows: bool) -> N
 		mesh.mesh = ball
 		mesh.position = Vector3(0, 0.3, 0)
 		look = mesh
+	elif not glows:
+		sway(look, BUSH_SWAY)
 	look.name = "Look"
 	root.add_child(look)
 	if glows:
