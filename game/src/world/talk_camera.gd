@@ -34,7 +34,8 @@ const OVER_HEIGHT: float = 2.15
 const OVER_AIM: float = 1.0
 ## 兩人同框：鏡頭在兩人連線的玩家那一側，往聽的人那邊偏一點（看得到講話的人的臉）；兩人左右各留多少空間、最近多近、看多高
 const TWO_MARGIN: float = 0.7
-const TWO_MIN_DIST: float = 2.2
+## 最近多近：兩個人貼在一起（戰後她跑到他肩膀旁邊）也拍到腰以上的兩個人，不會只剩兩顆頭
+const TWO_MIN_DIST: float = 3.0
 const TWO_TOWARD_LISTENER: float = 0.3
 const TWO_AIM: float = 1.2
 ## 對準兩人之間偏講話的人一點（0.5＝正中間）：講話的人離畫面中間近一點

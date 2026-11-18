@@ -450,6 +450,13 @@ func test_after_the_first_reversal_sera_and_noen_talk_once() -> void:
 	for i: int in 20:
 		await tree.physics_frame
 	assert_true(level.sera.global_position.distance_to(before) < 0.05, "講話的時候席菈站著")
+	# 貼在他肩膀旁邊（0.25 m，平常這麼近她不轉）：對話中照樣轉過去面向他
+	level.sera.global_position = player.global_position + Vector3(0.2, 0.0, 0.15)
+	for i: int in 40:
+		await tree.physics_frame
+	var to_noen: Vector3 = player.global_position - level.sera.global_position
+	to_noen.y = 0.0
+	assert_true((-level.sera.global_basis.z).dot(to_noen.normalized()) > 0.9, "對話中再近也面向他")
 	var hud: Hud = level.get_node("Hud") as Hud
 	assert_true(player.status_effects.has("poison"), "身上還有毒")
 	assert_true(hud.status.visible and hud.combat.visible, "對話中左下的狀態列與生命條照樣看得到（講的就是「你的血在回」）")

@@ -150,7 +150,9 @@ func _physics_process(delta: float) -> void:
 	velocity = Vector3(dir.x * speed, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, dir.z * speed)
 	move_and_slide()
 	_puppet.set_move_speed(speed)
-	if dist > 0.3 and (joined or dist < NOTICE_DIST):
+	# 平常離他 0.3 m 以內就不轉（貼在旁邊時不要一直打轉）；對話中再近也轉過去面向他（戰後那段話她跑到他肩膀旁邊）
+	var facing_dist: float = 0.05 if Game.is_in_dialogue() else 0.3
+	if dist > facing_dist and (joined or dist < NOTICE_DIST):
 		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
 	if locked:
 		return
