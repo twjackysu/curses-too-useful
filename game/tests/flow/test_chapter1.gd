@@ -373,10 +373,23 @@ func test_noen_starts_alone_meets_sera_at_the_miasma_and_she_joins_with_her_mask
 	# 諾恩走進瘴氣，她跟上來：到邊上先戴面具
 	player.global_position = CorruptForest.MIASMA_POS + Vector3(0, 0.05, -3.0)
 	var frames: int = 0
+	var fumbled_at: Vector3 = Vector3.INF
+	var sweat: bool = false
+	var fumble_moved: float = 0.0
 	while not sera.masked and frames < 360:
 		await tree.physics_frame
 		frames += 1
+		if sera.is_fumbling():
+			if not fumbled_at.is_finite():
+				fumbled_at = sera.global_position
+			fumble_moved = maxf(fumble_moved, sera.global_position.distance_to(fumbled_at))
+			sweat = sweat or sera.has_node("MangaMark_sweat")
 	assert_true(sera.masked, "靠近瘴氣就戴上面具")
+	assert_true(fumbled_at.is_finite(), "戴上之前先慌張地找了一下")
+	assert_eq(sera.puppet().action, "fumble", "找面具的動作還在播（面具在動作的後半戴上）")
+	assert_true(fumble_moved < 0.1, "找的時候停在原地（%.2f m）" % fumble_moved)
+	assert_true(sweat, "頭上冒一滴汗")
+	assert_false(sera.near_miasma(0.0), "停在瘴氣外面找，不是走進去才找")
 	assert_true(sera.near_miasma())
 	if sera.mask() != null:
 		assert_true(sera.mask().visible, "面具看得到")

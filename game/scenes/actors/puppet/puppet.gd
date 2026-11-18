@@ -15,7 +15,7 @@ extends Node3D
 ## 走路或跑步時，每隻腳落地的那一刻發一次（腳步聲照這個播）
 signal footfall
 
-const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave"]
+const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave", "fumble"]
 const WALK_MIN_SPEED: float = 0.3
 ## 這個速度以上用跑的動作。諾恩平常移動 3.4 m/s 是小跑：以前用「走路」的動作加速到 1.6 倍，腿還是跟不上，
 ## 看起來在地上滑（Jacky 2026-11-14：「走路的音效跟走路速度差很多」）。
@@ -29,7 +29,9 @@ const RUN_CLIP_SPEED: float = 3.2
 const FOOT_CONTACTS: PackedFloat32Array = [0.25, 0.75]
 const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "reach": 1.0, "give": 1.25,
 	# 對話的手勢（DialogueDB.ACTS；模型的動作在 social_actions）
-	"nod": 0.9, "bow": 1.4, "point": 1.3, "chest": 1.4, "shrug": 1.3, "fist": 1.1, "wave": 1.5}
+	"nod": 0.9, "bow": 1.4, "point": 1.3, "chest": 1.4, "shrug": 1.3, "fist": 1.1, "wave": 1.5,
+	# 席菈走到瘴氣邊上慌張地找防毒面具（social_actions 的 fumble）
+	"fumble": 1.2}
 ## 對話的手勢（站著才做：坐著、躺著、走著的人不做）
 const GESTURES: PackedStringArray = ["nod", "bow", "point", "chest", "shrug", "fist", "wave"]
 ## 講話時頭動多少（弧度；點頭、左右轉、歪頭）與動起來／停下來多快（每秒）

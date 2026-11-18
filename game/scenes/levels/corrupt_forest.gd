@@ -121,6 +121,13 @@ func _ready() -> void:
 				sera.ask()
 			else:
 				_player.status_effects.apply_source("miasma"))
+	# `--burst-on=mask`：進場 1.5 秒後把席菈放到瘴氣的邊上（背對瘴氣、面向諾恩），她停下來慌張地找面具；從那一刻開始拍。
+	# 配 `--joined --at=1.5,12`：諾恩在瘴氣外面，鏡頭從他背後看過去，她在前面幾步、臉朝鏡頭
+	if burst_on == "mask":
+		get_tree().create_timer(1.5).timeout.connect(func() -> void:
+			sera.global_position = MIASMA_POS + Vector3(-1.2, 0.0, MIASMA_RADIUS + 0.6)
+			sera.rotation.y = PI
+			App.burst_start_in(1))
 	# `--burst-on=combo`：進場 1.5 秒後連砍三下（一下收招就接下一下），從第一下開始拍
 	if burst_on == "combo":
 		for i: int in PlayerController.COMBO_LEN:

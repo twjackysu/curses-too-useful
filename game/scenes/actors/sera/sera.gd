@@ -4,7 +4,7 @@ extends CharacterBody3D
 ## 跟在諾恩後面，手上【鍊金藥瓶手弩】；諾恩附近有敵人時每隔幾秒往他背上射一瓶失敗作——對別人是災難，落在諾恩身上就反轉成增益。
 ## 要做什麼由 SeraBrain 決定（純邏輯、有測試），這裡只管走路、轉身、舉弩、生出藥瓶。
 ## 不擋路、不會被打（collision_layer＝0）；樹與地形擋得住她。離太遠（被卡住）就直接出現在諾恩後面。
-## 她沒有諾恩的體質：瘴氣對她是真的毒，所以靠近瘴氣就把防毒面具戴上（劇本節點 2），離開一下子才拿下來。
+## 她沒有諾恩的體質：瘴氣對她是真的毒，所以走到瘴氣邊上先停下來慌張地找防毒面具、戴上（劇本節點 2），離開一下子才拿下來。
 ## Boss 戰關卡可以叫她站到後排（hold_at）、指定射哪一瓶（shoot）；凝視打到她會被石化一陣子（petrify）。
 ## 還沒結伴（joined＝false）的時候等在原地：不跟、不射；關卡給了她在看的東西（hesitate_at＝瘴氣）就在它前面走近幾步又退回來，
 ## 諾恩走近才停下來、轉過來看他。
@@ -28,6 +28,9 @@ const CROSSBOW_OFFSET: Vector3 = Vector3(0.0, -0.13, -0.13)
 ## 離瘴氣的邊緣還有這麼遠就先戴上面具；離開之後過這麼久才拿下來（在邊緣走來走去不會一直戴戴脫脫）
 const MASK_MARGIN: float = 1.0
 const MASK_OFF_DELAY: float = 1.5
+## 走到瘴氣邊上（還沒走進去）時先停下來慌張地找面具（劇本節點 2）：低頭在腰間拍兩下、左手摀到嘴前面——
+## 動作播到這個比例的時候面具戴上；頭上冒一滴汗。已經站在毒裡（被拉過去、Boss 的光環）就沒空找，直接戴上
+const FUMBLE_MASK_AT: float = 0.68
 ## 面具掛在頭的骨頭上：往上、往臉的前面移這麼多（公尺）
 const MASK_OFFSET: Vector3 = Vector3(0.0, -0.005, -0.115)
 ## 還沒結伴時，諾恩走到這麼近她才轉過來
@@ -70,6 +73,9 @@ var hesitate_at: Vector3 = Vector3.INF
 var _wait_home: Vector3 = Vector3.INF
 var _wait_t: float = 0.0
 var masked: bool = false
+## 正在找面具還要幾秒（> 0＝停在原地、不跟不射）
+var fumble_left: float = 0.0
+var _sweat: MangaMark
 var _mask: Node3D
 var _mask_off_in: float = 0.0
 ## 關卡叫她去某個地方站著、不跟諾恩（Boss 戰她退到後排裝禁藥）。Vector3.INF＝照平常跟著
@@ -136,6 +142,11 @@ func _physics_process(delta: float) -> void:
 	to.y = 0.0
 	var dist: float = to.length()
 	_update_mask(delta)
+	if fumble_left > 0.0 and stoned_left <= 0.0:
+		velocity = Vector3(0.0, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, 0.0)
+		move_and_slide()
+		_puppet.set_move_speed(0.0)
+		return
 	if stoned_left > 0.0:
 		stoned_left -= delta
 		velocity = Vector3.ZERO
@@ -315,23 +326,52 @@ func _launch(source: String) -> SeraVial:
 	return last_vial
 
 
-## 現在站的地方是不是瘴氣裡面（或就在邊上）
-func near_miasma() -> bool:
+## 現在站的地方是不是瘴氣裡面（margin＝邊緣往外再算幾公尺；預設＝就在邊上也算）
+func near_miasma(margin: float = MASK_MARGIN) -> bool:
 	for n: Node in get_tree().get_nodes_in_group("poison_mist"):
 		var mist := n as PoisonMist
-		if mist != null and Vector2(mist.global_position.x - global_position.x, mist.global_position.z - global_position.z).length() <= mist.radius + MASK_MARGIN:
+		if mist != null and Vector2(mist.global_position.x - global_position.x, mist.global_position.z - global_position.z).length() <= mist.radius + margin:
 			return true
 	return false
 
 
+## 面具：走到瘴氣邊上先停下來找（fumble），找到才戴上；已經在毒裡就直接戴。離開一下子才拿下來。
 func _update_mask(delta: float) -> void:
+	if fumble_left > 0.0:
+		fumble_left -= delta
+		var played: float = float(Puppet.ACTION_TIME["fumble"]) - fumble_left
+		if not masked and played >= float(Puppet.ACTION_TIME["fumble"]) * FUMBLE_MASK_AT:
+			_set_masked(true)
+		if fumble_left <= 0.0:
+			fumble_left = 0.0
+			_set_masked(true)
+			if _sweat != null and is_instance_valid(_sweat):
+				_sweat.dismiss()
 	if force_mask or near_miasma():
 		_mask_off_in = MASK_OFF_DELAY
-		_set_masked(true)
-	elif masked:
+		if masked or fumble_left > 0.0:
+			return
+		if force_mask or near_miasma(0.0) or stoned_left > 0.0:
+			_set_masked(true)
+		else:
+			_start_fumble()
+	elif masked and fumble_left <= 0.0:
 		_mask_off_in -= delta
 		if _mask_off_in <= 0.0:
 			_set_masked(false)
+
+
+func _start_fumble() -> void:
+	fumble_left = float(Puppet.ACTION_TIME["fumble"])
+	_puppet.play_action("fumble")
+	if _sweat != null and is_instance_valid(_sweat):
+		_sweat.queue_free()
+	_sweat = MangaMark.pop("sweat", self, _puppet)
+
+
+## 正在慌張地找面具（還沒戴上之前的那一秒多）
+func is_fumbling() -> bool:
+	return fumble_left > 0.0
 
 
 func _set_masked(on: bool) -> void:

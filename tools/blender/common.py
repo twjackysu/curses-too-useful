@@ -648,7 +648,7 @@ def release_action(a, frames=9):
 
 def social_actions(a):
     """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、伸手摸（reach）、遞東西（give），
-    對話的手勢（nod 點頭、bow 鞠躬、point 指、chest 左手按胸口、shrug 攤手、fist 握拳、wave 左手揮手），
+    對話的手勢（nod 點頭、bow 鞠躬、point 指、chest 左手按胸口、shrug 攤手、fist 握拳、wave 左手揮手）、慌張地找面具（fumble），
     扛東西（idle_carry、walk_carry、run_carry：左手扶著扛在左肩上的東西，腳照平常走）。
     角度的意思跟 standard_actions 一樣：arm_pose 的 hang 離垂直往外、swing 往前擺、elbow 手肘往前彎、twist 整條手臂繞垂直軸（正＝往左前帶）。"""
     bones = a.arm.data.bones
@@ -818,6 +818,20 @@ def social_actions(a):
         a.arm_pose("Left", f, hang=9 + 34 * r + 10 * w, swing=-3 + 127 * r, elbow=14 + 46 * r)
         rest_arm("Right", f)
 
+    def fumble(f, t):
+        # 慌張地找防毒面具（席菈走到瘴氣邊上，劇本節點 2）：低頭、兩手在腰間拍兩下找 → 左手摀到嘴前面（面具在 t≈0.7 戴上）→ 放下。
+        # 左手：垂著 → 腰側（拍兩下：手肘一彎一伸）→ 嘴前面；右手拿著弩，跟著在右腰拍
+        def mix(p, q, k):
+            return tuple(x + (y - x) * k for x, y in zip(p, q))
+        find = keys(t, [(0, 0), (0.12, 1), (0.5, 1), (0.6, 0), (1, 0)])
+        up = keys(t, [(0, 0), (0.5, 0), (0.66, 1), (0.86, 1), (1, 0)])
+        pat = math.sin((t - 0.12) / 0.38 * math.tau * 2.0) * find if 0.12 <= t <= 0.5 else 0.0
+        stand(f, spine=-9 * find, chest=-6 * find, head=-18 * find + 3 * up, head_z=4 * pat)
+        left = mix(mix((9, -3, 14, 0), (24, -10, 52 + 16 * pat, -12), find), (16, 80, 98, -40), up)
+        a.arm_pose("Left", f, hang=left[0], swing=left[1], elbow=left[2], twist=left[3])
+        right = mix((13, 12, 38, 0), (24, -6, 50 - 14 * pat, 8), find)
+        a.arm_pose("Right", f, hang=right[0], swing=right[1], elbow=right[2], twist=right[3])
+
     def carried(base):
         # 扛東西：左手舉過肩、手肘往後折，手腕在左肩上面約 19 cm、往前 6 cm（諾恩的模型上量的），扶著扛在肩上的東西
         def fn(f, t):
@@ -840,6 +854,7 @@ def social_actions(a):
     a.action("shrug", 31, shrug, step=1)
     a.action("fist", 26, fist, step=1)
     a.action("wave", 36, wave, step=1)
+    a.action("fumble", 29, fumble, step=1)
     a.action("idle_carry", 72, carried(idle), step=6)
     a.action("walk_carry", 30, carried(walk), step=2)
     a.action("run_carry", 18, carried(run), step=1)

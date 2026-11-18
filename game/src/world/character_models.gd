@@ -34,6 +34,7 @@ const ANIM_MAP: Dictionary = {
 	"shrug": ["shrug"],
 	"fist": ["fist"],
 	"wave": ["wave"],
+	"fumble": ["fumble"],
 	"idle_carry": ["idle_carry"],
 	"walk_carry": ["walk_carry"],
 	"run_carry": ["run_carry"],
