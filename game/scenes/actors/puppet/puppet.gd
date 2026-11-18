@@ -15,7 +15,7 @@ extends Node3D
 ## 走路或跑步時，每隻腳落地的那一刻發一次（腳步聲照這個播）
 signal footfall
 
-const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give"]
+const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave"]
 const WALK_MIN_SPEED: float = 0.3
 ## 這個速度以上用跑的動作。諾恩平常移動 3.4 m/s 是小跑：以前用「走路」的動作加速到 1.6 倍，腿還是跟不上，
 ## 看起來在地上滑（Jacky 2026-11-14：「走路的音效跟走路速度差很多」）。
@@ -27,7 +27,14 @@ const WALK_CLIP_SPEED: float = 1.3
 const RUN_CLIP_SPEED: float = 3.2
 ## 一圈步態（0～1）裡腳落地的兩個時間點：大腿擺到最前面的那一刻
 const FOOT_CONTACTS: PackedFloat32Array = [0.25, 0.75]
-const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "reach": 1.0, "give": 1.25}
+const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "reach": 1.0, "give": 1.25,
+	# 對話的手勢（DialogueDB.ACTS；模型的動作在 social_actions）
+	"nod": 0.9, "bow": 1.4, "point": 1.3, "chest": 1.4, "shrug": 1.3, "fist": 1.1, "wave": 1.5}
+## 對話的手勢（站著才做：坐著、躺著、走著的人不做）
+const GESTURES: PackedStringArray = ["nod", "bow", "point", "chest", "shrug", "fist", "wave"]
+## 講話時頭動多少（弧度；點頭、左右轉、歪頭）與動起來／停下來多快（每秒）
+const NOD_AMP: Vector3 = Vector3(0.075, 0.05, 0.04)
+const TALK_EASE: float = 5.0
 ## 站著不動的時候可以換成的樣子（模型的循環動作；程式人偶只會坐）
 const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump"]
 ## 「釋放」的姿勢播多久。它不是 action：疊在站姿／走路／出手上面，不佔出手與閃避（放完同一幀照樣能出手）
@@ -82,6 +89,9 @@ var phase: float = 0.0
 ## 上一幀的 gait_cycle()（-1＝那時候不在走）
 var _last_cycle: float = -1.0
 var breath: float = 0.0
+## 正在講話（對話時 TalkActing 設）：頭會點、會晃。停下來的時候慢慢回到原本的樣子
+var talking: bool = false
+var _talk_w: float = 0.0
 
 ## true＝模型吃場景的光、平塗（toon 漫射）——Jacky 2026-11-13 看了兩種的圖選的（「會受環境光影響比較好」）。
 ## false＝照原檔（VRoid 範例角色是「不受光」：暗的地方人還是亮的）；只剩開發旗標 `-- --char-unlit` 會關（Game 讀）。
@@ -105,6 +115,32 @@ func _ready() -> void:
 
 func uses_model() -> bool:
 	return model != null
+
+
+## 這一刻頭動了多少（0～1）：講話時 1，講完慢慢回到 0
+func talk_weight() -> float:
+	return smoothstep(0.0, 1.0, _talk_w)
+
+
+## 講話時頭的角度（點頭、左右轉、歪頭；角色自己的座標，乘上 talk_weight 才是真的轉多少）：
+## 幾個不同快慢的波疊起來，不會一直同一個節奏
+func nod_angles() -> Vector3:
+	var t: float = breath
+	return Vector3(
+		NOD_AMP.x * (0.6 * sin(t * TAU * 2.1) + 0.4 * sin(t * TAU * 3.4 + 1.0)) - NOD_AMP.x * 0.3,
+		NOD_AMP.y * sin(t * TAU * 0.7 + 0.5),
+		NOD_AMP.z * sin(t * TAU * 1.1 + 2.0))
+
+
+## 同一個角度換到骨架的座標（模型被轉了半圈的話左右、前後反過來）
+func nod_angles_skeleton() -> Vector3:
+	var a: Vector3 = nod_angles()
+	return a if _model_back.z > 0.0 else Vector3(-a.x, a.y, -a.z)
+
+
+## 這個人現在能不能做對話的手勢：站著、沒在走、沒在做別的動作
+func can_gesture() -> bool:
+	return pose == "" and lying == "" and not sitting and current_state() == "idle"
 
 
 func _process(delta: float) -> void:
@@ -235,6 +271,7 @@ func advance(delta: float) -> void:
 		if action_time >= float(ACTION_TIME[action]):
 			action = ""
 			action_time = 0.0
+	_talk_w = move_toward(_talk_w, 1.0 if talking else 0.0, delta * TALK_EASE)
 	var release_t: float = 1.0 - release_left / RELEASE_POSE_TIME
 	release_left = maxf(release_left - delta, 0.0)
 	if model != null:
@@ -347,6 +384,13 @@ func _build_model() -> bool:
 		_model_back = Vector3.FORWARD
 	if lit_models:
 		make_lit(model)
+	var head_bone: int = CharacterModels.find_joint_bone(skeleton, "head")
+	if head_bone >= 0:
+		var nodder := TalkNod.new()
+		nodder.name = "TalkNod"
+		nodder.puppet = self
+		nodder.bone = head_bone
+		skeleton.add_child(nodder)
 	var players: Array[Node] = inst.find_children("*", "AnimationPlayer", true, false)
 	anim = players[0] as AnimationPlayer if not players.is_empty() else null
 	if anim != null:
@@ -413,7 +457,8 @@ func _pose(speed_t: float) -> void:
 	_rot("elbow_R", Vector3(0.25 + arm_amp * 0.6, 0, 0))
 	_rot("spine", Vector3(-lean, s * 0.08 * moving, 0))
 	_rot("chest", Vector3(0.02 * breathe, -s * 0.1 * moving, 0))
-	_rot("neck", Vector3(lean * 0.6, 0, 0))
+	var nod: Vector3 = nod_angles() * talk_weight()
+	_rot("neck", Vector3(lean * 0.6, 0, 0) + nod)
 	var hips: Node3D = joint("hips")
 	if hips != null:
 		hips.position.y = HIP_HEIGHT - absf(c) * 0.05 * moving + 0.006 * breathe
@@ -436,8 +481,12 @@ func _pose(speed_t: float) -> void:
 			_pose_attack(action_time / float(ACTION_TIME["attack"]))
 		"shoot":
 			_pose_shoot(action_time / float(ACTION_TIME["shoot"]))
-		"reach", "give":
-			_pose_reach(action_time / float(ACTION_TIME[action]), action == "give")
+		"reach", "give", "point", "wave", "chest", "shrug", "fist":
+			_pose_reach(action_time / float(ACTION_TIME[action]), action in ["give", "shrug"])
+		"nod", "bow":
+			var k: float = sin(PI * action_time / float(ACTION_TIME[action]))
+			_rot("spine", Vector3((-0.35 if action == "bow" else -0.05) * k, 0, 0))
+			_rot("neck", Vector3(-0.3 * k, 0, 0))
 
 
 ## 仰躺（車上的傷者）：整個人繞骨盆轉成水平、臉朝上、頭朝 +Z，胸口慢慢起伏。

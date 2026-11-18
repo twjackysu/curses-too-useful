@@ -647,7 +647,8 @@ def release_action(a, frames=9):
     a.action("release", frames, fn, step=1)
 
 def social_actions(a):
-    """公會大廳的人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、伸手摸（reach）、遞東西（give），
+    """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、伸手摸（reach）、遞東西（give），
+    對話的手勢（nod 點頭、bow 鞠躬、point 指、chest 左手按胸口、shrug 攤手、fist 握拳、wave 左手揮手），
     扛東西（idle_carry、walk_carry、run_carry：左手扶著扛在左肩上的東西，腳照平常走）。
     角度的意思跟 standard_actions 一樣：arm_pose 的 hang 離垂直往外、swing 往前擺、elbow 手肘往前彎、twist 整條手臂繞垂直軸（正＝往左前帶）。"""
     bones = a.arm.data.bones
@@ -749,6 +750,74 @@ def social_actions(a):
         a.leg_pose("Left", f, thigh=9, knee=10, foot=-2)
         a.leg_pose("Right", f, thigh=-5, knee=6, foot=4)
 
+    # 對話的手勢（DialogueDB.ACTS）：都從平常站著的樣子出發、回到平常站著的樣子（前後 0.15 秒會跟別的動作混過去）。
+    # r＝做到幾成；腳照站著的樣子
+    def stand(f, r=0.0, spine=0.0, chest=0.0, head=0.0, head_z=0.0, hips_z=0.0):
+        a.rot("Hips", f, (Z, -6.0 + hips_z))
+        a.move("Hips", f, (0, 0, -0.012))
+        a.rot("Spine", f, (X, -1.5 + spine), (Z, 4.0))
+        a.rot("Chest", f, (X, -1.0 + chest), (Z, 6.0))
+        a.rot("Head", f, (X, 3.0 + head), (Z, -4.0 + head_z))
+        a.leg_pose("Left", f, thigh=9, knee=10, foot=-2)
+        a.leg_pose("Right", f, thigh=-5, knee=6, foot=4)
+
+    def rest_arm(side, f):
+        if side == "Left":
+            a.arm_pose("Left", f, hang=9, swing=-3, elbow=14)
+        else:
+            a.arm_pose("Right", f, hang=13, swing=12, elbow=38)
+
+    def nod(f, t):
+        # 點兩下頭：第一下大、第二下小
+        r = keys(t, [(0, 0), (0.25, 1), (0.5, 0.1), (0.72, 0.55), (1, 0)])
+        stand(f, chest=-2 * r, head=-17 * r)
+        rest_arm("Left", f)
+        rest_arm("Right", f)
+
+    def bow(f, t):
+        # 鞠躬：上身往前彎、低頭，兩手收到身體前面
+        r = keys(t, [(0, 0), (0.35, 1), (0.7, 1), (1, 0)])
+        stand(f, spine=-20 * r, chest=-9 * r, head=-12 * r, hips_z=6 * r)
+        a.arm_pose("Left", f, hang=9 - 6 * r, swing=-3 + 30 * r, elbow=14 + 22 * r, twist=-28 * r)
+        a.arm_pose("Right", f, hang=13 - 10 * r, swing=12 + 18 * r, elbow=38 - 2 * r, twist=28 * r)
+
+    def point(f, t):
+        # 右手往前上方指：手臂伸直、身體跟著往右前轉一點
+        r = keys(t, [(0, 0), (0.25, 1), (0.75, 1), (1, 0)])
+        stand(f, chest=2 * r, head=2 * r, hips_z=4 * r)
+        rest_arm("Left", f)
+        a.arm_pose("Right", f, hang=13 - 3 * r, swing=12 + 76 * r, elbow=38 - 34 * r, twist=-6 * r)
+
+    def chest(f, t):
+        # 左手按在胸口（說到自己；右手常拿著武器）：手肘往前抬、前臂往內折，挺一點胸
+        r = keys(t, [(0, 0), (0.3, 1), (0.75, 1), (1, 0)])
+        stand(f, chest=3 * r, head=-3 * r)
+        a.arm_pose("Left", f, hang=9 + 10 * r, swing=-3 + 41 * r, elbow=14 + 98 * r, twist=-48 * r)
+        rest_arm("Right", f)
+
+    def shrug(f, t):
+        # 攤手：兩手手肘彎著、前臂往兩邊攤開，頭歪一邊
+        r = keys(t, [(0, 0), (0.3, 1), (0.7, 1), (1, 0)])
+        stand(f, chest=2 * r, head=4 * r, head_z=8 * r)
+        a.arm_pose("Left", f, hang=9 + 16 * r, swing=-3 + 26 * r, elbow=14 + 66 * r, twist=36 * r)
+        a.arm_pose("Right", f, hang=13 + 12 * r, swing=12 + 14 * r, elbow=38 + 42 * r, twist=-36 * r)
+
+    def fist(f, t):
+        # 握拳（「交給我」）：右手前臂舉到胸前、往下一頓
+        r = keys(t, [(0, 0), (0.3, 1), (0.45, 0.85), (0.6, 1), (0.8, 1), (1, 0)])
+        stand(f, chest=4 * r, head=3 * r)
+        rest_arm("Left", f)
+        a.arm_pose("Right", f, hang=13 + 2 * r, swing=12 + 40 * r, elbow=38 + 82 * r, twist=26 * r)
+
+    def wave(f, t):
+        # 揮手：左手（右手常拿著武器）舉到頭的旁邊，整條手臂往外左右擺三下
+        r = keys(t, [(0, 0), (0.2, 1), (0.82, 1), (1, 0)])
+        w = math.sin(t * math.tau * 3.0) * r
+        stand(f, chest=2 * r, head=3 * r, head_z=3 * r)
+        # 上臂往前上方舉、前臂往上（手在頭的旁邊、耳朵的高度；右手在諾恩的模型上量的，左右對稱）
+        a.arm_pose("Left", f, hang=9 + 34 * r + 10 * w, swing=-3 + 127 * r, elbow=14 + 46 * r)
+        rest_arm("Right", f)
+
     def carried(base):
         # 扛東西：左手舉過肩、手肘往後折，手腕在左肩上面約 19 cm、往前 6 cm（諾恩的模型上量的），扶著扛在肩上的東西
         def fn(f, t):
@@ -764,6 +833,13 @@ def social_actions(a):
     a.action("slump", 72, slump, step=6)
     a.action("reach", 24, reach, step=1)
     a.action("give", 30, give, step=1)
+    a.action("nod", 22, nod, step=1)
+    a.action("bow", 34, bow, step=1)
+    a.action("point", 31, point, step=1)
+    a.action("chest", 34, chest, step=1)
+    a.action("shrug", 31, shrug, step=1)
+    a.action("fist", 26, fist, step=1)
+    a.action("wave", 36, wave, step=1)
     a.action("idle_carry", 72, carried(idle), step=6)
     a.action("walk_carry", 30, carried(walk), step=2)
     a.action("run_carry", 18, carried(run), step=1)

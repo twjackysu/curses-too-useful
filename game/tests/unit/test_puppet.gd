@@ -10,7 +10,11 @@ func _make() -> Puppet:
 
 func test_states_follow_speed() -> void:
 	var p: Puppet = _make()
-	assert_eq(Puppet.STATES, PackedStringArray(["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give"]), "狀態名固定")
+	assert_eq(Puppet.STATES, PackedStringArray(["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give",
+		"nod", "bow", "point", "chest", "shrug", "fist", "wave"]), "狀態名固定")
+	assert_eq(Puppet.GESTURES, DialogueDB.ACTS, "對話資料寫得到的手勢都做得出來")
+	for g: String in Puppet.GESTURES:
+		assert_true(Puppet.ACTION_TIME.has(g) and CharacterModels.ANIM_MAP.has(g), "手勢 %s 有長度、有模型的動作名" % g)
 	assert_eq(p.current_state(), "idle")
 	p.set_move_speed(1.6)
 	assert_eq(p.current_state(), "walk")
