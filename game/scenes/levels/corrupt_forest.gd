@@ -138,7 +138,10 @@ func _ready() -> void:
 	if not bool(Game.session.state.get_flag(FLAG_SLIMES, false)):
 		_spawn_slimes()
 		# `--burst-on=hit`：第一次有史萊姆挨打的那一刻開始拍（看刀痕、命中的閃光）。
-		# 配 `--joined --at=0,-12 --tap=attack`：不加 `--joined` 會先跳相遇的對話，諾恩不會出手
+		# 配 `--joined --at=0,-12 --tap=attack`：不加 `--joined` 會先跳相遇的對話，諾恩不會出手。
+		# 再加 `--eagle`：一進場就吃到致盲煙霧彈（鷹眼：每一刀都是黃色的準星）
+		if burst_on == "hit" and args.has("eagle"):
+			_player.status_effects.apply_source(Sera.ASK_SOURCE)
 		if burst_on == "hit":
 			var waiting: Array[bool] = [true]
 			for s: Slime in slimes:

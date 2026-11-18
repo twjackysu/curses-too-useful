@@ -63,6 +63,15 @@ func test_only_sword_hits_leave_a_mark() -> void:
 	assert_true(mark.gold and mark.big, "金的、收尾的大小")
 	assert_true(mark.global_position.distance_to(slime.global_position + Vector3.UP * Slime.BODY_RADIUS) < 0.001, "橫過身體的中心（不是朝著出手的人的那一面：貼在一起時那一面在出手的人身上）")
 	assert_true(mark.global_position.y < 0.8, "命中點在史萊姆身上，不是飄在牠頭上（高 %.2f m；牠整隻 0.8 m）" % mark.global_position.y)
+	assert_true(slime.last_hit_fx.get_node_or_null("EagleReticle") == null, "平常砍中沒有準星")
+	# 鷹眼（致盲被反轉）：黃色的火星與閃光＋一個準星；砍在真的破綻上（跪著）是白橘的、沒有準星
+	slime.health.apply_damage(1.0, {"kind": "blunt", "weak": "eagle", "cut": Vector3(-1, -1, 0)})
+	var eagle_fx: Node3D = slime.last_hit_fx
+	assert_not_null(eagle_fx.get_node_or_null("EagleReticle"), "鷹眼：命中點有準星")
+	assert_eq((eagle_fx.get_node("Flash") as OmniLight3D).light_color, EnemyActor.EAGLE_COLOR, "閃光是黃的")
+	slime.health.apply_damage(1.0, {"kind": "blunt", "weak": "kneel", "cut": Vector3(-1, -1, 0)})
+	assert_true(slime.last_hit_fx.get_node_or_null("EagleReticle") == null, "砍在真的破綻上：沒有準星")
+	assert_true((slime.last_hit_fx.get_node("Flash") as OmniLight3D).light_color != EnemyActor.EAGLE_COLOR, "也不是黃的")
 	root.queue_free()
 	await tree.process_frame
 

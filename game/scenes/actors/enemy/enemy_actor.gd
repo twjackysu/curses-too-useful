@@ -587,6 +587,13 @@ const HIT_FX_SEC: float = 0.5
 ## 命中點那一下的亮斑（一片面向鏡頭的加法圓點，HIT_POP_SEC 秒內放大、淡掉）：小亮點太細，要有一下「啪」
 const HIT_POP_SEC: float = 0.12
 const HIT_POP_SIZE: float = 0.55
+## 鷹眼（致盲被反轉：每一刀都算砍在破綻上）砍中的樣子：火星與閃光是黃的（煙霧彈的顏色），命中點多一個準星
+## ——從 EAGLE_RETICLE_FROM 倍縮到 1 倍、EAGLE_RETICLE_SEC 秒內淡掉。跟砍在真的破綻上（跪著的敵人：白橘）分得開
+const EAGLE_COLOR: Color = Color(1.0, 0.86, 0.3)
+const EAGLE_RETICLE_SIZE: float = 0.62
+const EAGLE_RETICLE_FROM: float = 2.2
+const EAGLE_RETICLE_SEC: float = 0.32
+static var _reticle_shader: Shader
 
 ## 被打中過幾次、最後一次的那一組（測試、截圖用）
 var hit_fx_count: int = 0
@@ -621,20 +628,22 @@ func _hit_fx(info: Dictionary) -> Node3D:
 	var from: Vector3 = src.global_position if src != null and is_instance_valid(src) else global_position + forward()
 	var out: Vector3 = hit_dir(from)
 	var weak: bool = str(info.get("weak", "")) != ""
+	var eagle: bool = str(info.get("weak", "")) == "eagle"
 	# 同一刀已經砍中過別隻（出手的人由近到遠砍）：閃光與刀痕都暗一點，幾隻疊在一起才不會白成一片
 	var echo: bool = bool(info.get("echo", false))
 	var fx := Node3D.new()
 	fx.name = "HitFx"
 	fx.set_meta("weak", weak)
+	fx.set_meta("eagle", eagle)
 	var chips: CPUParticles3D = _hit_particles("Chips", 24 if weak else 16, HIT_CHIP_COLOR, out, 0.09, Vector2(1.8, 4.6))
 	fx.add_child(chips)
 	var sparks: CPUParticles3D = null
 	if weak:
-		sparks = _hit_particles("Sparks", 30, HIT_SPARK_COLOR, out, 0.085, Vector2(3.0, 7.5))
+		sparks = _hit_particles("Sparks", 30, EAGLE_COLOR if eagle else HIT_SPARK_COLOR, out, 0.085, Vector2(3.0, 7.5))
 		fx.add_child(sparks)
 	var flash := OmniLight3D.new()
 	flash.name = "Flash"
-	flash.light_color = Color(1.0, 0.86, 0.62) if weak else HIT_CHIP_COLOR
+	flash.light_color = EAGLE_COLOR if eagle else (Color(1.0, 0.86, 0.62) if weak else HIT_CHIP_COLOR)
 	flash.light_energy = HIT_FLASH_ENERGY * (1.5 if weak else 1.0) * (HIT_ECHO_FLASH if echo else 1.0)
 	flash.omni_range = HIT_FLASH_RANGE
 	flash.omni_attenuation = 1.4
@@ -655,6 +664,9 @@ func _hit_fx(info: Dictionary) -> Node3D:
 	pop.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	pop.scale = Vector3.ONE * 0.45
 	fx.add_child(pop)
+	var reticle: MeshInstance3D = _eagle_reticle() if eagle and not echo else null
+	if reticle != null:
+		fx.add_child(reticle)
 	# 連打時同名的兄弟節點：要引擎編成 HitFx2、HitFx3（不要 @Node3D@123 那種看不懂的名字）
 	(get_parent() if get_parent() != null else self).add_child(fx, true)
 	fx.global_position = hit_point(from)
@@ -677,9 +689,32 @@ func _hit_fx(info: Dictionary) -> Node3D:
 		t.tween_property(flash, "light_energy", 0.0, HIT_FLASH_SEC).set_ease(Tween.EASE_OUT)
 		t.parallel().tween_property(pop, "scale", Vector3.ONE, HIT_POP_SEC).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		t.parallel().tween_property(pop_mat, "albedo_color:a", 0.0, HIT_POP_SEC).set_ease(Tween.EASE_IN)
+		if reticle != null:
+			var rmat: ShaderMaterial = reticle.material_override as ShaderMaterial
+			t.parallel().tween_property(reticle, "scale", Vector3.ONE, EAGLE_RETICLE_SEC * 0.55).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+			t.parallel().tween_method(func(a: float) -> void: rmat.set_shader_parameter("alpha", a), 1.0, 0.0, EAGLE_RETICLE_SEC).set_ease(Tween.EASE_IN)
 		t.tween_interval(HIT_FX_SEC)
 		t.tween_callback(fx.queue_free)
 	return fx
+
+
+## 鷹眼的準星：一片面向鏡頭的四方形（shader 畫一圈＋四道短線），先放大，_hit_fx 的 tween 把它縮回 1 倍、淡掉
+func _eagle_reticle() -> MeshInstance3D:
+	if _reticle_shader == null:
+		_reticle_shader = load("res://src/world/eagle_reticle.gdshader") as Shader
+	var m := MeshInstance3D.new()
+	m.name = "EagleReticle"
+	var q := QuadMesh.new()
+	q.size = Vector2.ONE * EAGLE_RETICLE_SIZE
+	m.mesh = q
+	var mat := ShaderMaterial.new()
+	mat.shader = _reticle_shader
+	mat.set_shader_parameter("tint", EAGLE_COLOR)
+	mat.render_priority = 2
+	m.material_override = mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	m.scale = Vector3.ONE * EAGLE_RETICLE_FROM
+	return m
 
 
 ## 命中噴出來的一把小亮點：加法混色、往 out 那一側的斜上方噴、往下掉、越飛越小。建好但還沒開始噴。
