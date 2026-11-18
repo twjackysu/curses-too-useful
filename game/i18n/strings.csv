@@ -64,6 +64,7 @@ ACT_LOCK_ON,Lock On,鎖定
 ACT_INTERACT,Interact,互動
 ACT_USE_ITEM,Use item,使用道具
 ACT_ASK_SERA,Ask Sera for a vial,向席菈要一瓶藥
+ACT_SWITCH_SERA_VIAL,Switch which vial to ask for,換要哪一瓶藥
 ACT_PAUSE,Pause,暫停
 GLYPH_UNKNOWN,Unbound,未設定
 GLYPH_MOUSE_LEFT,LMB,滑鼠左鍵
@@ -195,7 +196,12 @@ BARK_SERA_MASK,"Mask, mask... okay, it is on!",面具、面具……好，戴好
 BARK_SERA_ASK,"The smoke one? O-okay, here it comes!",煙霧彈？好、好，接好了！
 BARK_SERA_RELOADING,"W-wait, I am still loading the next one!",等、等一下，還在裝下一瓶！
 BARK_SERA_READY,"Next one is loaded!",下一瓶裝好了！
-HINT_ASK_SERA,{ask_sera} Ask Sera for a blinding smoke vial,{ask_sera} 向席菈要一瓶致盲煙霧彈
+HINT_ASK_SERA,{ask_sera} Ask Sera for {vial},{ask_sera} 向席菈要一瓶{vial}
+HINT_ASK_SERA_PICK,{ask_sera} Ask Sera for {vial}   {switch_sera_vial} Switch,{ask_sera} 向席菈要一瓶{vial}　{switch_sera_vial} 換一瓶
+VIAL_BLIND_SMOKE,[Blinding Smoke],【致盲煙霧彈】
+VIAL_DOUBLE_BREW,[Double Brew],【雙重調合】
+VIAL_DEADLY_RED,[Deadly Red],【劇毒大紅水】
+BARK_SERA_ASK_RED,"The red one? S-sure... here!",紅、紅的那瓶？……好，給你！
 HINT_ASK_SERA_WAIT,{ask_sera} Sera is loading the next vial… {sec},{ask_sera} 席菈在裝下一瓶…… {sec}
 CH1_MISFIRE_LINE1,Paralyzed → Faster attacks　Defense zero → Less damage taken,麻痺 → 出手加速　防禦歸零 → 受傷減少
 CH1_MISFIRE_LINE2,"You attack 150% faster, every cut hits that much harder, and you take 80% less damage. Cut them down!",出手快 150%、每一刀也重 150%，受到的傷害少 80%。趁現在砍！

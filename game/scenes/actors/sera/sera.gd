@@ -16,6 +16,8 @@ const VIAL_SOURCE: String = "sera_paralysis_vial"
 ## 玩家按鍵向她要的那一瓶：【致盲煙霧彈】（劇本節點 3；落在諾恩身上＝鷹眼）
 const ASK_SOURCE: String = "sera_blind_smoke"
 const ASK_ACTION: String = "ask_sera"
+## 換要哪一瓶（可以要的有第二瓶的時候）
+const SWITCH_ACTION: String = "switch_sera_vial"
 const TURN_SPEED: float = 8.0
 const GRAVITY: float = 18.0
 const SNAP_DIST: float = 18.0
@@ -50,6 +52,8 @@ signal mask_changed(on: bool)
 signal asked(ok: bool)
 ## 要過一瓶之後，她把下一瓶裝好、又可以要了的那一刻
 signal reloaded
+## 玩家換了要哪一瓶（source＝現在要的那一瓶）
+signal pick_changed(source: String)
 ## 射出一瓶的那一刻（關卡接這個：第一次射某一種的時候讓她喊一句）
 signal fired(vial: SeraVial)
 ## 石化解除的那一刻
@@ -63,9 +67,15 @@ var vial_cycle: PackedStringArray = []
 var _cycle_i: int = 0
 ## 玩家按鍵向她要的是哪一瓶（營火那段話之後關卡換成多調一份麻痺的那一瓶）
 var ask_source: String = ASK_SOURCE
+## 可以要的第二瓶（關卡照劇情開：自由探索之後是【劇毒大紅水】）；空的＝只有 ask_source 那一瓶、換的按鍵沒作用
+var ask_extra: String = ""
+## 現在要哪一瓶：0＝ask_source（煙霧彈）、1＝ask_extra
+var ask_pick: int = 0
 ## 玩家可不可以按鍵向她要藥（關卡照劇情開：教學戰那一瓶拿錯的演完才開）
 var ask_enabled: bool = false
 var _asked: bool = false
+## 答應的那一瓶（按下去的那一刻決定；舉弩的時候換也不會變）
+var _asked_source: String = ""
 ## 結伴了沒（關卡照劇情旗標設）
 var joined: bool = true
 ## 還沒結伴時她想進去又不敢進去的地方（關卡設成瘴氣的位置）；沒設就站著不動
@@ -180,6 +190,8 @@ func _physics_process(delta: float) -> void:
 	_tick_special(delta)
 	if hands_full or _special_in >= 0.0:
 		return
+	if Input.is_action_just_pressed(SWITCH_ACTION):
+		switch_pick()
 	if Input.is_action_just_pressed(ASK_ACTION):
 		ask()
 	var was_aiming: bool = brain.is_aiming()
@@ -301,14 +313,30 @@ func ask() -> bool:
 	if not ask_enabled:
 		return false
 	var ok: bool = brain.request()
+	if ok:
+		_asked_source = ask_choice()
 	_asked = _asked or ok
 	asked.emit(ok)
 	return ok
 
 
-## 擊發：從弩口生一瓶藥飛向諾恩。玩家要的那一瓶射 ask_source，她自己射的是 vial_source（有 vial_cycle 就輪到下一種）。
+## 現在按鍵會要到哪一瓶
+func ask_choice() -> String:
+	return ask_extra if ask_pick == 1 and ask_extra != "" else ask_source
+
+
+## 換要另一瓶（按鍵，或測試直接叫）。只有一瓶可以要（ask_extra 是空的）或還不能要的時候不換，回傳 false。
+func switch_pick() -> bool:
+	if ask_extra == "" or not ask_enabled:
+		return false
+	ask_pick = 1 - ask_pick
+	pick_changed.emit(ask_choice())
+	return true
+
+
+## 擊發：從弩口生一瓶藥飛向諾恩。玩家要的那一瓶射按下去時選的那一瓶，她自己射的是 vial_source（有 vial_cycle 就輪到下一種）。
 func fire() -> SeraVial:
-	var vial: SeraVial = _launch(ask_source if _asked else vial_source)
+	var vial: SeraVial = _launch((_asked_source if _asked_source != "" else ask_choice()) if _asked else vial_source)
 	if not _asked and not vial_cycle.is_empty():
 		_cycle_i = (_cycle_i + 1) % vial_cycle.size()
 		vial_source = vial_cycle[_cycle_i]

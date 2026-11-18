@@ -595,6 +595,8 @@ func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 	assert_false(sera.threat_near(), "史萊姆還很遠")
 	assert_true(sera.ask_enabled)
 	assert_false(_has_digit(hud.hint_text()), "還沒要：提示寫按哪個鍵，沒有倒數：%s" % hud.hint_text())
+	assert_true(hud.hint_text().contains(tr("VIAL_BLIND_SMOKE")), "提示寫要的是哪一瓶：%s" % hud.hint_text())
+	assert_false(sera.switch_pick(), "教學戰只有煙霧彈可以要：換一瓶的按鍵沒作用")
 	Input.action_press(Sera.ASK_ACTION)
 	await tree.physics_frame
 	Input.action_release(Sera.ASK_ACTION)
@@ -1384,6 +1386,26 @@ func test_campfire_rest_tells_seras_past_and_unlocks_the_double_brew() -> void:
 		await tree.physics_frame
 	assert_true(player.status_effects.strikes_weakpoint() and player.status_effects.attack_speed() > 1.5,
 		"連攜：刀刀砍中要害＋出手加速（×%.2f）" % player.status_effects.attack_speed())
+	# 探索的時候向她要的有兩瓶：換一瓶的按鍵換成【劇毒大紅水】；射的是按下去時選的那一瓶
+	assert_eq(sera.ask_extra, ForestExplore.SERA_VIALS[1], "探索的時候也可以要紅的那一瓶")
+	sera.brain.ask_left = 0.0
+	for i: int in 3:
+		await tree.physics_frame
+	assert_true(hud.hint_text().contains(tr("VIAL_DOUBLE_BREW")) and hud.hint_text().contains("[E]"),
+		"左上寫現在要的是連攜的那一瓶、換一瓶按哪個鍵：%s" % hud.hint_text())
+	assert_true(sera.switch_pick(), "有第二瓶可以換")
+	await tree.physics_frame
+	assert_true(hud.hint_text().contains(tr("VIAL_DEADLY_RED")), "換成紅的那一瓶：%s" % hud.hint_text())
+	var before: int = sera.vials_fired
+	assert_true(sera.ask())
+	assert_true(hud.bark_keys().has("BARK_SERA_ASK_RED"), "她回的是紅的那一瓶的話")
+	assert_true(sera.switch_pick(), "舉弩的時候換回來")
+	frames = 0
+	while sera.vials_fired == before and frames < 120:
+		await tree.physics_frame
+		frames += 1
+	assert_eq(sera.last_vial.source, ForestExplore.SERA_VIALS[1], "射的還是按下去時選的那一瓶")
+	assert_eq(sera.ask_choice(), ForestExplore.DUO_SOURCE, "下一次要的是換回來的那一瓶")
 	# 再休息一次：不再講，只是休息
 	explore.campfire.use(player)
 	assert_false(bool(_game().call("is_in_dialogue")), "只講一次")

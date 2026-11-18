@@ -258,8 +258,9 @@ func _spawn_sera() -> void:
 	sera.target = _player
 	sera.position = _player.global_position + SERA_START_OFFSET
 	sera.ask_enabled = true
-	# 跟森林裡一樣：她自己輪流射兩種藥；營火聊過的話，向她要的是連攜的那一瓶
+	# 跟森林裡一樣：她自己輪流射兩種藥、向她要的有兩瓶（煙霧彈、紅的那一瓶）；營火聊過的話，煙霧彈是連攜的那一瓶
 	sera.vial_cycle = ForestExplore.SERA_VIALS
+	sera.ask_extra = ForestExplore.SERA_VIALS[1]
 	if bool(Game.session.state.get_flag(ForestExplore.FLAG_DUO, false)):
 		sera.ask_source = ForestExplore.DUO_SOURCE
 	sera.fired.connect(_on_sera_fired)

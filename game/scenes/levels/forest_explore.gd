@@ -255,10 +255,12 @@ func _on_mushroom_used(_by: PlayerController, i: int) -> void:
 
 # ---------------------------------------------------------------- 席菈
 
-## 探索開放之後她自己輪流射兩種藥；營火那段話講過，向她要的那一瓶換成連攜的
+## 探索開放之後她自己輪流射兩種藥，向她要的也多一瓶（紅的那一瓶，換的按鍵）；營火那段話講過，向她要的煙霧彈換成連攜的
 func _tick_sera(st: GameState, open: bool) -> void:
 	if open and sera.vial_cycle.is_empty() and sera.vial_source == Sera.VIAL_SOURCE:
 		sera.vial_cycle = SERA_VIALS
+	if open:
+		sera.ask_extra = SERA_VIALS[1]
 	if bool(st.get_flag(FLAG_DUO, false)):
 		sera.ask_source = DUO_SOURCE
 
