@@ -129,14 +129,20 @@ func _build_ground(level: Node3D, trees: PackedVector3Array) -> void:
 
 ## 一塊會亮符文的石頭的材質（位置、高度、半徑照那一塊算）
 func _stone(base: Vector3, height: float, radius: float, top_ring: bool) -> ShaderMaterial:
+	var mat: ShaderMaterial = stone_material(base, height, radius, top_ring)
+	stones.append(mat)
+	return mat
+
+
+## 祭壇的石頭（ruin_stone.gdshader）：base＝這塊石頭底部中心的世界座標，符文的那一圈照高度與半徑擺。森林的祭壇路口也用。
+static func stone_material(base: Vector3, height: float, radius: float, top_ring: bool, glow: float = RUNE_GLOW) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = STONE_SHADER
 	mat.set_shader_parameter("base_pos", base)
 	mat.set_shader_parameter("height", height)
 	mat.set_shader_parameter("radius", radius)
 	mat.set_shader_parameter("top_ring", 1.0 if top_ring else 0.0)
-	mat.set_shader_parameter("glow", RUNE_GLOW)
-	stones.append(mat)
+	mat.set_shader_parameter("glow", glow)
 	return mat
 
 

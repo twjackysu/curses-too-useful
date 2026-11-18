@@ -81,5 +81,6 @@ void fragment() {
 	ALBEDO = col;
 	ROUGHNESS = mix(1.0, 0.25, max(pools, wet * 0.35));
 	SPECULAR = mix(0.1, 0.6, pools);
-	EMISSION = bog_glow * pools * 0.25;
+	// 水窪自己微微發光：沼澤上蓋著一層淡紫的瘴氣也透得出綠
+	EMISSION = bog_glow * pools * 0.55;
 }

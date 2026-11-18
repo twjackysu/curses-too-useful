@@ -254,6 +254,19 @@ func test_level_builds_with_markers_miasma_slimes_and_a_clear_path() -> void:
 		if tree_node is StaticBody3D:
 			assert_true(ForestMap.tree_ok(ForestMap.flat((tree_node as Node3D).position)), "樹不擋路：%s" % str((tree_node as Node3D).position))
 	assert_true(level._no_tree_here(CorruptForest.MIASMA_POS), "瘴氣裡不種樹")
+	# 認得出來的地方：祭壇路口的斷柱與倒下的橫樑、營火旁坐的圓木
+	var ruins: Node3D = level.get_node_or_null("AltarRuins") as Node3D
+	assert_not_null(ruins, "祭壇路口有遺跡")
+	assert_true(ruins.get_node_or_null("GatePillar1") is StaticBody3D and ruins.get_node_or_null("GatePillar2") is StaticBody3D, "兩根斷柱，擋人")
+	for pillar: Node in [ruins.get_node("GatePillar1"), ruins.get_node("GatePillar2")]:
+		var at: Vector2 = ForestMap.flat((pillar as Node3D).global_position)
+		assert_true(at.y < ForestMap.ALTAR_GATE.y - 2.0 and absf(at.x) > 2.0, "斷柱在路的盡頭、夾著路（不擋在路中間）：%s" % str(at))
+	var camp: Node3D = level.get_node_or_null("CampSite") as Node3D
+	assert_not_null(camp, "營火的空地有坐的地方")
+	assert_true(camp.get_node_or_null("Log1") is StaticBody3D and camp.get_node_or_null("Log2") is StaticBody3D, "兩根圓木")
+	for log_name: String in ["Log1", "Log2"]:
+		var d: float = ForestMap.flat((camp.get_node(log_name) as Node3D).global_position).distance_to(Vector2(ForestMap.CAMP.x, ForestMap.CAMP.y))
+		assert_true(d > 1.5 and d < ForestMap.CAMP.z - 2.0, "圓木圍著火、不擋住走到火旁邊（%.1f m）" % d)
 	# 天空：星星與月亮（forest_sky.gdshader），月亮在北邊、地平線上面；霧只蓋天空的一部分
 	var env: Environment = (level.get_node("WorldEnvironment") as WorldEnvironment).environment
 	var night := env.sky.sky_material as ShaderMaterial

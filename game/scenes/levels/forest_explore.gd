@@ -53,8 +53,8 @@ const DUO_SOURCE: String = "sera_duo_smoke"
 const SERA_VIALS: PackedStringArray = ["sera_paralysis_vial", "sera_weak_vial"]
 ## 毒沼：一大片比森林口濃的瘴氣；最深處的詛咒寶箱打開中【衰弱詛咒】、拿到【不祥的裂刃】
 const SWAMP_MIASMA_RADIUS: float = 8.5
-## 範圍大，霧調淡（PoisonMist.thickness）：站在裡面還看得到人、怪與地上的泥
-const SWAMP_MIASMA_THICKNESS: float = 0.22
+## 範圍大，霧調淡（PoisonMist.thickness）：站在裡面還看得到人、怪與地上的黑泥、發綠的水（0.22 時地面整片是紫的、敵人發白）
+const SWAMP_MIASMA_THICKNESS: float = 0.12
 const CHEST_POS: Vector3 = Vector3(45.5, 0, -69.5)
 const CHEST_MODEL: String = "tripo/prop_cursed_chest"
 const CHEST_SOURCE: String = "curse_weakness"
@@ -397,15 +397,17 @@ func _build_swamp() -> void:
 	look.rotation.y = atan2(ForestMap.SWAMP.x - CHEST_POS.x, ForestMap.SWAMP.y - CHEST_POS.z) + PI
 	chest.add_child(look)
 	chest.add_child(_blocker(0.6, 0.8))
+	# 寶箱的光用病黃綠（紫的話整個融進紫霧裡，從沼澤邊看不出那裡有東西）
 	var glow := OmniLight3D.new()
 	glow.name = "Glow"
-	glow.light_color = Color(0.75, 0.35, 1.0)
-	glow.light_energy = 2.2
-	glow.omni_range = 5.0
+	glow.light_color = Color(0.85, 1.0, 0.45)
+	glow.light_energy = 2.6
+	glow.omni_range = 5.5
 	glow.shadow_enabled = false
+	glow.light_volumetric_fog_energy = 2.5
 	glow.position = Vector3(0, 1.0, 0)
 	chest.add_child(glow)
-	chest.add_child(_sparkles(Color(0.85, 0.5, 1.0)))
+	chest.add_child(_sparkles(Color(0.9, 1.0, 0.55)))
 	chest.used.connect(_on_chest_opened)
 	chest.enabled = not bool(Game.session.state.get_flag(FLAG_CHEST, false))
 	_show_chest_opened(not chest.enabled)

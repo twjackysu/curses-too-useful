@@ -65,6 +65,7 @@ func _ready() -> void:
 	_rng.seed = 20261114
 	ForestScenery.build_environment(self)
 	ForestScenery.build_ground(self, ForestScenery.build_forest(self, _rng, _no_tree_here))
+	ForestScenery.build_landmarks(self)
 	_build_miasma()
 	_spores = ForestScenery.build_spores(self)
 	_mark("MiasmaEdge", MIASMA_POS + Vector3(0, 0, MIASMA_RADIUS))

@@ -33,6 +33,15 @@ const TREE_MOSS_RADIUS: float = 4.4
 const MOSS_MASK_SIZE: int = 384
 ## 地面的網格切成幾格（每邊）：外圍的土坡靠它彎起來
 const GROUND_CELLS: int = 100
+## 祭壇路口的遺跡：路的盡頭兩根斷柱夾著路（x、z 是對路口中心的位移，y＝幾節）、倒在地上的橫樑
+const GATE_PILLARS: Array[Vector3] = [Vector3(-2.8, -3.6, 3.0), Vector3(2.8, -3.4, 2.0)]
+const GATE_DRUM_HEIGHT: float = 1.1
+const GATE_DRUM_RADIUS: float = 0.55
+const GATE_RUNE_GLOW: float = 0.35
+## 營火旁坐的圓木（x、z 對營火的位移，y＝朝向的角度）與行李（Quaternius 的小物，scripts/gen_props.sh 的 QUAT）
+const CAMP_LOGS: Array[Vector3] = [Vector3(-2.3, 0.4, 80.0), Vector3(1.0, -2.2, 160.0)]
+const CAMP_GEAR: Array[String] = ["quaternius/Bag", "quaternius/Pouch_Large", "quaternius/Bucket_Wooden_1"]
+const CAMP_GEAR_SPOTS: Array[Vector3] = [Vector3(-2.9, -1.0, 30.0), Vector3(-2.5, -1.6, 75.0), Vector3(2.4, -1.4, 10.0)]
 ## 孢子跟著玩家飄：這麼大的一塊（公尺，半邊長）
 const SPORE_BOX: Vector3 = Vector3(16.0, 1.5, 22.0)
 
@@ -343,6 +352,151 @@ static func paint_mushroom(model: Node3D) -> void:
 				mat.set_shader_parameter("detail", src.albedo_texture)
 				mat.set_shader_parameter("normal_map", src.normal_texture)
 			mi.set_surface_override_material(surface, mat)
+
+
+## 地圖上認得出來的地方：祭壇路口的斷柱與倒下的橫樑、營火旁坐的圓木與行李。只是場景（擋人的碰撞有）。
+static func build_landmarks(level: Node3D) -> void:
+	level.add_child(altar_gate_ruins())
+	level.add_child(camp_site())
+
+
+## 祭壇路口：路的盡頭兩根斷柱（左邊三節＋柱頭、右邊斷成兩節）、倒在地上斷成兩截的橫樑、幾塊碎石。
+## 石頭跟祭壇那一關同一套（AltarScenery.stone_material：苔、會亮的符文），從路上遠遠看得出「那邊是遺跡」。
+static func altar_gate_ruins() -> Node3D:
+	var root := Node3D.new()
+	root.name = "AltarRuins"
+	var center: Vector3 = ForestMap.at(ForestMap.ALTAR_GATE)
+	root.position = center
+	for spec: Vector3 in GATE_PILLARS:
+		var drums: int = int(spec.z)
+		var at := Vector3(spec.x, 0.0, spec.y)
+		var pillar := StaticBody3D.new()
+		pillar.name = "GatePillar%d" % (root.get_child_count() + 1)
+		pillar.position = at
+		var tall: float = GATE_DRUM_HEIGHT * float(drums)
+		var mat: ShaderMaterial = AltarScenery.stone_material(center + at, maxf(tall, 2.2), GATE_DRUM_RADIUS, false, GATE_RUNE_GLOW)
+		var plinth := MeshInstance3D.new()
+		var slab := BoxMesh.new()
+		slab.size = Vector3(1.5, 0.3, 1.5)
+		slab.material = mat
+		plinth.mesh = slab
+		plinth.position = Vector3(0, 0.15, 0)
+		plinth.rotation.y = 0.12 * spec.x
+		pillar.add_child(plinth)
+		for k: int in drums:
+			var drum: MeshInstance3D = AltarScenery._drum(GATE_DRUM_RADIUS - 0.02 * float(k), GATE_DRUM_HEIGHT, mat)
+			drum.position = Vector3(0.0, 0.3 + GATE_DRUM_HEIGHT * (float(k) + 0.5), 0.0)
+			drum.rotation.y = float(k) * 1.9
+			if drums < 3 and k == drums - 1:
+				drum.rotation.z = 0.09
+			pillar.add_child(drum)
+		if drums >= 3:
+			var cap := MeshInstance3D.new()
+			var block := BoxMesh.new()
+			block.size = Vector3(1.4, 0.34, 1.4)
+			block.material = mat
+			cap.mesh = block
+			cap.position = Vector3(0, 0.3 + tall + 0.17, 0)
+			pillar.add_child(cap)
+		var shape := CollisionShape3D.new()
+		var cyl := CylinderShape3D.new()
+		cyl.radius = GATE_DRUM_RADIUS + 0.15
+		cyl.height = tall + 0.3
+		shape.shape = cyl
+		shape.position = Vector3(0, cyl.height * 0.5, 0)
+		pillar.add_child(shape)
+		root.add_child(pillar)
+	# 倒下來的橫樑：斷成兩截，一截斜靠在右邊那根斷柱腳下、一截躺在路邊
+	var beam := StaticBody3D.new()
+	beam.name = "FallenLintel"
+	var beam_mat: ShaderMaterial = AltarScenery.stone_material(center + Vector3(1.6, -0.4, -5.2), 1.2, 0.5, false, GATE_RUNE_GLOW)
+	for piece: Array in [[Vector3(1.9, 0.32, -5.0), Vector3(0.0, deg_to_rad(18.0), 0.0), 2.6], [Vector3(-0.6, 0.3, -6.2), Vector3(0.0, deg_to_rad(-7.0), deg_to_rad(4.0)), 2.2]]:
+		var mi := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(float(piece[2]), 0.62, 0.8)
+		box.material = beam_mat
+		mi.mesh = box
+		mi.position = piece[0]
+		mi.rotation = piece[1]
+		beam.add_child(mi)
+		var shape := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = box.size
+		shape.shape = bs
+		shape.position = mi.position
+		shape.rotation = mi.rotation
+		beam.add_child(shape)
+	root.add_child(beam)
+	# 碎石
+	var rubble_mat: ShaderMaterial = AltarScenery.stone_material(center + Vector3(0, -0.3, -4.0), 0.8, 0.4, false, 0.0)
+	for r: Vector4 in [Vector4(-1.6, -4.4, 0.32, 0.4), Vector4(3.9, -2.4, 0.26, 1.2), Vector4(-3.8, -2.0, 0.38, 2.3), Vector4(0.9, -3.4, 0.2, 0.7), Vector4(-2.2, -5.6, 0.28, 2.9)]:
+		var mi := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(r.z * 1.6, r.z, r.z * 1.2)
+		box.material = rubble_mat
+		mi.mesh = box
+		mi.position = Vector3(r.x, r.z * 0.35, r.y)
+		mi.rotation = Vector3(r.w * 0.3, r.w, r.w * 0.2)
+		root.add_child(mi)
+	return root
+
+
+## 營火那一塊空地：兩根坐的圓木圍著火、旁邊放著行李（布袋、皮袋、木桶）。模型不在就只有圓木。
+static func camp_site() -> Node3D:
+	var root := Node3D.new()
+	root.name = "CampSite"
+	root.position = ForestMap.at(ForestMap.CAMP)
+	var bark := StandardMaterial3D.new()
+	bark.albedo_color = Color(0.3, 0.21, 0.2)
+	bark.roughness = 0.95
+	var cut := StandardMaterial3D.new()
+	cut.albedo_color = Color(0.62, 0.48, 0.36)
+	for i: int in CAMP_LOGS.size():
+		var spec: Vector3 = CAMP_LOGS[i]
+		var log_body := StaticBody3D.new()
+		log_body.name = "Log%d" % (i + 1)
+		log_body.position = Vector3(spec.x, 0.0, spec.y)
+		log_body.rotation.y = deg_to_rad(spec.z)
+		var mi := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.24
+		cyl.bottom_radius = 0.27
+		cyl.height = 1.9
+		cyl.radial_segments = 12
+		cyl.material = bark
+		mi.mesh = cyl
+		mi.rotation.z = PI * 0.5
+		mi.position = Vector3(0, 0.25, 0)
+		log_body.add_child(mi)
+		# 兩頭鋸開的截面（亮一點的木頭色）
+		for end: float in [-0.951, 0.951]:
+			var cap := MeshInstance3D.new()
+			var disc := CylinderMesh.new()
+			disc.top_radius = 0.23
+			disc.bottom_radius = 0.23
+			disc.height = 0.02
+			disc.radial_segments = 12
+			disc.material = cut
+			cap.mesh = disc
+			cap.rotation.z = PI * 0.5
+			cap.position = Vector3(end, 0.25, 0)
+			log_body.add_child(cap)
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(1.9, 0.5, 0.5)
+		shape.shape = box
+		shape.position = Vector3(0, 0.25, 0)
+		log_body.add_child(shape)
+		root.add_child(log_body)
+	for i: int in CAMP_GEAR.size():
+		var gear: Node3D = PropModels.instance(CAMP_GEAR[i])
+		if gear == null:
+			continue
+		gear.name = "Gear%d" % (i + 1)
+		gear.position = Vector3(CAMP_GEAR_SPOTS[i].x, 0.0, CAMP_GEAR_SPOTS[i].y)
+		gear.rotation.y = deg_to_rad(CAMP_GEAR_SPOTS[i].z)
+		root.add_child(gear)
+	return root
 
 
 ## 飄在林子裡的孢子：慢慢往上飄的紫色亮點，淡入淡出。只是氣氛。關卡每幀把它移到玩家那裡（粒子留在原地飄，新的在玩家周圍冒出來）。
