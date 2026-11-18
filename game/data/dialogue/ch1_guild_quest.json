@@ -5,6 +5,7 @@
     "l00": {
       "speaker": "SPK_LILITH",
       "text": "DLG_CH1_QUEST_001",
+      "emote": "sweat",
       "next": "l01"
     },
     "l01": {
@@ -15,21 +16,27 @@
     "l02": {
       "speaker": "SPK_NOEN",
       "text": "DLG_CH1_QUEST_003",
+      "emote": "question",
       "next": "l03"
     },
     "l03": {
       "speaker": "SPK_LILITH",
       "text": "DLG_CH1_QUEST_004",
+      "emote": "gloom",
       "next": "l04"
     },
     "l04": {
       "speaker": "SPK_NOEN",
       "text": "DLG_CH1_QUEST_005",
+      "act": "nod",
+      "shot": "two",
       "next": "l05"
     },
     "l05": {
       "speaker": "SPK_LILITH",
       "text": "DLG_CH1_QUEST_006",
+      "emote": "shock",
+      "act": "fist",
       "do": {
         "set": {
           "ch1.quest_taken": true

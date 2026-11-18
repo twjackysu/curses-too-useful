@@ -5,16 +5,24 @@
     "l00": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_AFTER_001",
+      "emote": "sweat",
+      "act": "bow",
+      "shot": "two",
       "next": "l01"
     },
     "l01": {
       "speaker": "SPK_NOEN",
       "text": "DLG_CH1_AFTER_002",
+      "emote": "sparkle",
+      "act": "chest",
       "next": "ask"
     },
     "ask": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_AFTER_003",
+      "emote": "sweat",
+      "act": "chest",
+      "shot": "two",
       "choices": [
         {
           "text": "DLG_CH1_AFTER_CHOICE_A",
@@ -45,6 +53,7 @@
     "a": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_AFTER_A",
+      "emote": "blush",
       "do": {
         "set": {
           "ch1.after_slimes_talked": true
@@ -54,6 +63,8 @@
     "b": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_AFTER_B",
+      "emote": "sparkle",
+      "act": "fist",
       "do": {
         "set": {
           "ch1.after_slimes_talked": true

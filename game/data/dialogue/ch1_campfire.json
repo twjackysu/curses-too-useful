@@ -5,26 +5,33 @@
     "l00": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_001",
+      "emote": "sweat",
+      "shot": "two",
       "next": "l01"
     },
     "l01": {
       "speaker": "SPK_NOEN",
       "text": "DLG_CH1_CAMP_002",
+      "act": "nod",
       "next": "l02"
     },
     "l02": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_003",
+      "emote": "gloom",
       "next": "l03"
     },
     "l03": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_004",
+      "emote": "gloom",
       "next": "ask"
     },
     "ask": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_005",
+      "emote": "sweat",
+      "shot": "two",
       "choices": [
         {
           "text": "DLG_CH1_CAMP_CHOICE_A",
@@ -55,16 +62,21 @@
     "a": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_A",
+      "emote": "blush",
       "next": "end"
     },
     "b": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_B",
+      "emote": "sparkle",
+      "act": "fist",
       "next": "end"
     },
     "end": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_CAMP_END",
+      "emote": "blush",
+      "act": "chest",
       "do": {
         "set": {
           "ch1.campfire_talked": true,

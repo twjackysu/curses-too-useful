@@ -5,16 +5,22 @@
     "l00": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_JOIN_001",
+      "emote": "sweat",
+      "act": "wave",
+      "shot": "two",
       "next": "l01"
     },
     "l01": {
       "speaker": "SPK_NOEN",
       "text": "DLG_CH1_JOIN_002",
+      "act": "point",
       "next": "l02"
     },
     "l02": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_JOIN_003",
+      "emote": "sweat",
+      "act": "fist",
       "do": {
         "set": {
           "ch1.sera_joined": true

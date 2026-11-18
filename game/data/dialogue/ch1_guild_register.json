@@ -5,16 +5,21 @@
     "l00": {
       "speaker": "SPK_LILITH",
       "text": "DLG_CH1_REG_001",
+      "emote": "sparkle",
+      "act": "bow",
+      "shot": "two",
       "next": "l01"
     },
     "l01": {
       "speaker": "SPK_NOEN",
       "text": "DLG_CH1_REG_002",
+      "act": "chest",
       "next": "l02"
     },
     "l02": {
       "speaker": "SPK_LILITH",
       "text": "DLG_CH1_REG_003",
+      "act": "point",
       "do": {
         "set": {
           "ch1.registered": true

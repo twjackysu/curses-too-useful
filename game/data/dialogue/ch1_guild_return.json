@@ -5,11 +5,14 @@
     "l00": {
       "speaker": "SPK_LEO",
       "text": "DLG_CH1_RETURN_001",
+      "act": "shrug",
       "next": "l01"
     },
     "l01": {
       "speaker": "SPK_ADVENTURER",
       "text": "DLG_CH1_RETURN_002",
+      "emote": "shock",
+      "act": "point",
       "next": "l02"
     },
     "l02": {
@@ -20,16 +23,21 @@
     "l03": {
       "speaker": "SPK_LILITH",
       "text": "DLG_CH1_RETURN_004",
+      "emote": "shock",
       "next": "l04"
     },
     "l04": {
       "speaker": "SPK_LEO",
       "text": "DLG_CH1_RETURN_005",
+      "emote": "gloom",
       "next": "ask"
     },
     "ask": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_RETURN_006",
+      "emote": "blush",
+      "act": "chest",
+      "shot": "two",
       "choices": [
         {
           "text": "DLG_CH1_RETURN_CHOICE_A",
@@ -60,16 +68,22 @@
     "a": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_RETURN_A",
+      "emote": "blush",
+      "act": "nod",
       "next": "l07"
     },
     "b": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_RETURN_B",
+      "emote": "blush",
+      "act": "fist",
       "next": "l07"
     },
     "l07": {
       "speaker": "SPK_LILITH",
       "text": "DLG_CH1_RETURN_007",
+      "emote": "sparkle",
+      "act": "bow",
       "next": "l08"
     },
     "l08": {

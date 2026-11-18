@@ -5,21 +5,28 @@
     "l00": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_GATE_001",
+      "emote": "shock",
+      "act": "point",
       "next": "l01"
     },
     "l01": {
       "speaker": "SPK_NOEN",
       "text": "DLG_CH1_GATE_002",
+      "emote": "sparkle",
+      "act": "chest",
       "next": "l02"
     },
     "l02": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_GATE_003",
+      "emote": "question",
       "next": "l03"
     },
     "l03": {
       "speaker": "SPK_NOEN",
-      "text": "DLG_CH1_GATE_004"
+      "text": "DLG_CH1_GATE_004",
+      "act": "point",
+      "shot": "two"
     }
   }
 }

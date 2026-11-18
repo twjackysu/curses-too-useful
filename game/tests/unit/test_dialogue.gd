@@ -131,3 +131,24 @@ func test_text_if_validation() -> void:
 	var ok: PackedStringArray = DialogueDB.validate_dialogue({"id": "x", "start": "a", "nodes": {
 		"a": {"speaker": "S", "text": "T", "text_if": [{"if": {"flag": "f"}, "text": "U"}]}}})
 	assert_eq(ok, PackedStringArray())
+
+
+## 演出的欄位（漫符、手勢、鏡位）只能寫認得的值；遊戲裡的對話每一段都至少有一句有演出
+func test_staging_fields() -> void:
+	var ok: PackedStringArray = DialogueDB.validate_dialogue({"id": "x", "start": "a", "nodes": {
+		"a": {"speaker": "S", "text": "T", "emote": "sweat", "act": "bow", "shot": "two"}}})
+	assert_eq(ok, PackedStringArray())
+	for field: String in ["emote", "act", "shot"]:
+		var bad: PackedStringArray = DialogueDB.validate_dialogue({"id": "x", "start": "a", "nodes": {
+			"a": {"speaker": "S", "text": "T", field: "dance"}}})
+		assert_true(bad.size() == 1 and bad[0].contains(field), "%s 寫錯要報錯" % field)
+	var db := DialogueDB.load_default()
+	assert_eq(db.errors, PackedStringArray())
+	for id: String in db.dialogues:
+		var staged: int = 0
+		var nodes: Dictionary = (db.dialogues[id] as Dictionary)["nodes"] as Dictionary
+		for nid: String in nodes:
+			var n: Dictionary = nodes[nid] as Dictionary
+			if n.has("emote") or n.has("act"):
+				staged += 1
+		assert_true(staged > 0, "%s 至少有一句有漫符或手勢" % id)
