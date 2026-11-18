@@ -144,3 +144,10 @@ func test_poison_mist_node_builds_layers_and_fades_out() -> void:
 
 
 ## 生命條（CombatHud）平常只在戰鬥中出現；身上有狀態時也要出現——不然中毒回血看不到生命往上爬
+
+
+## 小範圍的霧（噴發口）霧盤邊緣的亮色照比例淡下去：只剩一圈細細的亮粉紅會像一個圈圈
+func test_small_mist_discs_have_a_fainter_rim() -> void:
+	assert_eq(PoisonMist.edge_strength(8.5), PoisonMist.EDGE_STRENGTH, "大的霧（毒沼）照舊")
+	assert_true(PoisonMist.edge_strength(2.3) < PoisonMist.EDGE_STRENGTH * 0.5, "噴發口那麼小的淡一半以上（%.2f）" % PoisonMist.edge_strength(2.3))
+	assert_true(PoisonMist.edge_strength(0.5) > 0.0, "再小也還有一點邊")

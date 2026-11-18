@@ -29,7 +29,8 @@ const PICKUP_RING_RADIUS: float = 1.1
 const VENT_SPOTS: Array[Vector3] = [Vector3(-3.6, 0, -31.5), Vector3(4.6, 0, -40.5), Vector3(18.5, 0, -39.0), Vector3(5.5, 0, -55.5)]
 const VENT_RADIUS: float = 2.3
 const VENT_MODEL: String = "tripo/prop_poison_vent"
-const VENT_SCALE: float = 2.2
+## 底座只留模型最下面那一截（gen_props 的 --keep-below）：放大到從霧盤裡露出來（2.2 倍時幾乎整個被霧蓋住）
+const VENT_SCALE: float = 3.2
 const WEB_SPOTS: Array[Vector3] = [Vector3(-0.9, -28.5, 90.0), Vector3(11.5, -39.8, 20.0), Vector3(-1.0, -51.0, 90.0), Vector3(31.5, -53.5, 130.0)]
 const BUSH_SPOTS: Array[Vector3] = [Vector3(5.6, 0, -33.0), Vector3(-20.0, 0, -50.0), Vector3(27.0, 0, -37.5), Vector3(-4.5, 0, -55.0)]
 const FRUIT_SOURCE: String = "rotten_fruit"

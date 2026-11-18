@@ -17,6 +17,10 @@ const VOLUME_EMISSION: Color = Color(0.124, 0.06, 0.17)
 const VOLUME_SHADER: Shader = preload("res://src/world/poison_mist_volume.gdshader")
 ## 霧盤的面片比毒霧的範圍大一圈：邊緣用雜訊往裡外咬的時候不會被面片切出硬邊。
 const DISC_OVERSCAN: float = 1.14
+## 霧盤邊緣那一圈亮色多亮（shader 的 edge_strength）：小範圍的霧（噴發口）照比例淡下去——邊的寬度跟半徑成比例，
+## 小的霧盤只剩一圈細細的亮粉紅，看起來像一個圈圈而不是一團霧
+const EDGE_STRENGTH: float = 0.6
+const EDGE_FULL_RADIUS: float = 5.0
 
 var zone: MistZone
 var radius: float = 3.0
@@ -46,6 +50,7 @@ func _ready() -> void:
 		mat.shader = SHADER
 		mat.set_shader_parameter("layer", float(i) / float(LAYERS - 1))
 		mat.set_shader_parameter("overscan", DISC_OVERSCAN)
+		mat.set_shader_parameter("edge_strength", edge_strength(radius))
 		_mats.append(mat)
 		var mi := MeshInstance3D.new()
 		mi.name = "MistLayer%d" % i
@@ -90,3 +95,8 @@ func _physics_process(delta: float) -> void:
 
 func contains(pos: Vector3) -> bool:
 	return zone != null and zone.contains(pos)
+
+
+## 這麼大的霧，霧盤邊緣的亮色多亮（純函式）
+static func edge_strength(r: float) -> float:
+	return EDGE_STRENGTH * clampf(r / EDGE_FULL_RADIUS, 0.35, 1.0)
