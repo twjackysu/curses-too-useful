@@ -3,7 +3,7 @@ extends TestCase
 
 
 func test_looped_copy_does_not_touch_shared_stream() -> void:
-	for n: String in ["frost_wind", "market_murmur", "title_theme", "part_end_theme"]:
+	for n: String in ["market_murmur", "title_theme", "part_end_theme"]:
 		var s: AudioStreamWAV = Ambience.looped(n)
 		assert_not_null(s, "有 %s" % n)
 		if s == null:
@@ -20,21 +20,21 @@ func test_looped_copy_does_not_touch_shared_stream() -> void:
 func test_play_flat_and_positional() -> void:
 	var root := Node3D.new()
 	tree.root.add_child(root)
-	var flat: AudioStreamPlayer = Ambience.play(root, "frost_wind", -13.0)
+	var flat: AudioStreamPlayer = Ambience.play(root, "market_murmur", -13.0)
 	assert_not_null(flat)
 	if flat != null:
 		assert_eq(str(flat.name), "Ambience")
 		assert_eq(flat.bus, &"SFX", "跟著「音效」音量")
 		assert_eq(flat.volume_db, -13.0)
-		assert_eq(Ambience.sfx_of(flat), "frost_wind")
+		assert_eq(Ambience.sfx_of(flat), "market_murmur")
 		assert_true(flat.playing, "一放進場景就開始播")
-	var fire: AudioStreamPlayer3D = Ambience.play_at(root, "frost_wind", Vector3(1, 0.4, -2), -6.0, 3.0, "WindGap")
+	var fire: AudioStreamPlayer3D = Ambience.play_at(root, "market_murmur", Vector3(1, 0.4, -2), -6.0, 3.0, "WindGap")
 	assert_not_null(fire)
 	if fire != null:
 		assert_eq(fire.bus, &"SFX")
 		assert_eq(fire.global_position, Vector3(1, 0.4, -2), "從指定的位置發出來")
 		assert_eq(fire.unit_size, 3.0)
-		assert_eq(Ambience.sfx_of(fire), "frost_wind")
+		assert_eq(Ambience.sfx_of(fire), "market_murmur")
 	assert_eq(Ambience.play(root, "no_such_sound", 0.0), null, "缺檔不建播放器")
 	assert_eq(Ambience.sfx_of(null), "")
 	assert_eq(Ambience.sfx_of(root), "", "不是 Ambience 建的節點")

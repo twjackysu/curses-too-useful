@@ -165,8 +165,8 @@ func _ready() -> void:
 
 
 func footstep_surface(p: Vector3) -> String:
-	# 石板上是石頭的腳步聲；外圍跟森林一樣（借用雪的）
-	return "stone" if Vector2(p.x, p.z).length() < AltarScenery.PLAZA_RADIUS else "snow"
+	# 石板上是石頭的腳步聲；外圍跟森林一樣是土
+	return "stone" if Vector2(p.x, p.z).length() < AltarScenery.PLAZA_RADIUS else "dirt"
 
 
 func stage() -> String:

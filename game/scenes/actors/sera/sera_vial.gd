@@ -83,11 +83,11 @@ func _physics_process(delta: float) -> void:
 		_land()
 
 
-## 砸在諾恩身上：上狀態、玻璃聲、一團藥水往外濺；煙霧彈再加一圈貼地的煙。
+## 砸在諾恩身上：上狀態、玻璃碎掉潑開的聲音、一團藥水往外濺；煙霧彈再加一圈貼地的煙。
 func _land() -> void:
 	landed = true
 	target.status_effects.apply_source(source)
-	Sfx.play_at(target, "glass_clink", global_position, -2.0)
+	Sfx.play_at(target, "vial_shatter", global_position, -3.0)
 	_bottle.visible = false
 	_trail.emitting = false
 	var splash: CPUParticles3D = _particles(40, 0.5, 3.2, 0.14)

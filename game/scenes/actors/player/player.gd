@@ -412,7 +412,7 @@ func _physics_process(delta: float) -> void:
 
 
 ## 腳步聲：人偶的腳落地的那一刻（Puppet.footfall）踏一步，所以聲音跟畫面上的腳對得上；聲音照關卡的地面
-## （關卡的 `footstep_surface(位置)`：雪、石、木；沒有就當石頭）。閃避、挨打、騰空時不踏。
+## （關卡的 `footstep_surface(位置)`：土、石、木；沒有就當石頭）。閃避、挨打、騰空時不踏。
 const STEP_DB: float = -13.0
 const SPRINT_STEP_DB: float = -9.0
 const STEP_SURFACES: PackedStringArray = Footsteps.SURFACES

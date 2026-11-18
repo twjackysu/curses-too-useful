@@ -145,7 +145,7 @@ func _ready() -> void:
 
 
 func footstep_surface(_p: Vector3) -> String:
-	return "snow"  # 現有的三種裡最像落葉軟土的；之後加「土」的腳步聲
+	return "dirt"
 
 
 func _physics_process(delta: float) -> void:

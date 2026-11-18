@@ -1,9 +1,9 @@
 class_name Footsteps
 extends RefCounted
-## 腳步聲：踏一步（stomp）就照腳下的地面播一聲（關卡的 `footstep_surface(位置)`：雪、石、木；沒有就當石頭）。
+## 腳步聲：踏一步（stomp）就照腳下的地面播一聲（關卡的 `footstep_surface(位置)`：土、石、木；沒有就當石頭）。
 ## 什麼時候踏由人偶決定——腳落地的那一刻（Puppet.footfall），所以聲音跟畫面上的腳對得上。
 
-const SURFACES: PackedStringArray = ["snow", "stone", "wood"]
+const SURFACES: PackedStringArray = ["dirt", "stone", "wood"]
 
 var step_db: float
 var sprint_db: float

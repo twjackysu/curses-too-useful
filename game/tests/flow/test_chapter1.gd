@@ -559,6 +559,8 @@ func test_sera_starts_in_view_and_follows_behind_noen() -> void:
 	var dist: float = sera.global_position.distance_to(player.global_position)
 	assert_true(dist > 3.5 and dist <= CombatTuning.num("sera.follow_far"), "跟上來停在後面 4～6 m（%.1f）" % dist)
 	assert_true(sera.global_position.z > player.global_position.z, "在諾恩後面")
+	assert_true(sera.footsteps.count > 0 and sera.footsteps.last_surface == "dirt", "走過來有腳步聲、是森林的土（%d 步，%s）" % [sera.footsteps.count, sera.footsteps.last_surface])
+	assert_eq(player.footstep_surface(), "dirt", "諾恩踩在森林裡也是土")
 	assert_eq(sera.vials_fired, 0, "附近沒有敵人不射")
 	sera.global_position = player.global_position + Vector3(0, 0, 30)
 	for i: int in 3:
@@ -596,12 +598,14 @@ func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 		await tree.physics_frame
 		frames += 1
 	assert_eq(sera.vials_fired, 1, "沒有敵人也射")
+	assert_true(_playing(sera, "vial_shot"), "射出去是弓弦的聲音（不是閃避的風聲）")
 	var vial: SeraVial = sera.last_vial
 	assert_eq(vial.source, Sera.ASK_SOURCE, "射的是致盲煙霧彈")
 	assert_true(vial.liquid != SeraVial.LIQUID, "顏色跟平常的紫色藥瓶不一樣")
 	for i: int in int(CombatTuning.num("sera.vial_flight") * 60.0) + 6:
 		await tree.physics_frame
 	assert_true(vial.landed and player.status_effects.strikes_weakpoint(), "落在諾恩身上：致盲 → 鷹眼")
+	assert_true(_playing(player, "vial_shatter"), "砸在身上是藥瓶碎掉的聲音")
 	assert_true(vial.smoky and vial.smoke != null, "煙霧彈砸開有煙")
 	if vial.smoke != null:
 		assert_true(absf(vial.smoke.global_position.y - player.global_position.y - SeraVial.SMOKE_Y) < 0.05
@@ -623,6 +627,7 @@ func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 	for i: int in 6:
 		await tree.physics_frame
 	assert_true(hud.bark_keys().has("BARK_SERA_READY"), "裝好了她喊一聲")
+	assert_true(_playing(sera, "vial_load"), "裝好的那一刻喀一聲")
 	assert_false(_has_digit(hud.hint_text()), "提示改回按哪個鍵：%s" % hud.hint_text())
 	assert_true(sera.ask(), "可以再要一瓶")
 
@@ -1662,3 +1667,13 @@ func _finish_dialogue(pick: int) -> void:
 		else:
 			runner.advance()
 	assert_false(bool(_game().call("is_in_dialogue")), "對話按得完")
+
+
+## node 底下（一層）有沒有正在播 sfx_name 的聲音
+func _playing(node: Node, sfx_name: String) -> bool:
+	var want: AudioStream = Sfx.stream(sfx_name)
+	for c: Node in node.get_children():
+		var p := c as AudioStreamPlayer3D
+		if p != null and p.stream == want:
+			return true
+	return false

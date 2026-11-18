@@ -5,13 +5,13 @@
 - （bell() 沒有自己的音檔了：鐘聲的合成只給 title_theme／part_end_theme 裡遠遠的鐘用。非諧波泛音、各自指數衰減。）
 - blunt / blunt_weak：鐘錘鈍擊。低頻下滑正弦＋短噪音；打中弱點多一層高頻「喀」。
 - claw：爪擊。高通噪音快掃。
-- slash：席菈斷劍。帶通噪音＋金屬泛音。
+- slash：揮劍。帶通噪音＋金屬泛音。
+- vial_shot／vial_shatter／vial_load：席菈的手弩射出一瓶（弓弦＋彈簧＋木頭）、藥瓶在諾恩身上碎掉（小小的玻璃＋潑開的藥水）、下一瓶裝好（兩下機關聲＋一點玻璃）。
 - whoosh：閃避風聲。慢起慢落的低通噪音。
 - ui_tick：選單切換值。很小的一聲高音鐘「叮」（兩個非諧波泛音快速衰減）＋極短的木頭「喀」。
 - market_murmur：地下市場的底噪（可循環 12 秒，D-230）。六個遠處的人聲（鋸齒波聲帶＋一個共振峰，音節一個個起伏、句子之間停頓）疊成聽不出內容的嗡嗡聲＋岩洞的空氣聲＋兩道短回音＋偶爾很小的碰撞聲。
-- frost_wind：霜橋鎮冬夜的風雪（可循環 12 秒，D-180）。低低的風（低通噪音）＋一道慢慢滑動的帶通「呼——」（中心 260～720 Hz）＋細細的雪粒沙沙聲（高通噪音），三層都跟著陣風的包絡起伏；頭尾交叉淡化。
 - title_theme：標題畫面的配樂（可循環 24 秒，D-181；走 Music 匯流排）。低低的長音鋪底（D2＋A2＋D3，每個音兩個微微走音的聲部互相拍頻，12 秒一次慢慢漲落）＋霧裡遠遠的鐘聲動機：D4、C4、A3 往下走三聲，十二秒後 D4、C4 再往下落到 F3（第二次停在更低的地方）；鐘聲低通、帶三個越來越悶的回音。
-- step_snow／step_stone／step_wood：諾恩的腳步聲（D-182，各約 0.12～0.16 秒；播放時音高與音量隨機一點）。雪：一串很密的細小「喀嚓」（壓實雪粒，顆粒噪音、低通）＋很輕的悶聲；石：很短的低頻「咚」＋一點砂粒的高頻擦聲；木：中空的「叩」（180／420 Hz 兩個共鳴快速衰減）＋一點木板的吱。
+- step_dirt／step_stone／step_wood：腳步聲（D-182，各約 0.12～0.16 秒；播放時音高與音量隨機一點）。土（森林）：軟軟的低頻悶聲＋幾片乾葉子碎掉的細響；石：很短的低頻「咚」＋一點砂粒的高頻擦聲；木：中空的「叩」（180／420 Hz 兩個共鳴快速衰減）＋一點木板的吱。
 - part_end_theme：第一部前半的收尾配樂（可循環 28 秒，D-188；結尾卡＋感謝試玩頁，走 Music 匯流排）。回答標題的鐘聲：標題是往下走（D4、C4、A3，第二次落到 F3），這裡從 F3 往上走（F3、A3、C4），第二次 A3、C4 停在 D4＝標題開頭那個音。底下是 F2＋C3 的長音（比收束的小三度暖一點）＋很小聲的 A3，14 秒一次漲落；鐘聲帶三個越來越悶的回音。
 - step_heavy：送葬者的拖步（D-187，約 0.65 秒；不分地面）。很重的低頻「咚」（72 → 38 Hz 往下掉、加一個高八度的泛音讓小喇叭也聽得到）＋落地的悶悶碎響＋拖在後面的鐵鏈擦地（高通噪音、斷斷續續地抖）＋三下鐵環碰撞。
 授權：程序生成，無外部素材（docs/CREDITS.md）。
@@ -194,34 +194,6 @@ def _loop_crossfade(out, n, fade):
     return looped
 
 
-def _gust(t):
-    """陣風包絡（0.25～1.0）：幾個不成整數比的慢正弦疊起來，偶爾一陣比較強。"""
-    g = 0.5 + 0.22 * math.sin(2 * math.pi * 0.071 * t) + 0.16 * math.sin(2 * math.pi * 0.173 * t + 1.7) \
-        + 0.1 * math.sin(2 * math.pi * 0.29 * t + 0.4)
-    return max(0.25, min(1.0, g))
-
-
-def frost_wind(seconds=12.0, seed=59):
-    """霜橋鎮的風雪：低風底＋滑動的帶通呼嘯＋雪粒沙沙，跟著陣風起伏。"""
-    rng = random.Random(seed)
-    n = int(seconds * RATE)
-    fade = int(1.2 * RATE)
-    total = n + fade
-    white = noise(total, rng)
-    bed = onepole_lp(onepole_lp(hp(white, 50), 420), 520)
-    howl = svf_band(onepole_lp(white, 2000),
-                    lambda i: 490 + 230 * math.sin(2 * math.pi * 0.053 * i / RATE + 0.6)
-                    + 60 * math.sin(2 * math.pi * 0.21 * i / RATE), 0.16)
-    hiss = hp(hp(noise(total, rng), 3200), 3200)
-    out = []
-    for i in range(total):
-        g = _gust(i / RATE)
-        out.append(bed[i] * (0.5 + 0.7 * g) * 1.6 + howl[i] * (g ** 2) * 0.55 + hiss[i] * (g ** 3) * 0.05)
-    looped = _loop_crossfade(out, n, fade)
-    peak = max(abs(v) for v in looped) or 1.0
-    return [v / peak * 0.7 for v in looped]
-
-
 def _far_voice(total, rng, f0, formant_lo, formant_hi):
     """遠處一個人在講話（聽不出內容）：鋸齒波的聲帶（每個音節音高滑一點）→ 一個共振峰（每個音節換一個母音）。
     音節一個個起伏，一句 3～9 個音節，句子之間停下來換氣、聽別人講。"""
@@ -398,23 +370,28 @@ def _step_env(n, attack, decay):
     return [min(1.0, (i / RATE) / attack) * math.exp(-(i / RATE) * decay) for i in range(n)]
 
 
-def step_snow(seed=71):
-    """踩在雪上：很密的細小顆粒「喀嚓」＋很輕的悶聲。"""
+def step_dirt(seed=75):
+    """踩在森林的土上：軟軟的低頻悶聲＋幾片乾葉子碎掉的細響（比雪稀、比較乾）。"""
     rng = random.Random(seed)
-    n = int(0.16 * RATE)
-    out = [0.0] * n
-    # 顆粒：0.13 秒內 60 個極短的噪音點，越後面越稀
-    for _ in range(60):
-        at = int(abs(rng.gauss(0.03, 0.035)) * RATE)
-        amp = rng.uniform(0.2, 1.0)
-        for j in range(int(0.0025 * RATE)):
+    n = int(0.15 * RATE)
+    leaves = [0.0] * n
+    for _ in range(14):
+        at = int(abs(rng.gauss(0.025, 0.03)) * RATE)
+        amp = rng.uniform(0.3, 1.0)
+        width = int(rng.uniform(0.002, 0.006) * RATE)
+        for j in range(width):
             if at + j >= n:
                 break
-            out[at + j] += amp * rng.uniform(-1, 1) * (1 - j / (0.0025 * RATE))
-    out = onepole_lp(hp(out, 900), 4200)
-    thud = onepole_lp(noise(n, rng), 160)
-    env = _step_env(n, 0.006, 32)
-    return [(out[i] * 0.9 + thud[i] * 3.0) * env[i] for i in range(n)]
+            leaves[at + j] += amp * rng.uniform(-1, 1) * (1 - j / width)
+    leaves = onepole_lp(hp(leaves, 1400), 6000)
+    thud = onepole_lp(noise(n, rng), 220)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        body = math.sin(2 * math.pi * (95 - 120 * t) * t) * math.exp(-t * 45)
+        out.append(body * 0.5 + thud[i] * 2.6 + leaves[i] * 0.55)
+    env = _step_env(n, 0.004, 22)
+    return [out[i] * env[i] for i in range(n)]
 
 
 def step_stone(seed=73):
@@ -486,27 +463,19 @@ def step_heavy(seed=89):
     return out
 
 
-def poison_hiss(seconds=0.9, seed=107, charge=False):
-    """守衛噴毒（D-207）：高頻的嘶聲（滑動的帶通噪音＋一點更高的氣聲）。
-    charge＝前兆：慢慢變大、音高往上（跟舉手揮擊的「呼」分得出來）；否則是噴出去那一下：快起慢落＋一聲很短的低頻「噗」。"""
+def poison_hiss(seconds=0.9, seed=107):
+    """噴毒（D-207）：高頻的嘶聲（滑動的帶通噪音＋一點更高的氣聲），快起慢落＋一聲很短的低頻「噗」。"""
     rng = random.Random(seed)
     n = int(seconds * RATE)
     src = noise(n, rng)
-    if charge:
-        band = svf_band(src, lambda i: 2600.0 + 2800.0 * (i / n), 0.35)
-    else:
-        band = svf_band(src, lambda i: 5200.0 - 1800.0 * (i / n), 0.45)
+    band = svf_band(src, lambda i: 5200.0 - 1800.0 * (i / n), 0.45)
     air = hp(src, 6000)
     out = []
     for i in range(n):
         t = i / n
-        if charge:
-            env = t ** 1.6 * (1.0 if t < 0.93 else (1.0 - t) / 0.07)
-        else:
-            env = min(t / 0.04, 1.0) * math.exp(-t * 4.2)
+        env = min(t / 0.04, 1.0) * math.exp(-t * 4.2)
         s = (band[i] * 0.9 + air[i] * 0.25) * env
-        if not charge:
-            s += 0.5 * math.sin(2 * math.pi * 95 * i / RATE) * math.exp(-t * 18)
+        s += 0.5 * math.sin(2 * math.pi * 95 * i / RATE) * math.exp(-t * 18)
         out.append(s)
     return out
 
@@ -625,6 +594,85 @@ def reversal_shatter(seconds=1.25, seed=157):
     return out
 
 
+def vial_shot(seconds=0.42, seed=167):
+    """席菈的手弩射出一瓶藥：弓弦放開的「繃」（撥弦：低音很快往下掉、帶泛音）＋彈簧推桿「啵嗯」一下＋木頭弩身的一聲「喀」，
+    後面拖一點點藥瓶飛走的風聲。跟諾恩的揮劍（帶金屬的長風聲）分得開。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        f = 150.0 + 140.0 * math.exp(-t * 55)
+        phase += 2 * math.pi * f / RATE
+        string = (math.sin(phase) + 0.45 * math.sin(phase * 2.0) + 0.2 * math.sin(phase * 3.0)) * math.exp(-t * 24)
+        spring = math.sin(2 * math.pi * (620 + 260 * math.sin(2 * math.pi * 38 * t)) * t) * math.exp(-t * 34) * 0.18
+        out[i] = string * 0.75 + spring
+    clack = onepole_lp(hp(noise(int(0.012 * RATE), rng), 1800), 7000)
+    for i, v in enumerate(clack):
+        out[i] += 0.9 * v * (1 - i / len(clack))
+    air = swish(seconds - 0.04, 500, 2600, seed + 1, rise=0.25)
+    for i, v in enumerate(air):
+        out[i + int(0.04 * RATE)] += 0.35 * v
+    for i in range(int(0.0015 * RATE)):
+        out[i] *= i / (0.0015 * RATE)
+    return out
+
+
+def vial_shatter(seconds=0.55, seed=173):
+    """藥瓶砸在諾恩身上碎掉：一聲小小的玻璃「啵」（爆開）＋五六片碎玻璃的「叮」＋藥水潑開的濕聲（低通的雜訊、有幾個咕嘟）。
+    比反轉的碎裂聲小、短、沒有鐘——它在前面，0.3 秒後反轉的碎裂聲才來。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    pop = hp(noise(int(0.03 * RATE), rng), 2200)
+    for i, v in enumerate(pop):
+        out[i] += 0.8 * v * math.exp(-i / RATE * 120)
+    for k in range(6):
+        start = int(rng.uniform(0.0, 0.08) * RATE)
+        f = rng.uniform(3000.0, 6200.0)
+        gain = 0.32 * (1.0 - k / 9.0)
+        for j in range(int(0.12 * RATE)):
+            if start + j >= n:
+                break
+            t = j / RATE
+            out[start + j] += gain * math.exp(-t * 70) * (math.sin(2 * math.pi * f * t) + 0.4 * math.sin(2 * math.pi * f * 2.41 * t))
+    splash = onepole_lp(hp(noise(n, rng), 250), 1500)
+    for i in range(n):
+        t = i / RATE
+        env = min(1.0, t / 0.01) * math.exp(-t * 9)
+        out[i] += 0.9 * splash[i] * env
+    for at, f in [(0.06, 420.0), (0.13, 520.0), (0.21, 380.0)]:
+        start = int(at * RATE)
+        for j in range(int(0.05 * RATE)):
+            if start + j >= n:
+                break
+            t = j / RATE
+            # 咕嘟：往上滑的短正弦（氣泡）
+            out[start + j] += 0.22 * math.sin(2 * math.pi * (f + 2400 * t) * t) * math.sin(math.pi * j / (0.05 * RATE))
+    return out
+
+
+def vial_load(seconds=0.3, seed=179):
+    """席菈把下一瓶裝好：試管卡進槽裡的「喀、喀嚓」（兩下乾的機關聲，第二下比較響）＋玻璃輕輕「叮」一下。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    for at, gain, body in [(0.0, 0.55, 760.0), (0.085, 1.0, 610.0)]:
+        start = int(at * RATE)
+        click = onepole_lp(hp(noise(int(0.006 * RATE), rng), 2500), 8000)
+        for j, v in enumerate(click):
+            out[start + j] += gain * v * (1 - j / len(click))
+        for j in range(int(0.05 * RATE)):
+            t = j / RATE
+            out[start + j] += gain * 0.3 * math.sin(2 * math.pi * body * t) * math.exp(-t * 90)
+    start = int(0.12 * RATE)
+    for j in range(n - start):
+        t = j / RATE
+        out[start + j] += 0.12 * math.exp(-t * 30) * (math.sin(2 * math.pi * 3720 * t) + 0.5 * math.sin(2 * math.pi * 8630 * t))
+    return out
+
+
 def crystal_alarm(seconds=2.4, seed=163):
     """適性測試水晶的警報（公會大廳，劇本節點 1）：刺耳的兩個音來回跳（每 0.16 秒換一次），帶玻璃的泛音，
     一開始最大聲、後面慢慢小下去——「測到不該有的結果」的聲音，跟戰鬥裡的每一種聲音都不像。"""
@@ -656,15 +704,13 @@ def main():
         write("rubble_scrape", scrape()),
         write("iron_clang", clang()),
         write("ui_tick", ui_tick()),
-        write("frost_wind", frost_wind()),
         write("market_murmur", market_murmur()),
         write("title_theme", title_theme()),
         write("part_end_theme", part_end_theme()),
-        write("step_snow", step_snow()),
+        write("step_dirt", step_dirt()),
         write("step_stone", step_stone()),
         write("step_wood", step_wood()),
         write("step_heavy", step_heavy()),
-        write("poison_charge", poison_hiss(1.1, seed=107, charge=True)),
         write("poison_hiss", poison_hiss(0.9, seed=109)),
         write("glass_clink", glass_clink()),
         write("interrupt", interrupt_crack()),
@@ -673,6 +719,9 @@ def main():
         write("curse_sting", curse_sting()),
         write("reversal_shatter", reversal_shatter()),
         write("crystal_alarm", crystal_alarm()),
+        write("vial_shot", vial_shot()),
+        write("vial_shatter", vial_shatter()),
+        write("vial_load", vial_load()),
     ]
     for p in made:
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

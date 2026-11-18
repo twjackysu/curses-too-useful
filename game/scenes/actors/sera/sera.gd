@@ -32,6 +32,9 @@ const NOTICE_DIST: float = 9.0
 ## 猶豫時轉身的速度（比平常慢：看得出她轉過去、又回頭）；還沒轉到這個程度（面向與要走的方向的內積）先不邁步
 const HESITATE_TURN_SPEED: float = 5.0
 const HESITATE_FACING: float = 0.6
+## 腳步聲（比諾恩小聲：她在後面，聽得到但不搶）
+const STEP_DB: float = -18.0
+const RUN_STEP_DB: float = -15.0
 ## 被石化時蓋在身上的灰、掉下來的碎屑的顏色
 const STONE_COLOR: Color = Color(0.56, 0.57, 0.62)
 
@@ -84,6 +87,7 @@ var target: PlayerController
 var vials_fired: int = 0
 var last_vial: SeraVial
 var _puppet: Puppet
+var footsteps: Footsteps = Footsteps.new(STEP_DB, RUN_STEP_DB)
 var _crossbow: Node3D
 ## 手弩收在右腰上（公會大廳：不打架的地方）；false＝拿在右手
 var holstered: bool = false:
@@ -106,6 +110,9 @@ func _ready() -> void:
 	_puppet.name = "Puppet"
 	_puppet.character_id = "sheila"
 	add_child(_puppet)
+	_puppet.footfall.connect(func() -> void:
+		if is_on_floor():
+			footsteps.stomp(self, _puppet.move_speed >= Puppet.RUN_MIN_SPEED))
 	ContactShadow.attach(self, 0.5, 0.5)
 	_build_crossbow()
 	_build_mask()
@@ -168,6 +175,7 @@ func _physics_process(delta: float) -> void:
 	elif brain.is_aiming() and not was_aiming:
 		_puppet.play_action("shoot")
 	if was_loading and brain.ask_left <= 0.0:
+		Sfx.play_at(self, "vial_load", global_position + Vector3.UP * 1.1, -6.0, 0.04)
 		reloaded.emit()
 
 
@@ -299,7 +307,7 @@ func _launch(source: String) -> SeraVial:
 	vials_fired += 1
 	var from: Vector3 = _crossbow.global_position if _crossbow != null else global_position + Vector3.UP * 1.2
 	last_vial = SeraVial.launch(get_parent(), from, target, source)
-	Sfx.play_at(self, "whoosh", from, -6.0)
+	Sfx.play_at(self, "vial_shot", from, -5.0)
 	fired.emit(last_vial)
 	return last_vial
 
