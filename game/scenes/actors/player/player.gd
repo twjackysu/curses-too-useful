@@ -113,6 +113,9 @@ var _trail_i: int = 0
 var _trailing: bool = false
 ## 出手動作的哪一段有劍光（動作時間比例）：拉開到頂（0.16）之後 → 砍到位（0.35）→ 順勢帶過去
 const TRAIL_WINDOW: Vector2 = Vector2(0.17, 0.56)
+## 每一下劍光從哪裡開始（連段的第幾下）：第二下拉開之後劍尖在左肩上面往前送了 0.08 秒才開始往右掃——
+## 那一段在畫面上幾乎不動，十幾段疊在同一個地方，左邊多一小塊比較厚、比較亮的劍光，所以晚一點才開始記
+const TRAIL_STARTS: Array[float] = [0.17, 0.25, 0.17]
 ## 劍砍中的聲音：平常的一刀／收尾那一刀與砍在破綻上（gen_sfx.py 的 cut_hit／cut_heavy）。最後一次響的是哪一聲（測試用）
 const HIT_SFX: String = "cut_hit"
 const HIT_SFX_HEAVY: String = "cut_heavy"
@@ -1119,11 +1122,12 @@ func _blade_now() -> PackedVector3Array:
 	return PackedVector3Array([xf.origin, xf * _blade_tip])
 
 
-## 劍光與揮劍的聲音：動作走到揮的那一段（TRAIL_WINDOW）開始記劍的位置、響一聲，過了、或動作被打斷就放手讓劍光淡掉。
+## 劍光與揮劍的聲音：動作走到揮的那一段（`trail_window()`）開始記劍的位置、響一聲，過了、或動作被打斷就放手讓劍光淡掉。
 ## 身上有反轉中的狀態是金的，不然是鏽色；收尾的那一刀最大。
 func _update_trail() -> void:
 	var t: float = _puppet.action_time / float(Puppet.ACTION_TIME["attack"]) if _puppet.action == "attack" else -1.0
-	var swinging: bool = not _trails.is_empty() and t >= TRAIL_WINDOW.x and t < TRAIL_WINDOW.y
+	var window: Vector2 = trail_window(combo_step)
+	var swinging: bool = not _trails.is_empty() and t >= window.x and t < window.y
 	if swinging and not _trailing:
 		_trail_i = (_trail_i + 1) % _trails.size()
 		_trails[_trail_i].begin(has_reversed_status(), is_finisher())
@@ -1134,6 +1138,11 @@ func _update_trail() -> void:
 	elif _trailing and not swinging:
 		_trails[_trail_i].stop()
 	_trailing = swinging
+
+
+## 連段第 step 下的劍光從動作的哪裡畫到哪裡（動作時間比例）
+static func trail_window(step: int) -> Vector2:
+	return Vector2(TRAIL_STARTS[clampi(step, 0, TRAIL_STARTS.size() - 1)], TRAIL_WINDOW.y)
 
 
 ## 現在這一刀（或剛揮完的那一刀）的劍光；空手時是 null

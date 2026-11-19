@@ -124,8 +124,9 @@ func test_swing_draws_a_trail_rust_then_gold_and_bigger_on_the_finisher() -> voi
 	await tree.process_frame
 
 
-## 三下連段從背後（玩家的鏡頭）看：第一、三下是劈在身體右邊的直劈；第二下拉開時劍收在左肩那一邊（以前直直豎在胸前，像敬禮），
-## 再從左到右橫掃一整道。量的是劍尖在身體座標裡的位置（x＝右、y＝上）。只有模型在的時候量——程式人偶三下是同一個姿勢。
+## 三下連段從背後（玩家的鏡頭）看：第一下是劈在身體右邊的直劈；第二下拉開時劍收在左肩那一邊（以前直直豎在胸前，像敬禮），
+## 再從左到右橫掃一整道；第三下（收尾）從頭的右上方斜劈到左腳前面（以前也是右邊的直劈，跟第一下同一個形狀、只是大一號）。
+## 量的是劍尖在身體座標裡的位置（x＝右、y＝上）。只有模型在的時候量——程式人偶三下是同一個姿勢。
 func test_second_swing_sweeps_from_the_left_shoulder_across_to_the_right() -> void:
 	var root := Node3D.new()
 	tree.root.add_child(root)
@@ -144,24 +145,34 @@ func test_second_swing_sweeps_from_the_left_shoulder_across_to_the_right() -> vo
 	var right: Array[float] = []
 	var tall: Array[float] = []      # 劍尖上下走了多少
 	var wind_blade := Vector3.ZERO   # 第二下拉開到底（開始揮的那一刻）劍身的方向：手 → 劍尖
+	var firsts: Array[Vector3] = []  # 每一下劍光的第一個與最後一個取樣
+	var lasts: Array[Vector3] = []
 	for swing: int in 3:
 		player.start_attack()
 		var lo := Vector3.INF
 		var hi := -Vector3.INF
+		var first := Vector3.INF
+		var last := Vector3.ZERO
 		for i: int in 120:
 			await tree.process_frame
 			if player.puppet().action != "attack":
 				break
 			var t: float = player.puppet().action_time / float(Puppet.ACTION_TIME["attack"])
-			if t < PlayerController.TRAIL_WINDOW.x or t >= PlayerController.TRAIL_WINDOW.y:
+			var window: Vector2 = PlayerController.trail_window(swing)
+			if t < window.x or t >= window.y:
 				continue
 			var inv: Transform3D = body.global_transform.affine_inverse()
 			var xf: Transform3D = player.puppet().joint_now("hand_R") * weapon.transform
 			var tip: Vector3 = inv * (xf * tip_at)
 			if swing == 1 and lo == Vector3.INF:
 				wind_blade = (tip - inv * xf.origin).normalized()
+			if first == Vector3.INF:
+				first = tip
+			last = tip
 			lo = lo.min(tip)
 			hi = hi.max(tip)
+		firsts.append(first)
+		lasts.append(last)
 		left.append(lo.x)
 		right.append(hi.x)
 		tall.append(hi.y - lo.y)
@@ -170,9 +181,12 @@ func test_second_swing_sweeps_from_the_left_shoulder_across_to_the_right() -> vo
 	assert_true(wind_blade.x < -0.5 and wind_blade.z > -0.5, "第二下拉開：劍朝左（左肩那一邊），不是豎在胸前也不是指著前面（%s）" % wind_blade)
 	assert_true(left[1] < -0.4 and right[1] > 1.0, "第二下：劍尖從身體左邊掃到右邊（%.2f → %.2f m）" % [left[1], right[1]])
 	assert_true(right[1] - left[1] > tall[1] * 1.5, "第二下是橫的（寬 %.2f、高 %.2f m）" % [right[1] - left[1], tall[1]])
-	for i: int in [0, 2]:
-		assert_true(left[i] > 0.0, "第 %d 下整道劈在身體右邊：劈到正前方會被諾恩自己的背擋住（最左 %.2f m）" % [i + 1, left[i]])
-		assert_true(tall[i] > (right[i] - left[i]) * 1.4, "第 %d 下是直的（高 %.2f、寬 %.2f m）" % [i + 1, tall[i], right[i] - left[i]])
+	assert_true(left[0] > 0.0, "第一下整道劈在身體右邊：劈到正前方會被諾恩自己的背擋住（最左 %.2f m）" % left[0])
+	assert_true(tall[0] > (right[0] - left[0]) * 1.4, "第一下是直的（高 %.2f、寬 %.2f m）" % [tall[0], right[0] - left[0]])
+	assert_true(firsts[1].distance_to(lasts[1]) > 1.0 and absf(firsts[1].x - lasts[1].x) > 1.0, "第二下的劍光一開始就在往右掃（%s → %s）" % [firsts[1], lasts[1]])
+	assert_true(firsts[2].y > 1.6 and lasts[2].y < 0.4, "收尾從頭上劈到腳前（%s → %s）" % [firsts[2], lasts[2]])
+	assert_true(right[2] > 0.5 and lasts[2].x < -0.2, "收尾是斜的：從右上劈到左下（最右 %.2f、最後 %.2f m）" % [right[2], lasts[2].x])
+	assert_true(tall[2] > tall[0], "收尾比第一下長（%.2f 對 %.2f m）" % [tall[2], tall[0]])
 	root.queue_free()
 	await tree.process_frame
 
@@ -227,7 +241,7 @@ func test_wind_up_reaches_behind_the_shoulder_before_the_swing() -> void:
 			if player.puppet().action != "attack":
 				break
 			var t: float = player.puppet().action_time / float(Puppet.ACTION_TIME["attack"])
-			if t < PlayerController.TRAIL_WINDOW.x:
+			if t < PlayerController.trail_window(swing).x and t < PlayerController.TRAIL_WINDOW.x:
 				top = body.global_transform.affine_inverse() * (player.puppet().joint_now("hand_R") * weapon.transform * tip_at)
 		assert_true(top.z > -0.2, "第 %d 下拉開到頂：劍尖在肩膀後面（%s）" % [swing + 1, top])
 		for i: int in 10:
