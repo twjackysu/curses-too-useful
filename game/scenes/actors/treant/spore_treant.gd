@@ -85,7 +85,7 @@ func _update_look() -> void:
 		EnemyBrain.State.TELEGRAPH:
 			if not _swung and brain.telegraph_sec - brain.time_in_state <= SWING_LEAD:
 				_swung = true
-				_puppet.attack_variant = 2
+				_puppet.attack_variant = Puppet.SLAM_VARIANT
 				_puppet.play_action("attack")
 		EnemyBrain.State.STRIKE, EnemyBrain.State.RECOVER:
 			lean = LEAN_SLAM if brain.state == EnemyBrain.State.STRIKE or brain.time_in_state < 0.4 else 0.0

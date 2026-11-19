@@ -83,9 +83,11 @@ var action: String = ""
 var action_time: float = 0.0
 ## 出手動作播多快（1＝原速）。只影響 "attack"；麻痺被反轉時玩家把它調快
 var attack_speed: float = 1.0
-## 連段的第幾下（0、1、2）：模型有 attack2／attack3 那兩段動作就播（橫掃、收尾的重劈），沒有就都播第一下。
+## 連段的第幾下（0、1、2）：模型有 attack2／attack3 那兩段動作就播（橫掃、收尾的斜劈），沒有就都播第一下。
 ## 程式人偶三下都是同一個姿勢。出手的人在 play_action("attack") 之前寫。
 var attack_variant: int = 0
+## 怪物的正劈下砸（`heavy_slam`：魔像的震地與舉著的拳頭、樹人的下砸）；諾恩的三下是 0～2
+const SLAM_VARIANT: int = 3
 ## 「釋放」的姿勢還剩幾秒（0＝沒有在播）
 var release_left: float = 0.0
 ## 一次性動作停在第幾秒（< 0＝沒有停；hold_action）

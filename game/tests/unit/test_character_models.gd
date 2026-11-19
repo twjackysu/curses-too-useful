@@ -296,3 +296,34 @@ func test_built_models_face_forward_in_every_clip() -> void:
 			assert_true(worst < -0.2, "%s 的 %s：臉沒有轉到背後（z 最大 %.2f）" % [id, clip, worst])
 		p.queue_free()
 		await tree.process_frame
+
+
+## 怪物的下砸（魔像的震地與舉著的拳頭、樹人的下砸）播自己的正劈 `heavy_slam`，不跟著諾恩的收尾（11/19 改成斜劈）走；
+## 模型沒有這一段就退回收尾那一段。
+func test_monster_slam_plays_its_own_straight_smash() -> void:
+	var p: Puppet = _puppet(_fake_model(["idle", "run", "light_attack_01", "light_attack_03", "heavy_slam"]))
+	p.attack_variant = 2
+	p.play_action("attack")
+	p.advance(0.016)
+	assert_eq(p.model_animation, "light_attack_03", "諾恩的第三下")
+	p.advance(1.0)
+	p.attack_variant = Puppet.SLAM_VARIANT
+	p.play_action("attack")
+	p.advance(0.016)
+	assert_eq(p.model_animation, "heavy_slam", "怪物的下砸")
+	p.queue_free()
+	var old: Puppet = _puppet(_fake_model(["idle", "run", "light_attack_01", "light_attack_03"]))
+	old.attack_variant = Puppet.SLAM_VARIANT
+	old.play_action("attack")
+	old.advance(0.016)
+	assert_eq(old.model_animation, "light_attack_03", "沒有 heavy_slam 的模型：退回收尾那一段")
+	old.queue_free()
+	for id: String in ["plague_golem", "spore_treant"]:
+		var scene: PackedScene = CharacterModels.scene_for(id)
+		if scene == null:
+			continue
+		var m: Puppet = _puppet(scene)
+		if m.anim != null:
+			assert_true(m.anim.has_animation("heavy_slam") or CharacterModels.find_animation(m.anim, "attack4") == "heavy_slam", "%s 有正劈的下砸" % id)
+		m.queue_free()
+	await tree.process_frame

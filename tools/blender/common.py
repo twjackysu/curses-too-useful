@@ -919,7 +919,7 @@ class Animator:
 
 
 def standard_actions(a):
-    """idle、walk、run、light_attack_01～03（右手拿劍的三下連段）、shoot（右手拿武器的站姿）。"""
+    """idle、walk、run、light_attack_01～03（右手拿劍的三下連段）、heavy_slam（怪物的正劈下砸）、shoot（右手拿武器的站姿）。"""
 
     def idle(f, t):
         b = math.sin(t * math.tau)
@@ -1000,6 +1000,13 @@ def standard_actions(a):
         {"twist": 14, "lean": 30, "r": (0, 44, 4), "l": (38, -48, 50)},
         {"twist": 40, "lean": 34, "r": (-30, 24, 6), "l": (38, -50, 50)}, 1.7)
 
+    # 怪物的下砸（魔像的震地、睡著時舉著的拳頭，樹人的下砸）：整個人往後拉滿，踏一大步正正地重劈到底。
+    # 這是 11/19 以前諾恩收尾的那一刀；收尾改成斜劈之後怪物還是用正劈（衝擊波在正前方）
+    heavy_slam = swing(
+        {"twist": 34, "lean": -14, "r": (40, 172, 105), "l": (40, 60, 30)},
+        {"twist": -38, "lean": 30, "r": (22, 34, 4), "l": (38, -48, 50)},
+        {"twist": -42, "lean": 34, "r": (20, 20, 6), "l": (38, -50, 50)}, 1.7)
+
     # 扛東西的走路、跑步（social_actions）是同一套腳步加上舉起來的左手
     a.base_fns = {"idle": idle, "walk": gait(27, 48, 20, 3, 0.012, 18, 34), "run": gait(42, 78, 38, 11, 0.03, 70, 62)}
     a.action("idle", 72, idle, step=6)
@@ -1025,6 +1032,7 @@ def standard_actions(a):
     a.action("light_attack_01", 16, attack_1, step=1)
     a.action("light_attack_02", 16, attack_2, step=1)
     a.action("light_attack_03", 16, attack_3, step=1)
+    a.action("heavy_slam", 16, heavy_slam, step=1)
     a.action("shoot", 22, shoot, step=1)
 
 

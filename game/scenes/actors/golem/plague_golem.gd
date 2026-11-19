@@ -321,7 +321,7 @@ func _update_look() -> void:
 	if not awake:
 		# 舉著拳頭等在那裡（劇本：雷歐等人絕望地看著魔像舉起巨拳）
 		if _puppet.action == "":
-			_puppet.attack_variant = 2
+			_puppet.attack_variant = Puppet.SLAM_VARIANT
 			_puppet.hold_action("attack", LOOM_AT)
 		return
 	_puppet.set_move_speed(Vector2(velocity.x, velocity.z).length())
@@ -333,7 +333,7 @@ func _update_look() -> void:
 		EnemyBrain.State.TELEGRAPH:
 			if not _swung and brain.telegraph_sec - brain.time_in_state <= SWING_LEAD:
 				_swung = true
-				_puppet.attack_variant = 2 if brain.move_id == "slam" else 0
+				_puppet.attack_variant = Puppet.SLAM_VARIANT if brain.move_id == "slam" else 0
 				_puppet.play_action("attack")
 		EnemyBrain.State.STRIKE, EnemyBrain.State.RECOVER:
 			lean = LEAN_SLAM if brain.state == EnemyBrain.State.STRIKE or brain.time_in_state < 0.4 else 0.0

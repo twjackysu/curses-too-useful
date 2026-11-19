@@ -17,6 +17,7 @@ const ANIM_MAP: Dictionary = {
 	"attack": ["light_attack_01"],
 	"attack2": ["light_attack_02"],
 	"attack3": ["light_attack_03"],
+	"attack4": ["heavy_slam", "light_attack_03"],
 	"release": ["release"],
 	"shoot": ["shoot"],
 	# 公會大廳的人（tools/blender/common.py 的 social_actions；怪物沒有）：站著以外的樣子（Puppet.pose）、一次性的手勢、扛東西（Puppet.carry）
