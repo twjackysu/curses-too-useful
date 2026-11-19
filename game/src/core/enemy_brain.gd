@@ -7,8 +7,8 @@ extends RefCounted
 ## 每招有自己的距離（min_range～range）、前兆、出招、破綻時間（魔像：重拳／震地）。
 ## 連段：某招有 "chain": "<下一招 id>" 時，出招結束直接進下一招的前兆（不經破綻）。現在沒有招式用，留給之後的頭目。
 
-## FLINCH＝被諾恩打中往後仰的那一下。加在最後面：前面幾個的數值不變。
-enum State { IDLE, CHASE, TELEGRAPH, STRIKE, RECOVER, STAGGERED, DEAD, FLINCH }
+## FLINCH＝被諾恩打中往後仰的那一下；RETURN＝追得離家太遠、走回家（D-303）。加在最後面：前面幾個的數值不變。
+enum State { IDLE, CHASE, TELEGRAPH, STRIKE, RECOVER, STAGGERED, DEAD, FLINCH, RETURN }
 
 ## 跪下的那一刻（失衡滿了、撞牆）：角色節點播「膝蓋落地」的重音。已經跪著再被逼跪不算。
 signal knelt
@@ -19,7 +19,12 @@ signal flinched(interrupted: bool)
 ## 進入硬撐的那一刻（後仰滿 brace_after 次的那一下）：角色節點整個人變紅、播警告音。
 signal braced
 
-const STATE_NAMES: PackedStringArray = ["idle", "chase", "telegraph", "strike", "recover", "staggered", "dead", "flinch"]
+## 走回到家了（角色節點把生命補滿）
+signal returned
+
+const STATE_NAMES: PackedStringArray = ["idle", "chase", "telegraph", "strike", "recover", "staggered", "dead", "flinch", "return"]
+## 走回家：離家多近算到了（公尺）
+const HOME_REACHED: float = 1.0
 
 var state: State = State.IDLE
 var time_in_state: float = 0.0
@@ -54,6 +59,10 @@ var flinch_push: float = 0.4
 var interrupts: int = 0
 ## 這一幀可不可以開始擺前兆（角色節點每幀設：同時只有幾個人可以對同一個目標出手）
 var may_attack: bool = true
+## 追人時離家（生出來的地方）超過這麼遠就放棄、走回家（公尺；0＝不回家：教學戰的史萊姆、Boss）。數值在 <prefix>.leash
+var leash: float = 0.0
+## 現在離家多遠（角色節點每幀設）
+var home_dist: float = 0.0
 var _pattern_i: int = 0
 var _telegraph_mult: float = 1.0
 var _base_telegraph: float = 0.8
@@ -75,6 +84,7 @@ func configure(prefix: String, difficulty: String = "standard") -> EnemyBrain:
 	recover_stagger_mult = CombatTuning.num(prefix + ".recover_stagger_mult", 2.0)
 	# 後仰的幾個數字只有會後仰的敵人才寫；沒寫＝不後仰，不要印「沒有這個 key」
 	flinch_sec = CombatTuning.num(prefix + ".flinch", 0.0) if _has(prefix + ".flinch") else 0.0
+	leash = CombatTuning.num(prefix + ".leash", 0.0) if _has(prefix + ".leash") else 0.0
 	brace_after = int(CombatTuning.num(prefix + ".brace_after", 2.0)) if _has(prefix + ".brace_after") else 2
 	flinch_push = CombatTuning.num(prefix + ".flinch_push", 0.4) if _has(prefix + ".flinch_push") else 0.4
 	brace_armor = CombatTuning.num(prefix + ".brace_armor", 1.0) if _has(prefix + ".brace_armor") else 1.0
@@ -110,8 +120,16 @@ func tick(delta: float, dist_to_target: float) -> bool:
 			if dist_to_target <= aggro_range:
 				_enter(State.CHASE)
 		State.CHASE:
-			if may_attack and _choose_move(dist_to_target):
+			if leash > 0.0 and home_dist > leash:
+				_enter(State.RETURN)
+			elif may_attack and _choose_move(dist_to_target):
 				_enter(State.TELEGRAPH)
+		State.RETURN:
+			if home_dist <= HOME_REACHED:
+				stagger = 0.0
+				interrupts = 0
+				_enter(State.IDLE)
+				returned.emit()
 		State.TELEGRAPH:
 			if time_in_state >= telegraph_sec:
 				_enter(State.STRIKE)
@@ -270,8 +288,9 @@ func kill() -> void:
 	_enter(State.DEAD)
 
 
+## 在走路（追人、走回家）
 func is_moving() -> bool:
-	return state == State.CHASE
+	return state == State.CHASE or state == State.RETURN
 
 
 func _enter(s: State) -> void:

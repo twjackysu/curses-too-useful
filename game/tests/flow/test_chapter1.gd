@@ -1058,6 +1058,26 @@ func test_enemy_brain_cycle_with_slime_numbers() -> void:
 	assert_eq(far.state, EnemyBrain.State.DEAD)
 
 
+func test_forest_enemies_give_up_and_walk_home_when_dragged_too_far() -> void:
+	assert_eq(EnemyBrain.new().configure("poison_slime", "standard").leash, 0.0, "教學戰的史萊姆不回家")
+	var b: EnemyBrain = EnemyBrain.new().configure("miasma_wolf", "standard")
+	assert_true(b.leash > 15.0, "森林的狼離家太遠會回去（%.0f m）" % b.leash)
+	var back: Array[bool] = []
+	b.returned.connect(func() -> void: back.append(true))
+	b.tick(1.0 / 60.0, 10.0)
+	assert_eq(b.state, EnemyBrain.State.CHASE)
+	b.home_dist = b.leash + 0.5
+	b.tick(1.0 / 60.0, 3.0)
+	assert_eq(b.state, EnemyBrain.State.RETURN, "追得離家太遠：放棄、走回家")
+	assert_true(b.is_moving())
+	for i: int in 30:
+		assert_false(b.tick(1.0 / 60.0, 1.0), "走回家的路上就算人在旁邊也不出手")
+	b.home_dist = 0.5
+	b.tick(1.0 / 60.0, 30.0)
+	assert_eq(b.state, EnemyBrain.State.IDLE, "到家了：站著等")
+	assert_eq(back.size(), 1)
+
+
 ## 自由探索（劇本時段 B）：戰後那段話講完才開放——之前往北走不過去、毒蕈不能採。
 ## 採一朵：右上角的清單加一、那一朵不見、存檔；讀檔之後採過的不會再長出來。採滿五朵：慘叫聲、目標換成往祭壇；走到祭壇路口這一段結束。
 func test_gathering_five_mushrooms_brings_the_scream_and_the_road_to_the_altar() -> void:
@@ -1324,6 +1344,21 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 	assert_eq(wolf.last_notice_sfx, MiasmaWolf.GROWL_SFX, "發現諾恩時低吼一聲")
 	assert_eq(wolf.fall_sfx(), MiasmaWolf.YELP_SFX, "倒下時哀叫")
 	assert_true(player.status_effects.attack_speed() > 1.0, "對諾恩是出手加速")
+	# 把牠拖得離家太遠：放棄、走回家、生命補滿（不會被拖到營火）
+	wolf.health.hp = wolf.health.max_hp * 0.5
+	var away: Vector3 = (wolf.global_position - wolf.home).normalized() if wolf.global_position.distance_to(wolf.home) > 0.5 else Vector3.BACK
+	player.global_position = wolf.home + away * (wolf.brain.leash + 12.0) + Vector3(0, 0.05, 0)
+	var gave_up: bool = false
+	for i: int in 1200:
+		await tree.physics_frame
+		player.health.hp = player.health.max_hp
+		gave_up = gave_up or wolf.brain.state == EnemyBrain.State.RETURN
+		if gave_up and wolf.brain.state == EnemyBrain.State.IDLE:
+			break
+	assert_true(gave_up, "追得離家太遠就放棄")
+	assert_eq(wolf.brain.state, EnemyBrain.State.IDLE, "走回家站著")
+	assert_true(wolf.brain.home_dist <= EnemyBrain.HOME_REACHED + 0.3, "回到家（離家 %.1f m）" % wolf.brain.home_dist)
+	assert_eq(wolf.health.hp, wolf.health.max_hp, "生命補滿")
 	wolf.health.apply_damage(9999.0, {"source": player})
 	if wolf.pose() != null:
 		await tree.create_timer(MiasmaWolf.DEAD_POSE_SEC + 0.15).timeout

@@ -30,6 +30,14 @@ var interrupt_count: int = 0
 var last_notice_sfx: String = ""
 var last_fall_sfx: String = ""
 var _noticed: bool = false
+## 家（第一次跑物理的那一刻站的地方）：追得離家超過 brain.leash 就走回來、補滿生命（D-303）
+var home: Vector3 = Vector3.INF
+## 走回家的時候走多快（平常的幾倍）
+const RETURN_SPEED: float = 1.25
+## 走回家的路上撞到樹（正面撞上就停住、滑不開）：沿著撞到的那一面繞這麼久
+const DETOUR_SEC: float = 0.6
+var _detour: Vector3 = Vector3.ZERO
+var _detour_left: float = 0.0
 
 var _player: PlayerController
 var _body: Node3D
@@ -56,6 +64,7 @@ func _ready() -> void:
 	brain.knelt.connect(_on_kneel)
 	brain.flinched.connect(_on_flinched)
 	brain.braced.connect(_on_braced)
+	brain.returned.connect(_on_returned)
 	attack_slots = int(CombatTuning.num("crowd.attack_slots", 0.0))
 	attack_gap = CombatTuning.num("crowd.attack_gap", 0.0)
 	wait_ring = CombatTuning.num("crowd.wait_ring", 0.0)
@@ -74,6 +83,9 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		_player = _first_player()
+	if not home.is_finite():
+		home = global_position
+	brain.home_dist = Vector2(global_position.x - home.x, global_position.z - home.z).length()
 	target = _nearest_heartbeat()
 	var dist: float = 999.0
 	if target != null:
@@ -99,7 +111,15 @@ func _physics_process(delta: float) -> void:
 		if last_notice_sfx != "":
 			Sfx.play_at(self, last_notice_sfx, global_position + Vector3.UP * _head_height(), -3.0, 0.08, 8.0)
 	var horizontal := Vector3.ZERO
-	if brain.state == EnemyBrain.State.STRIKE:
+	if brain.state == EnemyBrain.State.RETURN:
+		var back := Vector3(home.x - global_position.x, 0.0, home.z - global_position.z).normalized()
+		_detour_left -= delta
+		if _detour_left > 0.0:
+			back = (_detour * 0.85 + back * 0.15).normalized()
+		if back.length() > 0.01:
+			_body.rotation.y = lerp_angle(_body.rotation.y, atan2(-back.x, -back.z), clampf(TURN_SPEED * delta, 0.0, 1.0))
+		horizontal = forward() * move_speed * RETURN_SPEED
+	elif brain.state == EnemyBrain.State.STRIKE:
 		horizontal = _on_strike_tick(delta)
 	elif brain.state == EnemyBrain.State.FLINCH:
 		horizontal = _push_dir * _push_speed
@@ -116,6 +136,13 @@ func _physics_process(delta: float) -> void:
 	velocity.z = horizontal.z
 	velocity.y = 0.0 if is_on_floor() else velocity.y - 18.0 * delta
 	move_and_slide()
+	if brain.state == EnemyBrain.State.RETURN and _detour_left <= 0.0 and get_slide_collision_count() > 0 \
+			and Vector2(velocity.x, velocity.z).length() < move_speed * 0.3:
+		# 正面撞上東西停住了：沿著那一面往旁邊繞一下
+		var n: Vector3 = get_slide_collision(0).get_normal()
+		var side: Vector3 = Vector3(n.x, 0.0, n.z).cross(Vector3.UP).normalized()
+		_detour = side if side.length() > 0.1 else forward().cross(Vector3.UP)
+		_detour_left = DETOUR_SEC
 	_after_move()
 	_update_look()
 	_update_brace(delta)
@@ -270,6 +297,12 @@ func _on_flinched(interrupted: bool) -> void:
 	_push_speed = brain.flinch_push / maxf(brain.flinch_sec, 0.01)
 	if _push_dir == Vector3.ZERO:
 		_push_dir = -forward()
+
+
+## 走回到家：生命補滿、下次發現人再叫一聲
+func _on_returned() -> void:
+	health.heal(health.max_hp - health.hp)
+	_noticed = false
 
 
 func _first_player() -> PlayerController:

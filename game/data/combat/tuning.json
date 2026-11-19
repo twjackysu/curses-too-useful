@@ -54,7 +54,7 @@
     "flinch_push": 0.4
   },
   "mold_slime": {
-    "_doc": "黴菌史萊姆（森林深處）：比劇毒史萊姆慢、耐打；撞到上一層衰弱。",
+    "_doc": "黴菌史萊姆（森林深處）：比劇毒史萊姆慢、耐打；撞到上一層衰弱。leash＝追得離家超過幾公尺就走回去、補滿生命。",
     "max_hp": 90,
     "bump_damage": 12,
     "stagger_max": 50,
@@ -65,11 +65,12 @@
     "recover_stagger_mult": 2.0,
     "stagger_kneel": 1.5,
     "move_speed": 1.7,
+    "leash": 18,
     "flinch": 0.25,
     "flinch_push": 0.4
   },
   "miasma_wolf": {
-    "_doc": "瘴氣狼：跑得快，壓低身體之後撲上來咬一口（流血）。lunge_speed＝撲的速度。",
+    "_doc": "瘴氣狼：跑得快，壓低身體之後撲上來咬一口（流血）。lunge_speed＝撲的速度。leash＝追得離家超過幾公尺就走回去、補滿生命。",
     "max_hp": 70,
     "bite_damage": 12,
     "stagger_max": 35,
@@ -80,12 +81,13 @@
     "recover_stagger_mult": 2.0,
     "stagger_kneel": 1.4,
     "move_speed": 4.6,
+    "leash": 24,
     "lunge_speed": 9.0,
     "flinch": 0.22,
     "flinch_push": 0.5
   },
   "spore_treant": {
-    "_doc": "孢子樹人（樹人窪地）：慢、耐打，前兆很長的一記下砸（緩速＋致盲）；不會後仰，失衡滿了跪很久。slam_reach＝砸得到多遠、slam_arc_deg＝多寬。",
+    "_doc": "孢子樹人（樹人窪地）：慢、耐打，前兆很長的一記下砸（緩速＋致盲）；不會後仰，失衡滿了跪很久。slam_reach＝砸得到多遠、slam_arc_deg＝多寬、leash＝追得離家超過幾公尺就走回去、補滿生命。",
     "max_hp": 260,
     "slam_damage": 22,
     "stagger_max": 110,
@@ -96,6 +98,7 @@
     "recover_stagger_mult": 2.0,
     "stagger_kneel": 2.6,
     "move_speed": 1.5,
+    "leash": 16,
     "slam_reach": 3.4,
     "slam_arc_deg": 140
   },
