@@ -424,46 +424,6 @@ def step_wood(seed=79):
     return [out[i] * env[i] for i in range(n)]
 
 
-def step_heavy(seed=89):
-    """送葬者的拖步：很重的「咚」＋落地碎響＋拖在後面的鐵鏈擦地＋三下鐵環碰撞。"""
-    rng = random.Random(seed)
-    n = int(0.66 * RATE)
-    out = [0.0] * n
-    body = onepole_lp(noise(n, rng), 320)
-    phase = 0.0
-    for i in range(n):
-        t = i / RATE
-        f = 38.0 + 34.0 * math.exp(-t * 14.0)
-        phase += 2 * math.pi * f / RATE
-        attack = min(1.0, t / 0.004)
-        boom = (math.sin(phase) + 0.7 * math.sin(2.0 * phase)) * math.exp(-t * 8.5) * attack
-        out[i] = boom + body[i] * 2.4 * math.exp(-t * 16.0) * attack
-    crunch = onepole_lp(hp(noise(int(0.07 * RATE), rng), 400), 2400)
-    for i, v in enumerate(crunch):
-        out[i] += 0.32 * v * math.exp(-(i / RATE) * 55.0) * min(1.0, (i / RATE) / 0.004)
-    # 鐵鏈擦地：0.08～0.62 秒，忽大忽小地抖（兩個不成比例的慢正弦相乘）
-    drag = onepole_lp(hp(noise(n, rng), 1600), 5200)
-    t0, t1 = 0.08, 0.62
-    for i in range(int(t0 * RATE), min(n, int(t1 * RATE))):
-        t = i / RATE
-        w = math.sin(math.pi * (t - t0) / (t1 - t0)) ** 1.5
-        flutter = 0.55 + 0.45 * math.sin(2 * math.pi * 23.0 * t + 0.7) * math.sin(2 * math.pi * 6.3 * t)
-        out[i] += 0.17 * drag[i] * w * flutter
-    for at, f in [(0.11, 1750.0), (0.27, 2320.0), (0.44, 1980.0)]:
-        start = int(at * RATE)
-        for j in range(int(0.09 * RATE)):
-            if start + j >= n:
-                break
-            t = j / RATE
-            v = math.sin(2 * math.pi * f * t) + 0.5 * math.sin(2 * math.pi * f * 2.71 * t)
-            out[start + j] += 0.1 * v * math.exp(-t * 60.0)
-    # 尾巴 20 ms 淡出，避免截斷的爆音
-    fade = int(0.02 * RATE)
-    for j in range(fade):
-        out[n - 1 - j] *= j / fade
-    return out
-
-
 def poison_hiss(seconds=0.9, seed=107):
     """噴毒（D-207）：高頻的嘶聲（滑動的帶通噪音＋一點更高的氣聲），快起慢落＋一聲很短的低頻「噗」。"""
     rng = random.Random(seed)
@@ -1158,6 +1118,233 @@ def distant_scream(seconds=2.6, seed=269):
     return out
 
 
+# ---- 廢棄祭壇：深淵疫病魔像 ----
+
+
+def _rough_saw(n, rng, f_at, jitter):
+    """粗糙的鋸齒波（每個樣本的音高 f_at(i)，加一點隨機抖動）：吼聲、喉嚨的聲帶。"""
+    out = []
+    ph = 0.0
+    for i in range(n):
+        ph = (ph + f_at(i) * (1.0 + jitter * rng.uniform(-1.0, 1.0)) / RATE) % 1.0
+        out.append(2.0 * ph - 1.0)
+    return out
+
+
+def golem_roar(seconds=2.0, seed=271):
+    """魔像的吼（醒來、狂暴）：很低、很粗的「吼——」（58 Hz 的鋸齒波＋低八度的次諧波，經過兩個石頭胸腔的共振，
+    慢慢漲起來再往下掉）＋整個身體的石頭互相磨的沙沙聲＋最後一點碎石落地。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    f_at = lambda i: 58.0 * (1.0 + 0.18 * math.sin(math.pi * min(1.0, i / n * 1.4)) - 0.12 * i / n)
+    src = _rough_saw(n, rng, f_at, 0.08)
+    sub = []
+    ph = 0.0
+    for i in range(n):
+        ph += 2 * math.pi * f_at(i) * 0.5 / RATE
+        sub.append(math.sin(ph))
+    air = noise(n, rng)
+    body = [src[i] + 0.5 * air[i] for i in range(n)]
+    chest = [0.0] * n
+    for fc, d, g in ((240.0, 0.3, 1.0), (560.0, 0.25, 0.6), (1100.0, 0.3, 0.25)):
+        b = svf_band(body, lambda i, fc=fc: fc * (1.0 + 0.15 * math.sin(math.pi * i / n)), d)
+        for i in range(n):
+            chest[i] += g * b[i]
+    grind = onepole_lp(hp(noise(n, rng), 400), 2400)
+    out = []
+    for i in range(n):
+        x = i / n
+        env = min(1.0, x / 0.18) ** 1.5 * (1.0 - max(0.0, (x - 0.62) / 0.38)) ** 1.3
+        trem = 0.8 + 0.2 * math.sin(2 * math.pi * 11.0 * i / RATE)
+        out.append(env * (0.9 * chest[i] * trem + 0.7 * sub[i] + 0.25 * grind[i] * (0.5 + 0.5 * math.sin(2 * math.pi * 3.0 * i / RATE))))
+    for k in range(5):
+        hit = thump(0.1, rng.uniform(260, 420), 120, crack=0.5, seed=seed + 10 + k)
+        _mix_at(out, rng.uniform(1.2, 1.8), hit, 0.12)
+    return out
+
+
+def gaze_charge(seconds=2.4, seed=277):
+    """石化凝視的前兆（眼睛開始亮）：一聲越來越高、越來越抖的嗡鳴（220 → 880 Hz，兩個走音的聲部拍頻越來越快）
+    ＋水晶般細細的沙沙聲越來越亮——聽到就知道「要來了，快去擋」。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    shimmer = hp(noise(n, rng), 5000)
+    out = []
+    pa = pb = 0.0
+    for i in range(n):
+        x = i / n
+        f = 220.0 * (4.0 ** (x * x))
+        pa += 2 * math.pi * f / RATE
+        pb += 2 * math.pi * f * (1.0 + 0.004 + 0.02 * x) / RATE
+        env = 0.2 + 0.8 * x ** 1.5
+        trem = 0.7 + 0.3 * math.sin(2 * math.pi * (5.0 + 20.0 * x) * i / RATE)
+        tone = math.sin(pa) + 0.8 * math.sin(pb) + 0.25 * math.sin(3 * pa)
+        out.append(env * (0.5 * trem * tone + 0.35 * x * x * shimmer[i]))
+    return out
+
+
+def gaze_beam(seconds=1.3, seed=281):
+    """石化凝視打出去：一道很亮的「嗤——」（寬頻雜訊一下子衝出來）＋底下一聲低沉的「咚」
+    ＋石頭一下子凝固的「喀啦」（一串很快的小裂聲）。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    blast = onepole_lp(hp(noise(n, rng), 900), 9000)
+    out = []
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        ph += 2 * math.pi * (95.0 * math.exp(-t * 3.0) + 45.0) / RATE
+        out.append(1.4 * blast[i] * min(1.0, t / 0.008) * math.exp(-t * 5.0) + 0.9 * math.exp(-t * 6.0) * math.sin(ph))
+    for k in range(16):
+        at = 0.12 + k * rng.uniform(0.02, 0.045)
+        hit = thump(0.06, rng.uniform(900, 1600), 500, crack=1.0, seed=seed + 20 + k)
+        _mix_at(out, at, hit, 0.12 * (1.0 - k / 20.0))
+    return out
+
+
+def golem_slam(seconds=1.2, seed=283):
+    """魔像的重拳與震地：地面被砸的一聲很低的「轟」（62 → 28 Hz、加一個高八度讓小喇叭也聽得到）＋石板裂開的乾裂聲
+    ＋碎石往四周滾的沙沙聲。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        ph += 2 * math.pi * (28.0 + 34.0 * math.exp(-t * 10.0)) / RATE
+        env = min(1.0, t / 0.003) * math.exp(-t * 4.5)
+        out[i] = env * (math.sin(ph) + 0.6 * math.sin(2 * ph) + 0.3 * math.sin(3 * ph))
+    dull = onepole_lp(noise(int(0.25 * RATE), rng), 420)
+    for i, v in enumerate(dull):
+        out[i] += 1.2 * v * math.exp(-i / RATE * 14)
+    crack = hp(noise(int(0.06 * RATE), rng), 2000)
+    for i, v in enumerate(crack):
+        out[i] += 0.8 * v * math.exp(-i / RATE * 60)
+    _mix_at(out, 0.05, scrape(0.9, seed + 1), 0.7)
+    return out
+
+
+def golem_step(seed=293):
+    """魔像的一步（約 0.5 秒）：石頭腳砸在石板上的「咚」（70 → 40 Hz）＋膝蓋、腳踝的石頭互相磨的一聲短「嘎」
+    ＋一點碎石。比樹人的硬、乾，沒有葉子。"""
+    rng = random.Random(seed)
+    n = int(0.5 * RATE)
+    out = [0.0] * n
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        ph += 2 * math.pi * (40.0 + 30.0 * math.exp(-t * 22)) / RATE
+        out[i] = math.exp(-t * 11.0) * (math.sin(ph) + 0.5 * math.sin(2 * ph) + 0.25 * math.sin(3 * ph)) * min(1.0, t / 0.002)
+    click = hp(noise(int(0.012 * RATE), rng), 1800)
+    for i, v in enumerate(click):
+        out[i] += 0.6 * v * math.exp(-i / RATE * 200)
+    m = int(0.22 * RATE)
+    grind = onepole_lp(hp(noise(m, rng), 500), 2200)
+    start = int(0.04 * RATE)
+    for k in range(m):
+        x = k / m
+        out[start + k] += 0.45 * grind[k] * math.sin(math.pi * x) * (0.5 + 0.5 * math.sin(2 * math.pi * 37.0 * k / RATE))
+    return out
+
+
+def core_glow(seconds=1.4, seed=307):
+    """魔像胸口的核心亮起來（露出來了，快砍）：一聲往上浮的水晶嗡鳴（A3 → A4，帶幾個亮的泛音）
+    ＋三下細細的「叮」往上走——跟反轉的金色鐘音同一個語彙，但比較暗、比較紫。"""
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        x = i / n
+        f = 220.0 * (2.0 ** min(1.0, x * 1.8))
+        ph += 2 * math.pi * f / RATE
+        env = min(1.0, x / 0.15) * (1.0 - x) ** 1.2
+        out[i] = 0.45 * env * (math.sin(ph) + 0.35 * math.sin(2.01 * ph) + 0.2 * math.sin(3.0 * ph) + 0.12 * math.sin(4.2 * ph))
+    for at, f in ((0.25, 1046.5), (0.38, 1396.9), (0.51, 1760.0)):
+        _mix_at(out, at, _ping(0.8, f, 6.0), 0.18)
+    return out
+
+
+def core_shatter(seconds=2.2, seed=311):
+    """粉碎魔像的核心（第一章的最後一刀）：一聲又低又大的爆裂（很低的「轟」＋寬頻的炸開聲）
+    ＋幾十片水晶碎片的「叮」往外散、越來越小＋長長的、往下沉的嗡鳴（核心的光熄掉）。
+    跟反轉的碎裂聲不同：沒有往上走的金色鐘音，比較重、比較長。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        ph += 2 * math.pi * (32.0 + 60.0 * math.exp(-t * 7.0)) / RATE
+        out[i] = 1.1 * min(1.0, t / 0.002) * math.exp(-t * 3.2) * (math.sin(ph) + 0.35 * math.sin(2 * ph))
+    burst = onepole_lp(hp(noise(int(0.35 * RATE), rng), 700), 11000)
+    for i, v in enumerate(burst):
+        out[i] += 1.3 * v * math.exp(-i / RATE * 12)
+    for k in range(34):
+        start = int(rng.uniform(0.0, 0.9) * RATE * (k / 34.0) ** 0.7)
+        f = rng.uniform(1800.0, 6800.0)
+        gain = 0.5 * (1.0 - k / 40.0)
+        decay = rng.uniform(18.0, 40.0)
+        for j in range(int(0.3 * RATE)):
+            if start + j >= n:
+                break
+            t = j / RATE
+            out[start + j] += gain * math.exp(-t * decay) * (math.sin(2 * math.pi * f * t) + 0.5 * math.sin(2 * math.pi * f * 2.32 * t))
+    pa = pb = 0.0
+    start = int(0.15 * RATE)
+    for j in range(n - start):
+        x = j / (n - start)
+        f = 330.0 * (1.0 - 0.45 * x)
+        pa += 2 * math.pi * f / RATE
+        pb += 2 * math.pi * f * 1.006 / RATE
+        out[start + j] += 0.22 * min(1.0, x / 0.05) * (1.0 - x) ** 2 * (math.sin(pa) + math.sin(pb))
+    return out
+
+
+def stone_deflect(seconds=0.5, seed=313):
+    """砍在還沒露出核心的魔像身上、扣不下去（打不下去）：石頭很硬的一聲「鏗」（短、悶，不是鐵的長餘響）
+    ＋核心外面那層護罩的一聲很短的水晶「嗡」。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    hit = thump(0.2, 520, 180, crack=1.2, seed=seed + 1)
+    _mix_at(out, 0.0, hit, 0.8)
+    for f, a, d in ((690.0, 0.5, 26.0), (1410.0, 0.35, 34.0), (2230.0, 0.2, 45.0)):
+        f *= rng.uniform(0.98, 1.02)
+        for i in range(n):
+            t = i / RATE
+            out[i] += a * math.exp(-t * d) * math.sin(2 * math.pi * f * t)
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        ph += 2 * math.pi * 523.3 / RATE
+        out[i] += 0.18 * min(1.0, t / 0.01) * math.exp(-t * 9.0) * (math.sin(ph) * (0.7 + 0.3 * math.sin(2 * math.pi * 30.0 * t)))
+    return out
+
+
+def core_land(seconds=0.55, seed=317):
+    """掉出來的核心落在石板上：沉沉的「咚」（像一大塊水晶）＋一聲短短的、帶餘響的晶體「嗡」。"""
+    out = thump(seconds, 240, 80, crack=0.4, seed=seed)
+    ring = _ping(seconds, 660.0, 9.0, 0.003, ((1.0, 1.0), (2.76, 0.4), (5.4, 0.15)))
+    return [out[i] + 0.3 * ring[i] for i in range(len(out))]
+
+
+def stone_peel(seconds=0.9, seed=331):
+    """席菈身上的石殼剝落（石化解除）：一串很密的小裂聲（石殼裂開，越來越疏）→ 一片片碎石掉在地上的「喀啦」。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    t = 0.0
+    while t < 0.45:
+        hit = thump(0.04, rng.uniform(1200, 2600), 700, crack=1.0, seed=rng.randint(0, 99999))
+        _mix_at(out, t, hit, rng.uniform(0.08, 0.2))
+        t += rng.expovariate(40.0 * (1.0 - t / 0.5) + 6.0)
+    for k in range(7):
+        hit = thump(0.12, rng.uniform(300, 520), 140, crack=0.6, seed=seed + 40 + k)
+        _mix_at(out, rng.uniform(0.3, 0.8), hit, rng.uniform(0.15, 0.3))
+    return out
+
+
 def main():
     made = [
         write("blunt", thump(0.3, 140, 55, seed=2)),
@@ -1165,7 +1352,6 @@ def main():
         write("claw", swish(0.22, 1800, 9000, seed=4, rise=0.2)),
         write("slash", swish(0.28, 900, 7000, seed=5, rise=0.3, metal=0.25)),
         write("whoosh", swish(0.35, 200, 1600, seed=6, rise=0.45)),
-        write("rubble_scrape", scrape()),
         write("iron_clang", clang()),
         write("ui_tick", ui_tick()),
         write("market_murmur", market_murmur()),
@@ -1174,7 +1360,6 @@ def main():
         write("step_dirt", step_dirt()),
         write("step_stone", step_stone()),
         write("step_wood", step_wood()),
-        write("step_heavy", step_heavy()),
         write("poison_hiss", poison_hiss(0.9, seed=109)),
         write("glass_clink", glass_clink()),
         write("interrupt", interrupt_crack()),
@@ -1199,6 +1384,16 @@ def main():
         write("treant_step", treant_step()),
         write("chest_open", chest_open()),
         write("distant_scream", distant_scream()),
+        write("golem_roar", golem_roar()),
+        write("gaze_charge", gaze_charge()),
+        write("gaze_beam", gaze_beam()),
+        write("golem_slam", golem_slam()),
+        write("golem_step", golem_step()),
+        write("core_glow", core_glow()),
+        write("core_shatter", core_shatter()),
+        write("stone_deflect", stone_deflect()),
+        write("core_land", core_land()),
+        write("stone_peel", stone_peel()),
     ]
     for p in made:
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

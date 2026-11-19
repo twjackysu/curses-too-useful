@@ -35,6 +35,19 @@ const RAGE_COLOR: Color = Color(1.0, 0.32, 0.12)
 const GAZE_COLOR: Color = Color(0.74, 0.5, 1.0)
 const BLOCKED_COLOR: Color = Color(1.0, 0.82, 0.36)
 const EYE_HEIGHT: float = 3.25
+## 魔像的聲音（scripts/gen_sfx.py）：醒來與狂暴的吼、凝視的前兆與打出去、重拳與震地（倒地也是）、腳步、
+## 核心亮起來、打不下去、粉碎核心、核心落地
+const ROAR_SFX: String = "golem_roar"
+const GAZE_CHARGE_SFX: String = "gaze_charge"
+const GAZE_BEAM_SFX: String = "gaze_beam"
+const SLAM_SFX: String = "golem_slam"
+const STEP_SFX: String = "golem_step"
+const CORE_GLOW_SFX: String = "core_glow"
+const DEFLECT_SFX: String = "stone_deflect"
+const CORE_SHATTER_SFX: String = "core_shatter"
+const CORE_LAND_SFX: String = "core_land"
+## 最近發出的聲音（測試用；最多留這麼多個）
+const HEARD_MAX: int = 24
 const BEAM_WIDTH: float = 2.2
 const BEAM_Y: float = 0.07
 const BEAM_SHADER: Shader = preload("res://src/world/gaze_beam.gdshader")
@@ -61,6 +74,8 @@ const JOLT_PUSH: float = 0.2
 const JOLT_LEAN: float = 0.08
 const JOLT_GLOW: float = 2.4
 
+## 最近發出的聲音（_sound 記的；測試用）
+var heard: Array[String] = []
 var phases: GolemPhases
 ## false＝還沒醒（抵達的那段話講完之前）：舉著拳頭站在原地，不追人、不出招、不扣血
 var awake: bool = false
@@ -140,7 +155,7 @@ func _build_body() -> void:
 	_body.add_child(_puppet)
 	if not _puppet.uses_model():
 		_puppet.scale = Vector3.ONE * STAND_IN_SCALE
-	_puppet.footfall.connect(func() -> void: Sfx.play_at(self, "step_heavy", global_position, -4.0))
+	_puppet.footfall.connect(func() -> void: _sound(STEP_SFX, global_position, -3.0, 8.0, self))
 	add_toxic_glow(_puppet, 7.0)
 	_eye = OmniLight3D.new()
 	_eye.name = "Eye"
@@ -155,12 +170,21 @@ func _build_body() -> void:
 	_build_flares()
 
 
+## 發出一個聲音、記下來（測試看 heard）。on：掛在誰底下（預設關卡——魔像沉下去之後還聽得完）。
+func _sound(sfx_name: String, at: Vector3, volume_db: float, unit_size: float, on: Node = null) -> void:
+	heard.append(sfx_name)
+	if heard.size() > HEARD_MAX:
+		heard.remove_at(0)
+	Sfx.play_at(on if on != null else get_parent(), sfx_name, at, volume_db, 0.03, unit_size)
+
+
 ## 醒過來，開始追諾恩（關卡在抵達的那段話講完時叫）
 func wake() -> void:
 	if awake:
 		return
 	awake = true
 	_puppet.release_hold()
+	_sound(ROAR_SFX, global_position + Vector3.UP * EYE_HEIGHT, 2.0, 14.0, self)
 	if aura != null:
 		aura.active = true
 
@@ -183,7 +207,7 @@ func _tick_phases(delta: float) -> void:
 			_enrage()
 		"gaze":
 			brain.break_off()
-			Sfx.play_at(self, "brace_warn", global_position + Vector3.UP * EYE_HEIGHT, 0.0, 0.03, 12.0)
+			_sound(GAZE_CHARGE_SFX, global_position + Vector3.UP * EYE_HEIGHT, 0.0, 12.0, self)
 			gaze_started.emit()
 		"fire":
 			_fire_gaze()
@@ -201,7 +225,7 @@ func _enrage() -> void:
 	if _rim != null:
 		_rim.set_shader_parameter("glow_color", RAGE_COLOR)
 		_glow.light_color = RAGE_COLOR
-	Sfx.play_at(self, "brace_warn", global_position + Vector3.UP * 2.0, 2.0, 0.03, 14.0)
+	_sound(ROAR_SFX, global_position + Vector3.UP * EYE_HEIGHT, 4.0, 14.0, self)
 	if _player != null and is_instance_valid(_player):
 		_player.shake(0.5)
 	enraged.emit()
@@ -213,7 +237,7 @@ func _fire_gaze() -> void:
 	phases.resolve_gaze(blocked)
 	_flash(GAZE_COLOR, 14.0, 0.5)
 	_gaze_fx(blocked)
-	Sfx.play_at(self, "curse_sting", global_position + Vector3.UP * EYE_HEIGHT, 3.0, 0.03, 14.0)
+	_sound(GAZE_BEAM_SFX, global_position + Vector3.UP * EYE_HEIGHT, 3.0, 14.0, self)
 	if _player != null and is_instance_valid(_player) and not _player.health.is_dead():
 		_player.status_effects.apply_source(GAZE_SOURCE)
 		_player.shake(0.45)
@@ -241,7 +265,7 @@ func open_core() -> void:
 	_core_kick = 1.0
 	if is_inside_tree():
 		_ring(core_point(), _toward_viewer(core_point()), CORE_OPEN_COLOR, 0.4, 3.0, 0.45, 0.04)
-		Sfx.play_at(get_parent(), "glass_clink", core_point(), 2.0, 0.02, 12.0)
+		_sound(CORE_GLOW_SFX, core_point(), 2.0, 12.0)
 
 
 ## 諾恩的劍砍在開了的核心上：這一刀直接粉碎（不管原本多痛）。其他照共用的算（Boss 不會硬撐）。
@@ -275,7 +299,7 @@ func _on_cut(from: Vector3) -> void:
 		ward_count += 1
 		_core_kick = 1.0
 		_ring(core_point(), _toward_viewer(core_point()), CORE_COLOR, 0.3, 1.9, 0.3, 0.05)
-		Sfx.play_at(get_parent(), ARMOR_SFX, core_point(), -4.0, 0.08, 8.0)
+		_sound(DEFLECT_SFX, core_point(), -2.0, 8.0)
 
 
 ## 粉碎核心的那一刀：胸口那片光炸掉——紫色與金色的晶片、石塊往出手的人那一側噴，一圈金色的環往外擴。
@@ -288,7 +312,7 @@ func _shatter_fx(from: Vector3) -> void:
 	RockDebris.burst(parent, at, out * 0.4 + Vector3.UP, 22, 0.34, STONE_COLOR, Vector2(3.0, 8.0))
 	_ring(at, out, CORE_OPEN_COLOR, 0.5, 6.0, 0.55, 0.04)
 	_ring(global_position + Vector3.UP * 0.12, Vector3.UP, CORE_OPEN_COLOR, 1.0, 9.0, 0.6)
-	Sfx.play_at(parent, "reversal_shatter", at, 3.0, 0.02, 16.0)
+	_sound(CORE_SHATTER_SFX, at, 4.0, 16.0)
 
 
 func _on_strike() -> void:
@@ -298,14 +322,14 @@ func _on_strike() -> void:
 	var damage: float = brain.move_num(id, "damage", 26.0) * (CombatTuning.num("plague_golem.rage_damage", 1.3) if _raged else 1.0)
 	if id == "slam":
 		var radius: float = brain.move_num(id, "radius", 5.4)
-		Sfx.play_at(self, "blunt_weak", origin + fwd * 1.5 + Vector3.UP * 0.3, 2.0)
+		_sound(SLAM_SFX, origin + fwd * 1.5 + Vector3.UP * 0.3, 3.0, 10.0, self)
 		_ground_puff(origin + fwd * 1.6, Vector3(1.6, 0.05, 1.6), 40, Color(0.6, 0.62, 0.66, 0.6))
 		_ring(origin + Vector3.UP * 0.1, Vector3.UP, RAGE_COLOR if _raged else RIM_COLOR, 1.0, radius, 0.35)
 		hit_heartbeats(damage, "slam", func(p: Vector3) -> bool: return Vector2(p.x - origin.x, p.z - origin.z).length() <= radius)
 	else:
 		var reach: float = brain.move_num(id, "reach", 4.6)
 		var arc: float = brain.move_num(id, "arc_deg", 80.0)
-		Sfx.play_at(self, "blunt_weak", origin + fwd * 2.4 + Vector3.UP * 0.3, 0.0)
+		_sound(SLAM_SFX, origin + fwd * 2.4 + Vector3.UP * 0.3, 0.0, 8.0, self)
 		_ground_puff(origin + fwd * 3.0, Vector3(0.7, 0.05, 0.7), 22, Color(0.6, 0.62, 0.66, 0.6))
 		hit_heartbeats(damage, "punch", func(p: Vector3) -> bool: return PlayerController.in_strike_arc(origin, fwd, p, reach, arc))
 	if _player != null and is_instance_valid(_player) and _player.global_position.distance_to(origin) < 12.0:
@@ -400,7 +424,7 @@ func _on_died() -> void:
 func _on_fall_impact() -> void:
 	has_fallen = true
 	if is_inside_tree():
-		Sfx.play_at(get_parent(), "blunt", global_position, 0.0, 0.03)
+		_sound(SLAM_SFX, global_position, 4.0, 12.0)
 		RockDebris.burst(get_parent(), global_position - _fall_fwd * 1.8 + Vector3.UP * 0.6, Vector3.UP, 18, 0.3, STONE_COLOR, Vector2(2.0, 6.0))
 		_drop_core()
 	_ground_puff(global_position - _fall_fwd * 1.6, Vector3(1.8, 0.05, 1.8), 50, Color(0.6, 0.62, 0.66, 0.65))
@@ -426,7 +450,7 @@ func _drop_core() -> void:
 	t.tween_method(func(k: float) -> void:
 		core.global_position = from.lerp(land, k) + Vector3.UP * (4.0 * 1.6 * k * (1.0 - k)), 0.0, 1.0, 0.6)
 	t.tween_callback(func() -> void:
-		Sfx.play_at(level, "step_stone", land, 2.0, 0.05, 8.0))
+		_sound(CORE_LAND_SFX, land, 2.0, 8.0, level))
 	t.tween_property(core, "global_position", rest, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	# 滾：繞著跟前進方向垂直的水平軸轉
 	var roll_axis: Vector3 = Vector3.UP.cross((rest - land).normalized()).normalized()

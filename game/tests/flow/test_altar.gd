@@ -179,6 +179,7 @@ func test_arriving_finds_leos_party_down_then_the_golem_wakes_and_its_plague_fee
 	assert_true(s.has_save())
 	await _frames(int(RuinedAltar.WAKE_DELAY * 60.0) + 8)
 	assert_true(golem.awake and level.aura.active, "魔像醒了、光環打開")
+	assert_true(golem.heard.has(PlagueGolem.ROAR_SFX), "醒來吼一聲")
 	await tree.process_frame
 	hud.boss_bar.refresh(golem)
 	assert_true(hud.boss_bar.shown, "Boss 的生命條出現")
@@ -233,6 +234,7 @@ func test_golem_punches_and_slams_and_cannot_die_while_its_core_holds() -> void:
 		if seen.has("punch") and seen.has("slam"):
 			break
 	assert_true(seen.has("punch") and seen.has("slam"), "兩招都出過：%s" % str(seen.keys()))
+	assert_true(golem.heard.has(PlagueGolem.SLAM_SFX), "砸下去是地面被砸的「轟」（不再借鈍擊）")
 	assert_true(player.hurt_count >= 2, "站在面前會被打到（%d 下）" % player.hurt_count)
 	assert_true(walked, "出手的時候有揮下來的動作")
 	# 站得夠遠就打不到
@@ -256,6 +258,7 @@ func test_golem_punches_and_slams_and_cannot_die_while_its_core_holds() -> void:
 	assert_eq(golem.jolt_count, 1)
 	assert_eq(_named(level, "RockDebris"), debris_before + 1, "掉石屑")
 	assert_eq(golem.ward_count, 1, "打不下去：核心閃一圈")
+	assert_eq(golem.heard[-1], PlagueGolem.DEFLECT_SFX, "打不下去是石頭的悶響（不是鐵）")
 	assert_true(_named(level, "GolemRing") >= 1)
 	await tree.physics_frame
 	var shoved: Vector3 = golem.puppet().position
@@ -334,6 +337,7 @@ func test_enraged_golem_gazes_and_an_unshielded_sera_turns_to_stone() -> void:
 	golem.health.hp = golem.health.max_hp * 0.5
 	await _frames(2)
 	assert_eq(events, ["enraged"] as Array[String], "生命剩一半：狂暴")
+	assert_true(golem.heard.has(PlagueGolem.ROAR_SFX), "狂暴吼一聲（不再借硬撐的警告）")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_ENRAGE_LINE1", "CH1_ENRAGE_LINE2"]))
 	assert_true(hud.bark_keys().has("BARK_SERA_FORBIDDEN"), "席菈喊她還有一瓶禁藥")
 	assert_true(sera.hold_at.is_finite() and sera.hands_full, "她退到後面去裝，手上沒空")
@@ -392,6 +396,11 @@ func test_enraged_golem_gazes_and_an_unshielded_sera_turns_to_stone() -> void:
 	for c: Node in level.get_children():
 		shed = shed or (c is CPUParticles3D and String(c.name).contains("RockDebris") and (c as CPUParticles3D).amount == 18)
 	assert_true(shed, "石化解開：身上的石殼剝落")
+	var peel: AudioStream = Sfx.stream(Sera.UNSTONE_SFX)
+	var peeled: bool = peel == null
+	for c: Node in level.get_children():
+		peeled = peeled or (c is AudioStreamPlayer3D and (c as AudioStreamPlayer3D).stream == peel)
+	assert_true(peeled, "石殼裂開、剝落的聲音")
 	assert_true(hud.bark_keys().has("BARK_SERA_FREED"), "她喊：能動了")
 	for i: int in 300:
 		await tree.physics_frame
@@ -453,6 +462,8 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 			break
 	assert_true(golem.phases.core_open, "禁藥砸中：核心可以粉碎了")
 	assert_true(golem.is_core_marked(), "胸口的核心變成金色、一圈一圈往中心收：砍這裡")
+	assert_true(golem.heard.has(PlagueGolem.CORE_GLOW_SFX), "核心亮起來的聲音")
+	assert_true(golem.heard.has(PlagueGolem.GAZE_CHARGE_SFX) and golem.heard.has(PlagueGolem.GAZE_BEAM_SFX), "凝視：前兆的嗡鳴、打出去的那一下")
 	hud.boss_bar.refresh(golem)
 	assert_true(hud.boss_bar.core_open and hud.boss_bar.floor_ratio == 0.0, "生命條：刻痕拿掉、變成金色")
 	var chest: Vector3 = golem.puppet().joint("chest").global_position
@@ -476,6 +487,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 			break
 	assert_true(golem.health.is_dead(), "一刀粉碎核心")
 	assert_eq(shattered, [true] as Array[bool])
+	assert_true(golem.heard.has(PlagueGolem.CORE_SHATTER_SFX), "粉碎核心有自己的聲音（不再跟反轉的碎裂聲同一個）")
 	# 那一刀的演出：定格、鏡頭切到兩人的側面、核心炸成碎片（晶片兩把＋石塊）
 	assert_true(Engine.time_scale < 1.0, "定格，接著慢動作")
 	assert_not_null(level.finisher, "鏡頭切到側面")
@@ -501,6 +513,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_not_null(level.core, "核心滾出來了")
 	await _frames(100)
 	assert_true(absf(level.core.global_position.y - GolemCore.RADIUS - golem.global_position.y) < 0.05, "停在地上")
+	assert_true(golem.heard.has(PlagueGolem.CORE_LAND_SFX), "核心落地的那一聲")
 	var rolled: float = Vector2(level.core.global_position.x - golem.global_position.x, level.core.global_position.z - golem.global_position.z).length()
 	assert_true(rolled > 2.0 and rolled < 5.0, "在牠旁邊（%.1f m）" % rolled)
 	assert_true(level.core.global_position.distance_to(player.global_position) > 0.8, "不會滾到諾恩腳下")

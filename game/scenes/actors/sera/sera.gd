@@ -10,6 +10,8 @@ extends CharacterBody3D
 ## 諾恩走近才停下來、轉過來看他。
 
 ## 她的名字（翻譯 key；對話資料裡也是這個）
+## 石化解除：身上的石殼裂開、剝落
+const UNSTONE_SFX: String = "stone_peel"
 const NAME_KEY: String = "SPK_SHEILA"
 const CROSSBOW_MODEL: String = "tripo/weapon_alchemy_crossbow"
 const VIAL_SOURCE: String = "sera_paralysis_vial"
@@ -163,7 +165,7 @@ func _physics_process(delta: float) -> void:
 		if stoned_left <= 0.0:
 			_set_stoned(false)
 			_stone_bits(18, Vector2(1.5, 4.5))
-			Sfx.play_at(get_parent(), "rubble_scrape", global_position + Vector3.UP, -4.0, 0.08, 6.0)
+			Sfx.play_at(get_parent(), UNSTONE_SFX, global_position + Vector3.UP, -3.0, 0.06, 6.0)
 			unpetrified.emit()
 		return
 	if hold_at.is_finite():
