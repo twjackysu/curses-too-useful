@@ -96,12 +96,20 @@
 - 砍中的聲音、打擊停頓、震動在 `PlayerController.strike()`：停頓照 `hit_stop_for(數值, 出手速度, feel.hit_stop_max_share)` 縮。反轉要演整套還是小的在 `_on_status_changed`（`cue_is_quiet`；`ReversalCue.quiet` 時 `ReversalOverlay` 不畫、碎裂只有小小一團）。
 - 量戰鬥的手感有沒有變：`test_chapter1.gd` 的 `_mash_until_clear`（像玩家那樣一直按出手，回傳清場要幾幀、`_mash_swings` 是出了幾刀；測試會印數字）。
 
+### 聲音放在哪
+
+- 音檔全部由 `scripts/gen_sfx.py` 產生（開頭有分組的清單，每個音的樣子寫在自己的函式說明裡）；新的音：寫一個函式、`main()` 加一行 `write(...)`、`Sfx.NAMES` 加名字（打包驗證照這份清單檢查），沒有人播的就從兩邊拿掉、加進 `test_sfx.gd` 的「已經沒有人播」。
+- 整片的環境音：`CorruptForest`（`ForestNight`）、`RuinedAltar`（`AltarAir`）、`GuildHall`（`HallMurmur`）。從東西發出來的：`ForestExplore._loop_sound`（`FIRE_SOUND`／`VENT_SOUND`／`SWAMP_SOUND`＝[音檔, dB, unit_size]）。
+- 配樂：`Boot`（標題）、`GuildHall.hall_music`（`_music_to(音量, 秒)` 調大小，警報停、雷歐走了回來、章末收掉）、`RuinedAltar.boss_music`（醒來淡入、`_fade_out_music`）、`GuildHall._play_end_card`（結尾）。
+- 敵人的叫聲：`EnemyActor.notice_sfx()`（第一次離開待機叫一聲，空字串＝不叫）、`fall_sfx()`（倒地，預設 `blunt`），子類別覆寫；`last_notice_sfx`／`last_fall_sfx` 給測試看。
+- 魔像的聲音都經過 `PlagueGolem._sound()`，最近的 24 個記在 `heard`（測試看這個）。漫符的聲音是 `MangaMark.SOUND`，由 `TalkActing` 在對話裡播（`last_sound`）。
+- 流程測試的 `_playing(節點, 音檔)`：那個節點底下有沒有正在播這個音的播放器（缺檔時當成有）。
+
 ## 還沒整理的舊東西（改到那個檔的時候順手清）
 
 - `Puppet` 的程式人偶還帶著以前的躺的姿勢（`lying`）與 `sitting` 這個旗標（坐的姿勢現在是 `pose` 坐著的替身，留著）；模型都到位之後可以把程式人偶縮成最簡單的替身。
 - 部分註解還提到舊劇情的東西（霜橋、送葬者、守衛、提燈）。
 - 標題畫面的背景還是舊的鐘樓剪影（`scenes/boot/title_fog.gdshader`）。
-- `scripts/gen_sfx.py` 的 `market_murmur`（市場底噪）現在是公會大廳的人聲、`part_end_theme`（「待續」配樂）是「第一章　完」的配樂——名字與註解還是舊的。
 - `tools/blender/common.py` 裡有以前自製人體用的函式，現在只有 `tripo_character.py` 在用它的動作部分。
 
 ## 開發工具
