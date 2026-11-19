@@ -319,3 +319,16 @@ DLG_CH1_RETURN_007,"(beaming like she just struck gold) You two — from now on,
 DLG_CH1_RETURN_008,...That black haze clinging to him. He turns curses into blessings — how interesting.,……纏在他身上的那股黑氣。把詛咒當成祝福嗎——有意思。
 CH1_GUILD_LINE1,Alder Adventurers' Guild,奧爾德冒險者公會
 CH1_GUILD_LINE2,A small guild on the frontier. Today you register as an adventurer.,邊境小鎮的公會。今天是你登錄成為冒險者的日子。
+HINT_READ_BOARD,{key} Read the request board,{key} 看佈告欄
+BOARD_TITLE,Request Board,委託佈告欄
+BOARD_NOTE_1,[Rank B] Escort a caravan to the capital. Parties of four or more only.,【B 級】護送商隊到王都。限四人以上的隊伍。
+BOARD_NOTE_2,[Rank C] Hunt the canyon wyverns. A mage is required.,【C 級】討伐峽谷的翼蜥。隊伍裡要有魔法師。
+BOARD_NOTE_3,[Rank D] Clear the rats from the sewers. Two or more.,【D 級】清掉下水道的老鼠。兩人以上。
+BOARD_NOTE_4,[Rank E] Haul crates at the warehouse. No rookies.,【E 級】倉庫搬貨。不收新手。
+BARK_NOEN_BOARD,...Every one of them wants a party. Not a single one for an F-rank on his own.,……全都要組隊。F 級一個人能接的，一張都沒有。
+SLIP_TITLE,Corrupt Forest Outskirts: Gather Glowing Toxic Mushrooms,腐敗之森外圍：採集「夜光毒蕈」
+SLIP_LINE_1,Gather: 5 Glowing Toxic Mushrooms,採集：夜光毒蕈 5 朵
+SLIP_LINE_2,Reward: ten times a normal request,報酬：一般委託的十倍
+SLIP_LINE_3,Warning: the forest is full of miasma. Most adventurers collapse within ten minutes.,注意：森林裡全是瘴氣，一般冒險者十分鐘內就會中毒倒地。
+SLIP_LINE_4,Posted: half a year ago (no takers),張貼：半年前（無人承接）
+SLIP_STAMP,ACCEPTED,受理

@@ -109,8 +109,21 @@ const DOOR_SPEED: float = 1.6
 ## 莉莉絲兩手拿著委託單遞出來，手收回來的時候放到櫃檯上（give 播到這裡）；拿著的時候在右手腕往左多少（兩手中間）
 const SLIP_SHOW_SEC: float = 0.95
 const SLIP_IN_HANDS: Vector3 = Vector3(-0.15, 0.03, -0.05)
+const SLIP_HELD_SCALE: float = 0.7
 ## 正在走出大門的人（門要為他們開）
 const LEAVING_GROUP: String = "guild_leaving"
+## 莉莉絲拿出綠色委託單的那一句、蓋章的那一句：畫面右邊拿出那張紙（PaperNote）、蓋上「受理」
+const SLIP_SHOW_LINE: String = "DLG_CH1_QUEST_002"
+const SLIP_STAMP_LINE: String = "DLG_CH1_QUEST_006"
+const SLIP_PAPER: Color = Color(0.62, 0.78, 0.55)
+const SLIP_INK: Color = Color(0.1, 0.2, 0.1)
+const SLIP_LINES: PackedStringArray = ["SLIP_LINE_1", "SLIP_LINE_2", "SLIP_LINE_3", "SLIP_LINE_4"]
+## 佈告欄：走近按互動，畫面右邊攤開上面貼的委託（全都要隊伍、F 級一張都沒有），諾恩嘀咕一句；走開或過一陣子收起來
+const BOARD_LINES: PackedStringArray = ["BOARD_NOTE_1", "BOARD_NOTE_2", "BOARD_NOTE_3", "BOARD_NOTE_4"]
+const BOARD_PAPER: Color = Color(0.93, 0.87, 0.72)
+const BOARD_INK: Color = Color(0.22, 0.15, 0.09)
+const BOARD_SHOW_SEC: float = 9.0
+const BOARD_AWAY: float = 3.4
 
 ## 大門從關著被推開幾次（每次吱嘎一聲）、關上幾次（碰一聲）；測試用
 ## 大廳的配樂（_music_to 調音量）
@@ -132,6 +145,11 @@ var patrons: Dictionary = {}
 var aura: CPUParticles3D
 var crystal_use: Interactable
 var lilith_use: Interactable
+var board_use: Interactable
+## 畫面右邊現在拿著的紙（綠色委託單／佈告欄）；沒有時是 null
+var slip_note: PaperNote
+var board_note: PaperNote
+var _board_t: float = 0.0
 var core: GolemCore
 var card: ChapterCard
 ## 警報響了幾秒（< 0＝沒有在響）
@@ -198,6 +216,9 @@ func _ready() -> void:
 	_spawn_cast()
 	_build_interactables()
 	Game.dialogue_ended.connect(_on_dialogue_ended)
+	Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
+		if r.dialogue_id == QUEST_DIALOGUE:
+			r.line_shown.connect(_on_quest_line))
 	Ambience.play(self, MURMUR_SFX, MURMUR_DB, "HallMurmur")
 	# 淡入也走 _music_to（同一個 tween）：一進來馬上摸水晶，停掉的那一下不會被還沒淡完的淡入蓋回去
 	hall_music = Ambience.music(self, HALL_MUSIC, Ambience.MUTED_DB, 0.0, "HallMusic")
@@ -211,7 +232,8 @@ func _ready() -> void:
 	# 截圖用：`--registered --demo=leo` 進場就摸水晶、雷歐直接站到旁邊開口（不等警報的那幾秒；配 `--talk-skip`）；
 	# `--registered --demo=alarm` 進場就摸水晶、照平常的時間軸（伸手、大家笑、雷歐走過來）；
 	# `--after-leo --demo=quest` 進場就跟莉莉絲說話（她兩手遞出委託單）；
-	# `--quest-taken --demo=sera` 席菈一開始就站在幾步外（不等她從角落走過來）；`--return --demo=end` 直接停在「第一章　完」
+	# `--quest-taken --demo=sera` 席菈一開始就站在幾步外（不等她從角落走過來）；`--return --demo=end` 直接停在「第一章　完」；
+	# `--demo=board` 站到佈告欄前面、攤開上面的委託
 	_burst_on = str(args.get("burst-on", ""))
 	_demo = str(args.get("demo", ""))
 	if _burst_on == "alarm":
@@ -229,6 +251,11 @@ func _ready() -> void:
 	elif _demo == "end":
 		_play_end_card()
 		card.hold_still.call_deferred()
+	elif _demo == "board":
+		_player.global_position = board_use.global_position + Vector3(0.5, 0, 0.2)
+		_player.yaw = deg_to_rad(-90.0)
+		_player.snap_camera()
+		get_tree().create_timer(0.3).timeout.connect(read_board)
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
 
 
@@ -253,6 +280,7 @@ func _physics_process(delta: float) -> void:
 	_pulse_t += delta
 	_tick_crystal()
 	_tick_door(delta)
+	_tick_board(delta)
 	_turn_sera(delta)
 	if not Game.session.in_story() or _leaving:
 		return
@@ -388,12 +416,16 @@ func _build_interactables() -> void:
 		if _talk(QUEST_DIALOGUE, ["SPK_NOEN", LILITH_KEY]):
 			_hand_over_slip())
 	add_child(lilith_use)
+	board_use = Interactable.create("ReadBoard", GuildScenery.BOARD_POS + Vector3(1.1, 0, 0), "HINT_READ_BOARD", 2.2)
+	board_use.used.connect(func(_by: PlayerController) -> void: read_board())
+	add_child(board_use)
 	_refresh_interactables()
 
 
 func _refresh_interactables() -> void:
 	crystal_use.enabled = stage() == STAGE_APTITUDE and _alarm_t < 0.0
 	lilith_use.enabled = stage() == STAGE_TAKE_QUEST
+	board_use.enabled = _alarm_t < 0.0 and not _leaving
 	# 綠色委託單：莉莉絲拿出來之後就放在櫃檯上，到諾恩出發為止
 	scenery.slip.visible = Game.session.in_story() and _flag(FLAG_QUEST) and not is_epilogue()
 
@@ -406,7 +438,8 @@ func _hand_over_slip() -> void:
 	if hand != null:
 		var copy := scenery.slip.duplicate() as Node3D
 		copy.visible = true
-		copy.transform = Transform3D.IDENTITY
+		# 拿在手上的那張小一點（放在櫃檯上的那張要在玩的距離看得到；拿在手上的在近景裡會大得像托盤）
+		copy.transform = Transform3D.IDENTITY.scaled(Vector3.ONE * SLIP_HELD_SCALE)
 		held = UprightHeld.attach(copy, hand, lilith, SLIP_IN_HANDS)
 		held.name = "HeldSlip"
 	get_tree().create_timer(SLIP_SHOW_SEC).timeout.connect(func() -> void:
@@ -587,6 +620,10 @@ func _tick_report() -> void:
 func _on_dialogue_ended(dialogue_id: String) -> void:
 	_refresh_interactables()
 	match dialogue_id:
+		QUEST_DIALOGUE:
+			if slip_note != null and is_instance_valid(slip_note):
+				slip_note.close(0.9)
+			slip_note = null
 		LEO_DIALOGUE:
 			_party_leaves()
 			_alarm_t = -1.0
@@ -599,6 +636,45 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 			# 講完才算做完（不是最後一句一出來就算：巡察官那一句還在畫面上的時候，HUD 不要跳「未完待續」）
 			Game.session.set_flag(FLAG_CHAPTER_DONE, true)
 			_end_in = END_CARD_DELAY
+
+
+## 莉莉絲那段話：拿出委託單的那一句，畫面右邊出現那張綠色的紙；蓋章的那一句蓋上「受理」（講完收起來）
+func _on_quest_line(_speaker: String, text_key: String) -> void:
+	if text_key == SLIP_SHOW_LINE and slip_note == null:
+		_close_board()
+		slip_note = PaperNote.create("SLIP_TITLE", SLIP_LINES, SLIP_PAPER, SLIP_INK)
+		_hud.add_child(slip_note)
+	elif text_key == SLIP_STAMP_LINE and slip_note != null and is_instance_valid(slip_note):
+		slip_note.stamp("SLIP_STAMP")
+
+
+## 讀佈告欄：再按一次收起來
+func read_board() -> void:
+	if board_note != null and is_instance_valid(board_note):
+		_close_board()
+		return
+	board_note = PaperNote.create("BOARD_TITLE", BOARD_LINES, BOARD_PAPER, BOARD_INK)
+	_hud.add_child(board_note)
+	_board_t = 0.0
+	_hud.show_bark(_player, "BARK_NOEN_BOARD", 3.2, "SPK_NOEN")
+
+
+func _tick_board(delta: float) -> void:
+	if board_note == null:
+		return
+	if not is_instance_valid(board_note):
+		board_note = null
+		return
+	_board_t += delta
+	var away: bool = _player.global_position.distance_to(board_use.global_position) > BOARD_AWAY
+	if away or _board_t > BOARD_SHOW_SEC or Game.is_in_dialogue():
+		_close_board()
+
+
+func _close_board() -> void:
+	if board_note != null and is_instance_valid(board_note):
+		board_note.close()
+	board_note = null
 
 
 ## 雷歐小隊走出大門（走到就消失）

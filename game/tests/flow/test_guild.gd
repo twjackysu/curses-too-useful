@@ -297,7 +297,21 @@ func test_lilith_hands_over_the_green_request_then_sera_asks_to_come_along() -> 
 	assert_true(level.scenery.slip.visible, "綠色委託單放到櫃檯上")
 	await tree.process_frame
 	assert_true(level.lilith.get_node_or_null("HeldSlip") == null, "手上的那張收掉了")
+	# 拿出委託單的那一句：畫面右邊出現那張綠色的紙（看得清楚寫什麼）；蓋章的那一句蓋上「受理」
+	assert_true(level.slip_note == null, "第一句還沒拿出來")
+	runner.advance()
+	assert_eq(runner.current_text(), GuildHall.SLIP_SHOW_LINE)
+	assert_not_null(level.slip_note, "拿出委託單")
+	assert_eq(level.slip_note.title_key, "SLIP_TITLE")
+	assert_true(level.slip_note.get_parent() == hud, "畫在 HUD 上")
+	var note: PaperNote = level.slip_note
+	while runner.is_running() and runner.current_text() != GuildHall.SLIP_STAMP_LINE:
+		runner.advance()
+	assert_eq(note.stamp_key, "SLIP_STAMP", "蓋章")
 	_finish_dialogue(0)
+	assert_true(level.slip_note == null, "講完收起來")
+	await _frames(90)
+	assert_false(is_instance_valid(note), "淡出之後拿掉")
 	assert_eq(s.state.get_flag(GuildHall.FLAG_QUEST), true)
 	assert_eq(s.quests.stage_of("ch1_main"), "sera_asks")
 	assert_false(level.lilith_use.enabled)
@@ -453,3 +467,33 @@ func test_epilogue_returns_to_the_guild_at_dusk_and_ends_the_chapter() -> void:
 	assert_false(bool(_game().call("is_in_dialogue")), "演過了")
 	assert_true(level.card == null)
 	assert_eq((level.get_node("Hud") as Hud).objective_text_key(), Hud.STORY_END_KEY)
+
+
+func test_the_request_board_shows_what_is_posted_and_closes_when_walking_away() -> void:
+	_game().call("new_game", false)
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var hud: Hud = level.get_node("Hud") as Hud
+	player.global_position = level.board_use.global_position + Vector3(0.4, 0, 0.3)
+	await _frames(2)
+	assert_true(level.board_use.enabled, "佈告欄隨時可以看")
+	level.board_use.use(player)
+	assert_not_null(level.board_note, "攤開佈告欄上的委託")
+	assert_eq(level.board_note.title_key, "BOARD_TITLE")
+	assert_eq(level.board_note.line_keys, GuildHall.BOARD_LINES)
+	assert_true(level.board_note.get_parent() == hud)
+	var note: PaperNote = level.board_note
+	# 走開就收起來
+	player.global_position = level.board_use.global_position + Vector3(GuildHall.BOARD_AWAY + 1.0, 0, 0)
+	await _frames(2)
+	assert_true(level.board_note == null, "走開收起來")
+	await _frames(60)
+	assert_false(is_instance_valid(note))
+	# 再看一次，再按一次就收起來
+	player.global_position = level.board_use.global_position + Vector3(0.4, 0, 0.3)
+	await _frames(2)
+	level.board_use.use(player)
+	assert_not_null(level.board_note)
+	level.board_use.use(player)
+	assert_true(level.board_note == null, "再按一次收起來")
