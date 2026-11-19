@@ -39,6 +39,13 @@ const ANIM_MAP: Dictionary = {
 	"idle_carry": ["idle_carry"],
 	"walk_carry": ["walk_carry"],
 	"run_carry": ["run_carry"],
+	# 怪物自己的動作（common.py 的 monster_actions；人沒有）
+	"roar": ["roar"],
+	"gaze": ["gaze"],
+	"kneel": ["kneel"],
+	"flinch": ["flinch"],
+	"punch": ["punch"],
+	"hammer": ["hammer"],
 }
 ## 會循環播放的動作
 const LOOPING: PackedStringArray = ["idle", "walk", "run", "sit", "sit_hunch", "sit_drink", "laugh", "slump", "idle_carry", "walk_carry", "run_carry"]

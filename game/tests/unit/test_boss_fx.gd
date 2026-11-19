@@ -1,5 +1,6 @@
 extends TestCase
-## Boss 演出用的小東西（不用載關卡的部分）：收尾那一刀的側面鏡位、飛出去的碎塊、拿得走的魔像核心。
+## Boss 演出用的小東西（不用載關卡的部分）：收尾那一刀的側面鏡位、飛出去的碎塊、拿得走的魔像核心、魔像崩成的碎石、
+## 怪物出招「舉到頂停住」的動作播法。
 ## 魔像身上的（被砍的反應、核心的光、凝視的那道光、核心滾出來）在 flow/test_altar.gd。
 
 
@@ -71,4 +72,53 @@ func test_golem_core_can_be_carried_on_norns_shoulder() -> void:
 	carried.carry_on(body)
 	assert_eq(carried.position, GolemCore.CARRY_POS)
 	root.queue_free()
+	await tree.process_frame
+
+
+func test_rubble_pile_is_a_long_heap_that_grows_out_of_the_ground() -> void:
+	var root := Node3D.new()
+	tree.root.add_child(root)
+	var pile: RubblePile = RubblePile.create()
+	root.add_child(pile)
+	pile.face_along(Vector3(1, 0, 0))
+	assert_true(pile.rock_count() >= 40, "幾十顆石頭（%d）" % pile.rock_count())
+	var far: float = 0.0
+	for at: Vector3 in pile.spots:
+		far = maxf(far, pile.to_global(at).x)
+	assert_true(far > RubblePile.LENGTH * 0.7, "沿著 face_along 的方向鋪出去（最遠 %.1f m）" % far)
+	assert_not_null(pile.get_node_or_null("Block"), "擋路")
+	pile.grow(0.2)
+	assert_true((pile.get_node("Rocks") as Node3D).scale.y < 0.2, "一開始埋在地裡")
+	await tree.create_timer(0.35).timeout
+	assert_true((pile.get_node("Rocks") as Node3D).scale.is_equal_approx(Vector3.ONE), "長出來了")
+	root.queue_free()
+	await tree.process_frame
+
+
+func test_monster_strike_holds_at_the_top_until_released() -> void:
+	var p := Puppet.new()
+	tree.root.add_child(p)
+	p.wind_up("hammer", 1.3)
+	var apex: float = float(Puppet.MONSTER_APEX["hammer"])
+	for i: int in 60:
+		p.advance(1.0 / 60.0)
+	assert_eq(p.action, "hammer")
+	assert_true(p.is_holding() and is_equal_approx(p.action_time, apex), "舉到頂停住（%.2f 秒）" % p.action_time)
+	p.release_hold()
+	p.advance(Puppet.STRIKE_LEAD)
+	assert_true(p.action_time > apex + Puppet.STRIKE_LEAD * 0.9 and not p.is_holding(), "放開就接著砸下去")
+	# 前兆太短擺不完：整段播快、不停
+	p.wind_up("punch", 0.4)
+	for i: int in 30:
+		p.advance(1.0 / 60.0)
+	assert_false(p.is_holding(), "前兆太短不停")
+	# 照指定的秒數整段縮放播（魔像吼多久、跪多久）
+	p.play_action("kneel", 4.0)
+	for i: int in 200:
+		p.advance(1.0 / 60.0)
+	assert_eq(p.action, "kneel", "4 秒的跪還沒跪完")
+	for i: int in 50:
+		p.advance(1.0 / 60.0)
+	assert_eq(p.action, "", "跪完回到平常")
+	p.queue_free()
 	await tree.process_frame

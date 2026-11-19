@@ -4,7 +4,7 @@ extends RefCounted
 ## 不碰場景，只吃「離目標多遠」與時間；出招那一刻回傳 true，由角色節點判定命中。
 ## 數值來自 CombatTuning（<prefix>.*、difficulty.*.telegraph）。
 ## 一般敵人只有一招（attack_range 內就出）；精英敵人在 <prefix>.moves 定義多招，依 <prefix>.pattern 輪流，
-## 每招有自己的距離（min_range～range）、前兆、出招、破綻時間（送葬者：橫掃／下砸／衝撞）。
+## 每招有自己的距離（min_range～range）、前兆、出招、破綻時間（魔像：重拳／震地）。
 ## 連段：某招有 "chain": "<下一招 id>" 時，出招結束直接進下一招的前兆（不經破綻）。現在沒有招式用，留給之後的頭目。
 
 ## FLINCH＝被諾恩打中往後仰的那一下。加在最後面：前面幾個的數值不變。
@@ -35,17 +35,12 @@ var stagger_kneel_sec: float = 2.0
 ## 前兆中受擊：不打斷出招，失衡打折（硬撐）；破綻中受擊：失衡加倍（教玩家等破綻）
 var telegraph_stagger_mult: float = 0.5
 var recover_stagger_mult: float = 2.0
-## 目前（或下一個）招式 id；看穿顯示「▶ 爪擊」用
-var move_id: String = "claw"
+## 目前（或下一個）招式 id（多招的敵人照這個決定出哪一招的動作與判定）
+var move_id: String = "strike"
 ## 多招敵人：id → {telegraph, active, recover, min_range, range, ...}；空的＝一般敵人單招
 var moves: Dictionary = {}
 var pattern: PackedStringArray = []
-## 照順序出招。false（劇情裡的敵人）＝跟以前一樣：輪到的那一招打不到，就換下一個打得到的。
-## true（戰鬥場的頭目）＝輪到的那一招只是「目標還太遠」的時候不換招，等角色走近再出；
-## 太近（小於 min_range）的招照舊跳過。沒有這個的話，射程最長的那一招（噴毒 3.4 m）會一直頂替別的招：
-## 諾恩被打退到 3.9 m，牠走到 3.4 m 就停下來噴毒，噴完還是只有噴毒打得到——六次噴毒才輪到一次橫掃。
-var pattern_strict: bool = false
-## 挨打後仰。flinch_sec＝仰多久（0＝這種敵人不會後仰：劇情裡的敵人、頭目）。
+## 挨打後仰。flinch_sec＝仰多久（0＝這種敵人不會後仰：樹人、頭目）。
 ## 後仰過 brace_after 次之後「硬撐」：不再後仰、前兆打不斷（還是會扣血），下一招一定打得出來——
 ## 不然一直按出手就能把人鎖到死。出完一招（進破綻）或跪完起來就重新算。招式資料寫 "unstoppable": true＝這一招永遠打不斷。
 var flinch_sec: float = 0.0
@@ -78,12 +73,11 @@ func configure(prefix: String, difficulty: String = "standard") -> EnemyBrain:
 	attack_range = CombatTuning.num(prefix + ".attack_range", 1.8)
 	telegraph_stagger_mult = CombatTuning.num(prefix + ".telegraph_stagger_mult", 0.5)
 	recover_stagger_mult = CombatTuning.num(prefix + ".recover_stagger_mult", 2.0)
-	# 後仰的三個數字只有會後仰的敵人才寫（戰鬥場的 profiles.arena）；沒寫＝不後仰，不要印「沒有這個 key」
+	# 後仰的幾個數字只有會後仰的敵人才寫；沒寫＝不後仰，不要印「沒有這個 key」
 	flinch_sec = CombatTuning.num(prefix + ".flinch", 0.0) if _has(prefix + ".flinch") else 0.0
 	brace_after = int(CombatTuning.num(prefix + ".brace_after", 2.0)) if _has(prefix + ".brace_after") else 2
 	flinch_push = CombatTuning.num(prefix + ".flinch_push", 0.4) if _has(prefix + ".flinch_push") else 0.4
 	brace_armor = CombatTuning.num(prefix + ".brace_armor", 1.0) if _has(prefix + ".brace_armor") else 1.0
-	pattern_strict = bool(CombatTuning.value(prefix + ".pattern_strict", false)) if _has(prefix + ".pattern_strict") else false
 	var mv: Variant = CombatTuning.value(prefix + ".moves", {}) if _has(prefix + ".moves") else {}
 	# 複製一份：個別敵人改自己的招式數值時，不能改到共用的 CombatTuning 資料
 	moves = (mv as Dictionary).duplicate(true) if mv is Dictionary else {}
@@ -161,9 +155,6 @@ func _choose_move(dist: float) -> bool:
 			_pattern_i = (i + 1) % pattern.size()
 			_set_move(id)
 			return true
-		if pattern_strict and not too_close:
-			# 輪到的這一招只是還太遠：不換招，等走近
-			return false
 	return false
 
 
@@ -179,17 +170,12 @@ func _chain_of(id: String) -> String:
 	return str((m as Dictionary).get("chain", "")) if m is Dictionary else ""
 
 
-## 換招式輪替（送葬者的追擊版與守衛版）。從新 pattern 的第一招開始。
-func set_pattern(p: PackedStringArray) -> void:
-	if p.is_empty():
-		return
-	pattern = p
-	_pattern_i = 0
-	if state in [State.IDLE, State.CHASE]:
-		move_id = pattern[0]
+## 這一次跪地要跪多久（失衡滿了＝stagger_kneel、力竭之類的特殊跪地另外給）
+func kneel_sec() -> float:
+	return _kneel_sec
 
 
-## 前兆進度 0..1（畫面上的霜紋亮度用）。
+## 前兆進度 0..1（敵人身上的綠光越來越亮、怪物舉到多高）。
 func telegraph_progress() -> float:
 	return clampf(time_in_state / telegraph_sec, 0.0, 1.0) if state == State.TELEGRAPH else 0.0
 

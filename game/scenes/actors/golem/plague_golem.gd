@@ -6,7 +6,9 @@ extends EnemyActor
 ## 全場石化（諾恩是霸體無敵）。諾恩站在那道光上＝擋在席菈前面：她沒事、魔像力竭跪下；沒擋到她被石化，過一陣子再來一次。
 ## 核心（胸口）在席菈的禁藥落到諾恩身上之前打不碎：生命扣到 hp_floor 就扣不下去；之後諾恩的下一刀直接粉碎核心。
 ## 外型：Tripo 的雙足模型，跟人物走同一條轉檔（scripts/gen_art.sh，Puppet 的 character_id＝plague_golem，3.6 m 高）；模型不在時是放大的程式人偶。
-## 動作用 Puppet 現成的：走路、出手的第一段（重拳）與第三段（震地）；吼、凝視、跪下是整個人前後仰。
+## 動作（tools/blender/common.py 的 monster_actions，D-303）：走路、右手直拳（重拳）、兩手舉過頭砸下去（震地、睡著時舉著的拳頭）、
+## 吼、凝視的前兆、單膝跪地（力竭、倒下前）、被砍的那一下。出招舉到頂停住等前兆走完，剩 0.19 秒才打下去。
+## 倒下：跪 → 往後倒 → 崩成一堆碎石（RubblePile，留在關卡上），不再沉進地面消失。
 ## 演出（都是看得到的回饋，不改規則）：被諾恩砍中整個身體頓一下、掉石屑、身上的光亮一下；胸口的核心一直有一點光，
 ## 生命扣到底線打不下去的時候閃一圈（「核心還在」），open_core() 之後變成金色、一圈一圈往中心收（「砍這裡」）；
 ## 凝視的前兆眼睛越來越亮，打出去是一道從眼睛射出去的光＋掃過全場的一圈；粉碎的那一刀核心炸成碎片；倒地之後核心滾出來。
@@ -22,14 +24,13 @@ const CHARACTER_ID: String = "plague_golem"
 const NAME_KEY: String = "BOSS_PLAGUE_GOLEM"
 const GAZE_SOURCE: String = "petrify_gaze"
 const STAND_IN_SCALE: float = 2.0
-## Puppet 的出手動作開始之後這麼久才「打到」
-const SWING_LEAD: float = 0.19
-## 還沒醒：舉著拳頭停在出手動作的這一刻
-const LOOM_AT: float = 0.1
-const LEAN_BACK: float = 0.16
-const LEAN_SLAM: float = -0.24
-const LEAN_ROAR: float = 0.3
-const LEAN_GAZE: float = -0.18
+## 被砍的那一下（flinch 動作）最少隔幾秒才再演一次：連砍的時候一直從頭演會抖
+const FLINCH_GAP: float = 0.9
+## 倒下：跪下去停在跪著的那一刻（kneel 動作的第幾秒）、跪多久才往後倒、倒地之後躺多久才崩成碎石、崩多久
+const DOWN_KNEEL_AT: float = 0.5
+const DOWN_KNEEL_SEC: float = 1.2
+const DOWN_LIE_SEC: float = 1.6
+const DOWN_CRUMBLE_SEC: float = 1.4
 ## 平常是毒的螢光綠，狂暴之後變成橘紅
 const RAGE_COLOR: Color = Color(1.0, 0.32, 0.12)
 const GAZE_COLOR: Color = Color(0.74, 0.5, 1.0)
@@ -85,6 +86,10 @@ var gaze_target: Node3D
 var aura: PlagueAura
 var _puppet: Puppet
 var _swung: bool = false
+## 上一次演被砍的動作之後過了幾秒
+var _since_flinch: float = 99.0
+## 倒下之後崩成的那一堆碎石（掛在關卡上；測試用）
+var rubble: RubblePile
 var _eye: OmniLight3D
 var _beam: MeshInstance3D
 var _beam_mat: ShaderMaterial
@@ -100,7 +105,6 @@ var _core_kick: float = 0.0
 ## 被砍的那一下：1 → 0；往哪邊頓（世界座標，水平）
 var _jolt: float = 0.0
 var _jolt_dir: Vector3 = Vector3.ZERO
-var _lean: float = 0.0
 ## 打不下去的那一圈閃過幾次、被砍頓過幾次（測試用）
 var ward_count: int = 0
 var jolt_count: int = 0
@@ -207,6 +211,7 @@ func _tick_phases(delta: float) -> void:
 			_enrage()
 		"gaze":
 			brain.break_off()
+			_puppet.play_action("gaze", phases.gaze_sec)
 			_sound(GAZE_CHARGE_SFX, global_position + Vector3.UP * EYE_HEIGHT, 0.0, 12.0, self)
 			gaze_started.emit()
 		"fire":
@@ -226,6 +231,7 @@ func _enrage() -> void:
 		_rim.set_shader_parameter("glow_color", RAGE_COLOR)
 		_glow.light_color = RAGE_COLOR
 	_sound(ROAR_SFX, global_position + Vector3.UP * EYE_HEIGHT, 4.0, 14.0, self)
+	_puppet.play_action("roar", phases.roar_sec)
 	if _player != null and is_instance_valid(_player):
 		_player.shake(0.5)
 	enraged.emit()
@@ -293,6 +299,11 @@ func _on_damaged(amount: float, info: Dictionary) -> void:
 func _on_cut(from: Vector3) -> void:
 	jolt_count += 1
 	_jolt = 1.0
+	# 手上沒在出招、沒在吼／凝視／跪：演一下被砍往後一抽（不改狀態機——牠還是打不斷）
+	if _since_flinch >= FLINCH_GAP and _puppet.action in ["", "flinch"] and brain.state in [EnemyBrain.State.CHASE, EnemyBrain.State.RECOVER] \
+			and phases.phase not in [GolemPhases.Phase.ROAR, GolemPhases.Phase.GAZE]:
+		_since_flinch = 0.0
+		_puppet.play_action("flinch")
 	_jolt_dir = -hit_dir(from)
 	RockDebris.burst(get_parent(), hit_point(from), hit_dir(from) + Vector3.UP * 0.7, 8, 0.18, STONE_COLOR, Vector2(3.0, 6.5))
 	if not phases.core_open and health.min_hp > 0.0 and health.hp <= health.min_hp + 0.5:
@@ -343,53 +354,45 @@ func _update_look() -> void:
 	var dt: float = get_physics_process_delta_time()
 	_update_flares(dt)
 	if not awake:
-		# 舉著拳頭等在那裡（劇本：雷歐等人絕望地看著魔像舉起巨拳）
+		# 兩手舉過頭等在那裡（劇本：雷歐等人絕望地看著魔像舉起巨拳）；醒來就砸下去
 		if _puppet.action == "":
-			_puppet.attack_variant = Puppet.SLAM_VARIANT
-			_puppet.hold_action("attack", LOOM_AT)
+			_puppet.hold_action("hammer", float(Puppet.MONSTER_APEX["hammer"]))
 		return
+	_since_flinch += dt
 	_puppet.set_move_speed(Vector2(velocity.x, velocity.z).length())
 	var windup: float = brain.telegraph_progress()
-	var lean: float = LEAN_BACK * windup
-	var drop: float = 0.0
 	var glow: float = lerpf(1.0, GLOW_WINDUP, windup)
 	match brain.state:
 		EnemyBrain.State.TELEGRAPH:
-			if not _swung and brain.telegraph_sec - brain.time_in_state <= SWING_LEAD:
+			if not _swung:
 				_swung = true
-				_puppet.attack_variant = Puppet.SLAM_VARIANT if brain.move_id == "slam" else 0
-				_puppet.play_action("attack")
-		EnemyBrain.State.STRIKE, EnemyBrain.State.RECOVER:
-			lean = LEAN_SLAM if brain.state == EnemyBrain.State.STRIKE or brain.time_in_state < 0.4 else 0.0
+				_puppet.wind_up("hammer" if brain.move_id == "slam" else "punch", brain.telegraph_sec)
+			elif _puppet.is_holding() and brain.telegraph_sec - brain.time_in_state <= Puppet.STRIKE_LEAD:
+				_puppet.release_hold()
 		EnemyBrain.State.STAGGERED:
-			lean = -0.45
-			drop = -0.8
 			glow = 0.5
 	if brain.state not in [EnemyBrain.State.TELEGRAPH, EnemyBrain.State.STRIKE]:
 		_swung = false
+		if _puppet.is_holding():
+			# 舉到頂等著的時候前兆被取消了（又沒有別的動作接手）：放下來
+			_puppet.stop_action()
 	var gaze: float = phases.gaze_progress()
-	match phases.phase:
-		GolemPhases.Phase.ROAR:
-			lean = LEAN_ROAR * sin(clampf(phases.time_in_phase / phases.roar_sec, 0.0, 1.0) * PI)
-			glow = GLOW_WINDUP
-		GolemPhases.Phase.GAZE:
-			lean = LEAN_GAZE * gaze
-			glow = GLOW_WINDUP
+	if phases.phase in [GolemPhases.Phase.ROAR, GolemPhases.Phase.GAZE]:
+		glow = GLOW_WINDUP
 	_eye.light_energy = 9.0 * gaze
 	_update_beam(gaze)
 	# 被砍的那一下疊在上面（不經過下面那個慢慢跟上的 lerp，不然看不出來）：往後頓、仰一點、身上的光亮一下
 	_jolt = move_toward(_jolt, 0.0, dt / JOLT_SEC)
 	var jolt: float = _jolt * _jolt
 	var push: Vector3 = _body.global_basis.inverse() * _jolt_dir * (JOLT_PUSH * jolt)
-	_lean = lerp_angle(_lean, lean, 0.16)
-	_puppet.rotation.x = _lean + JOLT_LEAN * jolt
-	_puppet.position = Vector3(push.x, lerpf(_puppet.position.y, drop, 0.16), push.z)
+	_puppet.rotation.x = JOLT_LEAN * jolt
+	_puppet.position = Vector3(push.x, 0.0, push.z)
 	if not health.is_dead():
 		_set_glow(glow + JOLT_GLOW * jolt)
 
 
-## 倒下：先跪、胸口炸開一團光，再往後仰倒（不往前趴——諾恩就站在牠面前）、躺一下、最後沉進地面。比一般敵人久。
-## 垮完之前照樣擋路：粉碎核心的那一刀會往前滑一步，不擋的話諾恩會滑進牠的身體裡。
+## 倒下：先單膝跪下、胸口炸開一團光，再往後仰倒（不往前趴——諾恩就站在牠面前）、躺一下，最後崩成一堆碎石（身體沉下去、
+## 石堆從地面拱上來；石堆留在關卡上）。比一般敵人久。垮完之前照樣擋路：粉碎核心的那一刀會往前滑一步，不擋的話諾恩會滑進牠的身體裡。
 func _on_died() -> void:
 	var f: Vector3 = forward()
 	_fall_fwd = Vector3(f.x, 0.0, f.z).normalized() if Vector2(f.x, f.z).length() > 0.01 else Vector3.FORWARD
@@ -408,17 +411,51 @@ func _on_died() -> void:
 	if aura != null:
 		aura.active = false
 	_ground_puff(global_position + Vector3.UP * _hit_height(), Vector3(0.8, 0.8, 0.8), 60, Color(0.75, 1.0, 0.6, 0.8))
+	# 單膝跪下去、停在跪著的那一刻（_update_look 不跑了，Puppet 自己播）
+	_puppet.play_action("kneel")
+	_puppet.pause_at(DOWN_KNEEL_AT)
 	var t := create_tween()
 	_fall_tween = t
-	t.tween_property(_body, "position:y", -0.7, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	t.tween_interval(0.5)
+	t.tween_interval(DOWN_KNEEL_SEC)
 	t.tween_property(_body, "rotation_degrees:x", -FALL_FORWARD * 76.0, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.parallel().tween_property(_body, "position:y", 0.35, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_callback(_on_fall_impact)
-	t.tween_interval(3.5)
-	t.tween_callback(func() -> void: collision_layer = 0)
-	t.tween_property(_body, "position:y", -4.5, 2.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	t.tween_interval(DOWN_LIE_SEC)
+	t.tween_callback(_crumble)
+	t.tween_property(_body, "position:y", -2.6, DOWN_CRUMBLE_SEC).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	t.tween_callback(queue_free)
+
+
+## 崩成一堆碎石：身體往下沉（_on_died 的 tween）的同時，石堆從牠躺著的地方拱上來、揚起一大團灰、石塊往上噴。
+## 石堆掛在關卡上（牠被釋放之後還在），擋路的換成石堆。
+func _crumble() -> void:
+	collision_layer = 0
+	if not is_inside_tree():
+		return
+	rubble = RubblePile.create()
+	get_parent().add_child(rubble)
+	rubble.global_position = Vector3(global_position.x, global_position.y, global_position.z) - _fall_fwd * 0.2
+	rubble.face_along(-_fall_fwd)
+	rubble.grow(DOWN_CRUMBLE_SEC * 0.8)
+	var mid: Vector3 = global_position - _fall_fwd * 1.7
+	_sound(SLAM_SFX, mid, -1.0, 10.0)
+	RockDebris.burst(get_parent(), mid + Vector3.UP * 0.5, Vector3.UP, 26, 0.32, STONE_COLOR, Vector2(1.5, 4.5))
+	var dust: CPUParticles3D = puff_build(Vector3(1.2, 0.3, 1.9), 60, Color(0.62, 0.64, 0.66, 0.7))
+	dust.lifetime = 2.2
+	dust.initial_velocity_max = 1.6
+	dust.scale_amount_max = 2.6
+	# 灰掛在關卡上（牠沉下去、被釋放之後還要飄完）
+	get_parent().add_child(dust)
+	dust.global_position = mid
+	dust.emitting = true
+	dust.finished.connect(dust.queue_free)
+
+
+## 跪下（失衡滿了、凝視被擋下來力竭）：單膝跪地的動作照跪多久整段縮放播
+func _on_kneel() -> void:
+	super._on_kneel()
+	if awake and not health.is_dead():
+		_puppet.play_action("kneel", brain.kneel_sec())
 
 
 func _on_fall_impact() -> void:

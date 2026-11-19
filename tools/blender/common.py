@@ -860,6 +860,108 @@ def social_actions(a):
     a.action("run_carry", 18, carried(run), step=1)
 
 
+def monster_actions(a):
+    """怪物（魔像、樹人）自己的動作（人不做）：吼（roar）、石化凝視的前兆（gaze）、單膝跪地（kneel：失衡、力竭）、
+    被砍的那一下（flinch）、右手直拳（punch）、兩手舉過頭一起砸下去（hammer）。
+    以前這些都借人的動作或整個人前後仰（D-303）。遊戲裡照 24 fps 播；出招的兩段（punch、hammer）在「舉到頂」那一刻
+    （MONSTER_APEX）停住等前兆走完、剩 0.19 秒才砸下去（Puppet.pause_at）；吼、凝視、跪照那一段要多久整段縮放播
+    （Puppet.play_action 的 seconds）——所以「做到位 → 停著 → 收回來」三段的比例比秒數重要。
+    角度的意思跟 standard_actions 一樣；位移照腿長算（魔像 3.6 m、樹人 2.6 m，同一套）。"""
+    bones = a.arm.data.bones
+    thigh = (bones["LeftLowerLeg"].head_local - bones["LeftUpperLeg"].head_local).length
+    shin = (bones["LeftFoot"].head_local - bones["LeftLowerLeg"].head_local).length
+
+    def base(f, crouch=0.0, spine=0.0, chest=0.0, head=0.0, twist=0.0, back=0.0, spread=0.0):
+        """兩腳張開站穩的怪物站姿；crouch＝膝蓋彎幾成（骨盆跟著往下）、back＝骨盆往後挪幾成腿長、spread＝腳再張開幾度"""
+        a.rot("Hips", f, (X, -4 * crouch), (Z, twist * 0.4))
+        a.move("Hips", f, (0, -back * thigh, -0.2 * thigh * crouch))
+        a.rot("Spine", f, (X, spine * 0.5), (Z, twist * 0.3))
+        a.rot("Chest", f, (X, chest * 0.5 + spine * 0.3), (Z, twist * 0.3))
+        a.rot("Head", f, (X, head), (Z, -twist * 0.4))
+        for side, sgn in (("Left", -1), ("Right", 1)):
+            a.rot(side + "UpperLeg", f, (X, 14 * crouch), (Y, -sgn * spread))
+            a.rot(side + "LowerLeg", f, (X, -30 * crouch))
+            a.rot(side + "Foot", f, (X, 16 * crouch))
+
+    def roar(f, t):
+        # 吼：先縮（兩手收到胸前、低頭）→ 挺胸仰頭、兩手往兩邊上方張開 → 撐著發抖 → 放下
+        gather = keys(t, [(0, 0), (0.14, 1), (0.24, 0), (1, 0)])
+        up = keys(t, [(0, 0), (0.14, 0), (0.26, 1), (0.84, 1), (1, 0)])
+        shake = math.sin(t * math.tau * 14) * up * (1.0 if 0.26 < t < 0.84 else 0.0)
+        base(f, crouch=0.6 * gather + 0.35 * up, spine=-14 * gather + 18 * up, chest=-10 * gather + 16 * up + 2 * shake,
+             head=-16 * gather + 30 * up + 2 * shake, spread=6 * up)
+        for side in ("Left", "Right"):
+            a.arm_pose(side, f, hang=20 + 10 * gather + 85 * up + 3 * shake, swing=40 * gather + 28 * up,
+                       elbow=20 + 70 * gather + 30 * up)
+
+    def gaze(f, t):
+        # 石化凝視的前兆：兩腳張開蹲低、上身往前探、頭抬著盯住前面，兩手往兩邊後面撐開；越撐越抖
+        k = keys(t, [(0, 0), (0.12, 1), (0.9, 1), (1, 0)])
+        shake = math.sin(t * math.tau * 22) * k * t
+        base(f, crouch=0.7 * k, spine=-26 * k, chest=-14 * k + shake, head=34 * k + 1.5 * shake, spread=10 * k, back=0.12 * k)
+        for side in ("Left", "Right"):
+            a.arm_pose(side, f, hang=20 + 42 * k + 2 * shake, swing=-28 * k, elbow=20 + 28 * k)
+
+    def kneel(f, t):
+        # 單膝跪地（失衡、凝視被擋下來力竭）：右膝著地、左腳踩在前面，駝背低頭，右手撐地、左手擱在左膝上
+        k = keys(t, [(0, 0), (0.1, 1), (0.88, 1), (1, 0)])
+        breath = math.sin(t * math.tau * 4) * k
+        drop = thigh * 0.8
+        a.rot("Hips", f, (X, -2 * k), (Z, -6 * k))
+        a.move("Hips", f, (0, 0.05 * thigh * k, -drop * k))
+        a.rot("Spine", f, (X, -14 * k + 2 * breath))
+        a.rot("Chest", f, (X, -10 * k + 3 * breath))
+        a.rot("Head", f, (X, -18 * k + breath))
+        a.leg_pose("Left", f, thigh=72 * k, knee=78 * k, foot=6 * k)
+        a.leg_pose("Right", f, thigh=-10 * k, knee=92 * k, foot=-30 * k)
+        a.arm_pose("Right", f, hang=20 - 6 * k, swing=34 * k, elbow=20 - 10 * k)
+        a.arm_pose("Left", f, hang=20 - 8 * k, swing=52 * k, elbow=20 + 58 * k)
+
+    def flinch(f, t):
+        # 被砍的那一下：上身往後一抽、往旁邊歪，兩手甩開一點，馬上回來
+        k = keys(t, [(0, 0), (0.18, 1), (0.42, 0.6), (1, 0)])
+        base(f, crouch=0.3 * k, spine=14 * k, chest=10 * k, head=14 * k, twist=-14 * k, back=0.08 * k)
+        a.arm_pose("Left", f, hang=20 + 18 * k, swing=-16 * k, elbow=20 + 10 * k)
+        a.arm_pose("Right", f, hang=20 + 24 * k, swing=-10 * k, elbow=20 + 25 * k)
+
+    # 出招：0～APEX 舉到頂（遊戲裡停在這裡等前兆走完）、APEX～HIT（0.19 秒）打下去、到 END 停著、之後收回來
+    def strike(apex, total, wind, hit, end):
+        """wind／hit／end：{crouch, spine, chest, head, twist, back, r (hang, swing, elbow), l}"""
+        rest = {"crouch": 0, "spine": 0, "chest": 0, "head": 0, "twist": 0, "back": 0, "r": (20, 0, 20), "l": (20, 0, 20)}
+        t_apex, t_hit, t_end = apex / total, (apex + 0.19) / total, (apex + 0.5) / total
+
+        def fn(f, t):
+            def v(get):
+                return keys(t, [(0, get(rest)), (t_apex, get(wind)), (t_hit, get(hit)), (t_end, get(end)), (1, get(rest))])
+            base(f, crouch=v(lambda p: p["crouch"]), spine=v(lambda p: p["spine"]), chest=v(lambda p: p["chest"]),
+                 head=v(lambda p: p["head"]), twist=v(lambda p: p["twist"]), back=v(lambda p: p["back"]), spread=4)
+            for side, key in (("Right", "r"), ("Left", "l")):
+                a.arm_pose(side, f, hang=v(lambda p: p[key][0]), swing=v(lambda p: p[key][1]), elbow=v(lambda p: p[key][2]))
+        return fn
+
+    # 右手直拳（魔像的重拳）：上身往右後扭、右拳拉到肩膀後面 → 扭回來、整條手臂往前下方打直，身體往前壓
+    punch = strike(MONSTER_APEX["punch"], 1.25,
+                   {"crouch": 0.5, "spine": 6, "chest": 4, "head": 4, "twist": -34, "back": 0.1, "r": (40, -38, 120), "l": (34, 40, 60)},
+                   {"crouch": 0.7, "spine": -26, "chest": -10, "head": 10, "twist": 30, "back": -0.18, "r": (24, 74, 4), "l": (30, -24, 40)},
+                   {"crouch": 0.7, "spine": -28, "chest": -12, "head": 10, "twist": 32, "back": -0.2, "r": (22, 64, 6), "l": (30, -24, 40)})
+    # 兩手舉過頭一起砸下去（魔像的震地、樹人的下砸）：往後仰、兩手舉到頭上 → 整個人往前折、兩拳砸到腳前面的地上
+    hammer = strike(MONSTER_APEX["hammer"], 1.5,
+                    {"crouch": 0.2, "spine": 16, "chest": 12, "head": 14, "twist": 0, "back": 0.06, "r": (24, 168, 50), "l": (24, 168, 50)},
+                    {"crouch": 1.0, "spine": -40, "chest": -20, "head": 0, "twist": 0, "back": -0.1, "r": (12, 62, 6), "l": (12, 62, 6)},
+                    {"crouch": 1.0, "spine": -42, "chest": -22, "head": -4, "twist": 0, "back": -0.1, "r": (12, 56, 8), "l": (12, 56, 8)})
+
+    a.action("roar", 53, roar, step=1)
+    a.action("gaze", 48, gaze, step=1)
+    a.action("kneel", 48, kneel, step=2)
+    a.action("flinch", 12, flinch, step=1)
+    a.action("punch", 30, punch, step=1)
+    a.action("hammer", 36, hammer, step=1)
+
+
+# 怪物出招的兩段動作「舉到頂」在第幾秒（遊戲裡停在這一刻等前兆走完；Puppet.MONSTER_APEX 要一樣）
+MONSTER_APEX = {"punch": 0.42, "hammer": 0.55}
+
+
 class Animator:
     def __init__(self, arm, segs):
         self.arm, self.segs = arm, segs

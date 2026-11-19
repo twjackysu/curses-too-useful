@@ -155,7 +155,8 @@ func test_arriving_finds_leos_party_down_then_the_golem_wakes_and_its_plague_fee
 	assert_eq(golem.health.max_hp, CombatTuning.num("plague_golem.max_hp"), "數值在資料表裡")
 	assert_true(golem.rim_surface_count() > 0 or not golem.puppet().uses_model(), "身上有毒的螢光綠")
 	await _frames(3)
-	assert_eq(golem.puppet().current_state(), "attack", "舉著拳頭停在那裡")
+	assert_eq(golem.puppet().current_state(), "hammer", "兩手舉過頭停在那裡")
+	assert_true(golem.puppet().is_holding(), "停在舉到頂的那一刻")
 	var raised: float = golem.puppet().action_time
 	await _frames(20)
 	assert_eq(golem.puppet().action_time, raised, "動作停在同一刻")
@@ -237,13 +238,27 @@ func test_golem_punches_and_slams_and_cannot_die_while_its_core_holds() -> void:
 		if golem.brain.state == EnemyBrain.State.STRIKE:
 			seen[golem.brain.move_id] = int(player.hurt_count)
 		player.health.hp = player.health.max_hp
-		walked = walked or golem.puppet().current_state() == "attack"
+		walked = walked or golem.puppet().current_state() in ["punch", "hammer"]
 		if seen.has("punch") and seen.has("slam"):
 			break
 	assert_true(seen.has("punch") and seen.has("slam"), "兩招都出過：%s" % str(seen.keys()))
 	assert_true(golem.heard.has(PlagueGolem.SLAM_SFX), "砸下去是地面被砸的「轟」（不再借鈍擊）")
 	assert_true(player.hurt_count >= 2, "站在面前會被打到（%d 下）" % player.hurt_count)
-	assert_true(walked, "出手的時候有揮下來的動作")
+	assert_true(walked, "出手的時候有自己的動作（直拳、兩手砸）")
+	# 前兆＝舉到頂停著，剩 0.19 秒才打下去
+	for i: int in 300:
+		await tree.physics_frame
+		player.global_position = golem.global_position + golem.forward() * 3.0 + Vector3(0, 0.05, 0)
+		player.health.hp = player.health.max_hp
+		if golem.brain.state == EnemyBrain.State.TELEGRAPH and golem.brain.time_in_state > 0.5:
+			break
+	assert_true(golem.puppet().is_holding() and golem.puppet().action in ["punch", "hammer"], "舉到頂停著等前兆走完（%s）" % golem.puppet().action)
+	# 被砍（追人、破綻的時候）演一下往後一抽；狀態機照舊（打不斷）
+	golem.brain.break_off()
+	golem.puppet().stop_action()
+	golem.health.apply_damage(10.0, {"source": player, "cut": Vector3.RIGHT})
+	assert_eq(golem.puppet().action, "flinch", "被砍往後一抽的動作")
+	assert_eq(golem.brain.state, EnemyBrain.State.CHASE, "沒有被打斷什麼（牠不會後仰）")
 	# 站得夠遠就打不到
 	golem.set_physics_process(false)
 	var before: int = player.hurt_count
@@ -259,10 +274,11 @@ func test_golem_punches_and_slams_and_cannot_die_while_its_core_holds() -> void:
 	golem.health.hp = golem.health.max_hp * 0.45
 	await _frames(4)
 	var debris_before: int = _named(level, "RockDebris")
+	var jolts: int = golem.jolt_count
 	assert_true(golem.health.apply_damage(999999.0, {"source": player, "cut": Vector3.RIGHT}), "照樣算打中")
 	assert_false(golem.health.is_dead(), "核心還在，打不死")
 	# 被砍有反應（不是後仰——牠打不斷）：整個身體頓一下、掉幾塊石屑；扣到底線了：胸口的核心閃一圈
-	assert_eq(golem.jolt_count, 1)
+	assert_eq(golem.jolt_count, jolts + 1)
 	assert_eq(_named(level, "RockDebris"), debris_before + 1, "掉石屑")
 	assert_eq(golem.ward_count, 1, "打不下去：核心閃一圈")
 	assert_eq(golem.heard[-1], PlagueGolem.DEFLECT_SFX, "打不下去是石頭的悶響（不是鐵）")
@@ -345,6 +361,7 @@ func test_enraged_golem_gazes_and_an_unshielded_sera_turns_to_stone() -> void:
 	await _frames(2)
 	assert_eq(events, ["enraged"] as Array[String], "生命剩一半：狂暴")
 	assert_true(golem.heard.has(PlagueGolem.ROAR_SFX), "狂暴吼一聲（不再借硬撐的警告）")
+	assert_eq(golem.puppet().action, "roar", "吼的動作（兩手往上張開、仰頭），不再只是整個人往後仰")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_ENRAGE_LINE1", "CH1_ENRAGE_LINE2"]))
 	assert_true(hud.bark_keys().has("BARK_SERA_FORBIDDEN"), "席菈喊她還有一瓶禁藥")
 	assert_true(sera.hold_at.is_finite() and sera.hands_full, "她退到後面去裝，手上沒空")
@@ -442,6 +459,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 		if golem.phases.phase == GolemPhases.Phase.GAZE:
 			break
 	assert_eq(golem.phases.phase, GolemPhases.Phase.GAZE)
+	assert_eq(golem.puppet().action, "gaze", "凝視的前兆：蹲低、往前探、兩手往後撐")
 	# 席菈已經退到後面站好了（測試把階段縮短了，她來不及跑到）；諾恩站到魔像與她中間
 	sera.global_position = sera.hold_at
 	player.global_position = golem.global_position.lerp(sera.global_position, 0.6) + Vector3(0, 0.05, 0)
@@ -459,6 +477,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_false(sera.is_petrified(), "席菈沒事")
 	assert_true(player.status_effects.is_unstoppable(), "諾恩：石化 → 霸體無敵")
 	assert_eq(golem.brain.state, EnemyBrain.State.STAGGERED, "魔像力竭跪下")
+	assert_eq(golem.puppet().action, "kneel", "單膝跪地的動作，跪多久播多久")
 	assert_eq(golem.weakpoint_exposed_to(player.global_position), "kneel", "這時候砍牠算砍在破綻上")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_BLOCKED_LINE1", "CH1_BLOCKED_LINE2"]))
 	assert_true(hud.bark_keys().has("BARK_SERA_CHAOS"))
@@ -563,7 +582,10 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_eq(str(_game().get("last_level_request")), "guild_hall", "卡播完：換到公會大廳")
 	# 打完繼續待在這一關：魔像沉下去、被釋放之後關卡照樣跑（光環跟著牠一起沒了）
 	await _frames(600)
-	assert_false(is_instance_valid(golem), "魔像沉進地面、不在了")
+	assert_false(is_instance_valid(golem), "魔像崩掉、不在了")
+	var pile: RubblePile = level.get_node_or_null("Rubble") as RubblePile
+	assert_not_null(pile, "崩成一堆碎石，留在關卡上")
+	assert_true(pile.rock_count() > 20, "一堆石頭（%d 顆）" % pile.rock_count())
 	var body: Node3D = player.get_node("Body") as Node3D
 	assert_true(is_instance_valid(level.core) and level.core.is_carried_by(body), "核心扛在他身上")
 	assert_true(level.core.global_position.distance_to(body.to_global(GolemCore.CARRY_POS)) < 0.35, "在他的左肩上")

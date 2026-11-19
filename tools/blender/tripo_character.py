@@ -1,7 +1,8 @@
 """把 Tripo 產的角色（art-inbox/tripo/<id>/<id>_rig.glb，Mixamo 骨名、T 字站姿）轉成遊戲用的 glb（D-271）。
 
 跟 vrm_character.py 一樣的出口：骨頭改成 Godot 人形骨架的名字、臉朝 Blender 的 +Y（匯出後＝Godot 的 −Z）、
-腳底在原點、身高縮到指定的公尺數，再用 common.py 的 Animator 做 idle／walk／run／light_attack_01～03／release，人（不是怪物）再加 social_actions 的坐、笑、扛東西。
+腳底在原點、身高縮到指定的公尺數，再用 common.py 的 Animator 做 idle／walk／run／light_attack_01～03／release，人（不是怪物）再加 social_actions 的坐、笑、扛東西，
+怪物（--monster）再加 monster_actions 的吼、凝視、跪地、被砍、直拳、兩手砸。
 Tripo 自己附的動作（<id>_anim.glb）不用：只有 idle／walk／run，沒有出手與釋放，而且兩套動作混著用站姿會跳。
 
 用法：python3 -I tools/blender/tripo_character.py --src art-inbox/tripo/sheila_rank_f/sheila_rank_f_rig.glb \
@@ -122,6 +123,8 @@ def main():
                     help="不扳正休息姿勢（怪物：張開的腿、外八、握拳是設計，扳正反而怪）")
     ap.add_argument("--no-social", action="store_true",
                     help="不做公會大廳的人用的動作（坐、笑、扛東西……；怪物用不到）")
+    ap.add_argument("--monster", action="store_true",
+                    help="做怪物自己的動作（吼、凝視、跪地、被砍、直拳、兩手砸；common.py 的 monster_actions）")
     args = ap.parse_args()
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -187,6 +190,8 @@ def main():
     c.release_action(a)
     if not args.no_social:
         c.social_actions(a)
+    if args.monster:
+        c.monster_actions(a)
     c.activate(meshes[0])
     for o in meshes:
         o.select_set(True)

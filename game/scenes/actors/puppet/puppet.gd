@@ -15,7 +15,8 @@ extends Node3D
 ## 走路或跑步時，每隻腳落地的那一刻發一次（腳步聲照這個播）
 signal footfall
 
-const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave", "fumble"]
+const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave", "fumble",
+	"roar", "gaze", "kneel", "flinch", "punch", "hammer"]
 const WALK_MIN_SPEED: float = 0.3
 ## 這個速度以上用跑的動作。諾恩平常移動 3.4 m/s 是小跑：以前用「走路」的動作加速到 1.6 倍，腿還是跟不上，
 ## 看起來在地上滑（Jacky 2026-11-14：「走路的音效跟走路速度差很多」）。
@@ -31,7 +32,13 @@ const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "r
 	# 對話的手勢（DialogueDB.ACTS；模型的動作在 social_actions）
 	"nod": 0.9, "bow": 1.4, "point": 1.3, "chest": 1.4, "shrug": 1.3, "fist": 1.1, "wave": 1.5,
 	# 席菈走到瘴氣邊上慌張地找防毒面具（social_actions 的 fumble）
-	"fumble": 1.2}
+	"fumble": 1.2,
+	# 怪物（魔像、樹人）自己的動作（tools/blender/common.py 的 monster_actions）：吼、凝視、跪照那一段要多久縮放播（play_action 的 seconds），
+	# 直拳與兩手砸停在舉到頂（MONSTER_APEX）等前兆走完（pause_at）
+	"roar": 2.2, "gaze": 2.0, "kneel": 2.0, "flinch": 0.5, "punch": 1.25, "hammer": 1.5}
+## 怪物出招的兩段動作「舉到頂」在第幾秒（tools/blender/common.py 的 MONSTER_APEX 要一樣）；舉到頂之後 STRIKE_LEAD 秒打到
+const MONSTER_APEX: Dictionary = {"punch": 0.42, "hammer": 0.55}
+const STRIKE_LEAD: float = 0.19
 ## 對話的手勢（站著才做：坐著、躺著、走著的人不做）
 const GESTURES: PackedStringArray = ["nod", "bow", "point", "chest", "shrug", "fist", "wave"]
 ## 講話時頭動多少（弧度；點頭、左右轉、歪頭）與動起來／停下來多快（每秒）
@@ -92,6 +99,12 @@ const SLAM_VARIANT: int = 3
 var release_left: float = 0.0
 ## 一次性動作停在第幾秒（< 0＝沒有停；hold_action）
 var _hold_at: float = -1.0
+## 一次性動作播到第幾秒就停住（< 0＝不停；pause_at），release_hold() 放開
+var _pause_at: float = -1.0
+## 一次性動作播多快（play_action 的 seconds 算的；出手另外看 attack_speed）
+var _rate: float = 1.0
+## play_action 之後下一次套姿勢要從頭播（同一段動作還在播的時候又叫一次）
+var _restart: bool = false
 var phase: float = 0.0
 ## 上一幀的 gait_cycle()（-1＝那時候不在走）
 var _last_cycle: float = -1.0
@@ -171,13 +184,42 @@ func set_move_speed(speed: float) -> void:
 	move_speed = maxf(speed, 0.0)
 
 
-## 播放一次性動作（閃避、攻擊）；播完回到移動狀態。
-func play_action(action_name: String) -> void:
+## 播放一次性動作（閃避、攻擊）；播完回到移動狀態。seconds＞0＝整段縮放成這麼久（魔像吼多久、跪多久照那一段的時間）。
+func play_action(action_name: String, seconds: float = -1.0) -> void:
 	if not ACTION_TIME.has(action_name):
 		push_error("Puppet: 沒有動作 %s" % action_name)
 		return
 	action = action_name
 	action_time = 0.0
+	_hold_at = -1.0
+	_pause_at = -1.0
+	_rate = float(ACTION_TIME[action_name]) / seconds if seconds > 0.0 else 1.0
+	_restart = true
+
+
+## 怪物出招（punch、hammer）：從舉起來開始播、舉到頂停住，前兆剩 STRIKE_LEAD 秒時 release_hold() 打下去；
+## 前兆比「舉到頂＋STRIKE_LEAD」還短（狂暴、難度高）就整段播快、不停。
+func wind_up(action_name: String, telegraph_sec: float) -> void:
+	var apex: float = float(MONSTER_APEX[action_name])
+	var need: float = apex + STRIKE_LEAD
+	if telegraph_sec >= need:
+		play_action(action_name)
+		pause_at(apex)
+	else:
+		play_action(action_name, float(ACTION_TIME[action_name]) * telegraph_sec / need)
+
+
+## 正在播的一次性動作播到第 at_sec 秒（動作自己的秒數，不管縮放）就停住，等 release_hold()（怪物舉到頂等前兆走完）。
+func pause_at(at_sec: float) -> void:
+	_pause_at = at_sec
+
+
+## 一次性動作停下來、回到移動狀態（吼到一半被打倒之類）。
+func stop_action() -> void:
+	action = ""
+	action_time = 0.0
+	_hold_at = -1.0
+	_pause_at = -1.0
 
 
 ## 把一次性動作停在某一刻不動（魔像舉著拳頭等在那裡）：at_sec＝動作開始後第幾秒的姿勢。release_hold() 放開，從那一刻接著播完。
@@ -189,6 +231,12 @@ func hold_action(action_name: String, at_sec: float) -> void:
 
 func release_hold() -> void:
 	_hold_at = -1.0
+	_pause_at = -1.0
+
+
+## 停在某一刻等著（hold_action、pause_at 停住了）
+func is_holding() -> bool:
+	return action != "" and _hold_at >= 0.0
 
 
 ## 釋放的那一下：先縮、再把兩手往兩邊甩開。滾到一半不擺（看不出來）。
@@ -287,8 +335,11 @@ func advance(delta: float) -> void:
 	if action != "" and _hold_at >= 0.0:
 		action_time = _hold_at
 	elif action != "":
-		action_time += delta * (attack_speed if action == "attack" else 1.0)
-		if action_time >= float(ACTION_TIME[action]):
+		action_time += delta * (attack_speed if action == "attack" else _rate)
+		if _pause_at >= 0.0 and action_time >= _pause_at:
+			action_time = _pause_at
+			_hold_at = _pause_at
+		elif action_time >= float(ACTION_TIME[action]):
 			action = ""
 			action_time = 0.0
 	_talk_w = move_toward(_talk_w, 1.0 if talking else 0.0, delta * TALK_EASE)
@@ -363,6 +414,10 @@ func _animate_model() -> void:
 	if model_animation != name_found:
 		model_animation = name_found
 		anim.play(name_found, blend_for(state))
+	elif _restart and state == action:
+		# 同一段動作再播一次（連著被砍兩下）：從頭開始
+		anim.seek(0.0, true)
+	_restart = false
 	# 步頻跟速度走：腳踩在地上的那一段，腳往後的速度要跟人往前的速度差不多
 	match state:
 		"walk":
@@ -373,7 +428,7 @@ func _animate_model() -> void:
 			# 出手變快（麻痺、流血被反轉）動作也要跟著快，不然只播得到舉劍的前半段、看不到劈下去
 			anim.speed_scale = attack_speed
 		_:
-			anim.speed_scale = 1.0
+			anim.speed_scale = _rate if state == action else 1.0
 	if _hold_at >= 0.0 and state == action:
 		# 停在那一刻：不混合、不往前播
 		anim.play(name_found, 0.0)
@@ -517,6 +572,14 @@ func _pose(speed_t: float) -> void:
 			var k: float = sin(PI * action_time / float(ACTION_TIME[action]))
 			_rot("spine", Vector3((-0.35 if action == "bow" else -0.05) * k, 0, 0))
 			_rot("neck", Vector3(-0.3 * k, 0, 0))
+		"punch", "hammer":
+			# 怪物的替身：舉到頂之前算拉開、之後算劈下去（借出手的姿勢）
+			var apex: float = float(MONSTER_APEX[action])
+			_pose_attack(clampf(0.3 * action_time / apex if action_time < apex else 0.3 + (action_time - apex) / 0.6, 0.0, 1.0))
+		"roar", "gaze", "kneel", "flinch":
+			# 怪物的替身：只有上身往後仰（吼、被砍）或往前垂（凝視、跪）
+			var k2: float = sin(PI * clampf(action_time / float(ACTION_TIME[action]), 0.0, 1.0))
+			_rot("spine", Vector3({"roar": 0.35, "flinch": 0.2, "gaze": -0.3, "kneel": -0.5}[action] * k2, 0, 0))
 
 
 ## 仰躺（車上的傷者）：整個人繞骨盆轉成水平、臉朝上、頭朝 +Z，胸口慢慢起伏。

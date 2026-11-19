@@ -156,7 +156,13 @@ func _ready() -> void:
 		# `--floor`：生命一開始就在底線（核心還在、扣不下去）——配 `--tap=attack --burst-on=hit` 拍「打不下去」的那一圈
 		if args.has("floor"):
 			golem.health.hp = golem.health.max_hp * golem.phases.hp_floor
-	elif stage() == STAGE_AFTER:
+	else:
+		# 魔像倒了之後讀檔回來：牠崩成的那一堆碎石還在（倒下的位置沒存，放在牠一開始站的地方、往石板外面鋪）
+		var pile: RubblePile = RubblePile.create()
+		add_child(pile)
+		pile.position = GOLEM_START
+		pile.face_along(Vector3(GOLEM_START.x, 0.0, GOLEM_START.z))
+	if bool(st.get_flag(FLAG_GOLEM_DOWN, false)) and stage() == STAGE_AFTER:
 		_after_talk_in = AFTER_TALK_RELOAD  # 魔像倒了、話還沒講就離開的存檔：讀回來接著講
 		core = GolemCore.create()
 		core.position = CORE_REST

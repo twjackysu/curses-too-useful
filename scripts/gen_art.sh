@@ -29,12 +29,12 @@ declare -A SRC=(
   [royal_inspector]="art-inbox/tripo/royal_inspector/royal_inspector_rig.glb"
   [black_market_merchant]="art-inbox/tripo/black_market_merchant/black_market_merchant_rig.glb"
 )
-# 給 tripo_character.py 的參數：--height 身高（m）、--keep-rest 不扳正休息姿勢（怪物）、--no-social 不做大廳的人用的動作（怪物）
+# 給 tripo_character.py 的參數：--height 身高（m）、--keep-rest 不扳正休息姿勢（怪物）、--no-social 不做大廳的人用的動作（怪物）、--monster 做怪物自己的動作（吼、凝視、跪、被砍、直拳、兩手砸）
 declare -A ARGS=(
   [noen]="--height 1.74"
   [sheila]="--height 1.65"
-  [spore_treant]="--height 2.60 --keep-rest --no-social"
-  [plague_golem]="--height 3.60 --keep-rest --no-social"
+  [spore_treant]="--height 2.60 --keep-rest --no-social --monster"
+  [plague_golem]="--height 3.60 --keep-rest --no-social --monster"
   [leo]="--height 1.82"
   [leo_mage]="--height 1.64"
   [leo_tank]="--height 1.92"
