@@ -67,11 +67,6 @@ const SIT_HIP_HEIGHT: float = 0.5
 @export var trim_color: Color = Color(0.3, 0.24, 0.18)
 @export var skin_color: Color = Color(0.62, 0.52, 0.45)
 
-## 躺姿：""＝站著、"back"＝仰躺（車上的傷者，頭朝 +Z）、"front"＝趴著（第 3 章趴在水溝裡，頭朝 -Z＝面向的方向、臉朝下）。
-## 只在程序人偶上；中心在骨盆。
-@export var lying: String = ""
-## 坐姿（第 2 章黎歐坐在主椅上）：骨盆降到 SIT_HIP_HEIGHT、大腿往前平放、小腿垂直、手放在膝上。只在程序人偶上。
-@export var sitting: bool = false
 ## 正式模型 id（CharacterModels.path_for）；空字串＝程序人偶
 @export var character_id: String = ""
 ## 沒在走、沒在做一次性動作的時候的樣子（POSES）：""＝平常站著。模型沒有那段動作就照平常站
@@ -173,7 +168,7 @@ func head_offset_skeleton() -> Vector3:
 
 ## 這個人現在能不能做對話的手勢：站著、沒在走、沒在做別的動作
 func can_gesture() -> bool:
-	return pose == "" and lying == "" and not sitting and current_state() == "idle"
+	return pose == "" and current_state() == "idle"
 
 
 func _process(delta: float) -> void:
@@ -350,7 +345,7 @@ func advance(delta: float) -> void:
 		_animate_model()
 	else:
 		_pose(speed_t)
-		if release_t < 1.0 and action != "dodge" and lying == "" and not sitting:
+		if release_t < 1.0 and action != "dodge" and not pose.begins_with("sit"):
 			_pose_release(release_t)
 	_emit_footfalls()
 
@@ -552,11 +547,7 @@ func _pose(speed_t: float) -> void:
 	if _roll != null:
 		_roll.rotation.x = 0.0
 		_roll.position = Vector3.ZERO
-
-	if lying != "":
-		_pose_lying()
-		return
-	if sitting or (pose.begins_with("sit") and action == "" and moving <= 0.0):
+	if pose.begins_with("sit") and action == "" and moving <= 0.0:
 		_pose_sitting(breathe)
 		return
 	match action:
@@ -583,52 +574,6 @@ func _pose(speed_t: float) -> void:
 		"collapse":
 			# 倒下的替身：上身往前垂到底、不收回來
 			_rot("spine", Vector3(-0.9 * clampf(action_time / 0.9, 0.0, 1.0), 0, 0))
-
-
-## 仰躺（車上的傷者）：整個人繞骨盆轉成水平、臉朝上、頭朝 +Z，胸口慢慢起伏。
-func _pose_lying() -> void:
-	var breathe: float = sin(breath * TAU * 0.3)
-	if lying == "front":
-		_pose_prone(breathe)
-		return
-	_roll.basis = Basis(Vector3.RIGHT, PI * 0.5)
-	# 骨盆移到原點、背貼地（身體厚度約 0.17）
-	_roll.position = Vector3(0, 0.17, 0) - _roll.basis * Vector3(0, HIP_HEIGHT, 0)
-	_rot("thigh_L", Vector3(0.05, 0, 0.04))
-	_rot("thigh_R", Vector3(0.12, 0, -0.04))
-	_rot("knee_L", Vector3(-0.1, 0, 0))
-	_rot("knee_R", Vector3(-0.25, 0, 0))
-	_rot("spine", Vector3.ZERO)
-	_rot("chest", Vector3(0.03 * breathe, 0, 0))
-	_rot("neck", Vector3(-0.15, 0, 0))
-	_rot("shoulder_L", Vector3(0.05, 0, -0.12))
-	_rot("shoulder_R", Vector3(0.05, 0, 0.12))
-	_rot("elbow_L", Vector3(0.15, 0, 0))
-	_rot("elbow_R", Vector3(0.4, 0, 0))
-	if _coat != null:
-		_coat.rotation.x = 0.0
-
-
-## 趴著（第 3 章趴在水溝裡觀察）：整個人往前倒成水平、臉朝下、頭朝 -Z；手肘撐地、頭抬起來往前看。
-func _pose_prone(breathe: float) -> void:
-	_roll.basis = Basis(Vector3.RIGHT, -PI * 0.5)
-	# 骨盆移到原點、肚子貼地（身體厚度約 0.17）
-	_roll.position = Vector3(0, 0.17, 0) - _roll.basis * Vector3(0, HIP_HEIGHT, 0)
-	_rot("thigh_L", Vector3(0.0, 0, 0.1))
-	_rot("thigh_R", Vector3(0.0, 0, -0.1))
-	_rot("knee_L", Vector3(-0.15, 0, 0))
-	_rot("knee_R", Vector3(-0.1, 0, 0))
-	_rot("spine", Vector3(0.12, 0, 0))
-	_rot("chest", Vector3(0.18 + 0.02 * breathe, 0, 0))
-	# 抬頭往前看
-	_rot("neck", Vector3(0.7, 0, 0))
-	# 手肘撐在身體前面（正角度＝手臂往身體前面抬：上臂往地面、前臂往頭的方向平放）
-	_rot("shoulder_L", Vector3(1.9, 0, -0.25))
-	_rot("shoulder_R", Vector3(1.9, 0, 0.25))
-	_rot("elbow_L", Vector3(1.25, 0, 0))
-	_rot("elbow_R", Vector3(1.25, 0, 0))
-	if _coat != null:
-		_coat.rotation.x = 0.0
 
 
 ## 坐著：大腿往前、小腿垂直、手放在膝上，外套下擺蓋在大腿上；胸口慢慢起伏。

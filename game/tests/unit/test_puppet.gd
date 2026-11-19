@@ -47,24 +47,10 @@ func test_actions_return_to_locomotion() -> void:
 	p.free()
 
 
-func test_lying_on_back() -> void:
-	var p: Puppet = _make()
-	p.lying = "back"
-	p.advance(0.1)
-	var hips: Vector3 = p.joint("hips").global_position
-	var neck: Vector3 = p.joint("neck").global_position
-	assert_true(hips.length() < 0.25, "骨盆在原點附近（%s）" % hips)
-	assert_true(neck.y < 0.45, "脖子貼地（%.2f）" % neck.y)
-	assert_true(neck.z > 0.4, "頭朝 +Z（%.2f）" % neck.z)
-	var feet: Vector3 = p.joint("knee_L").global_position
-	assert_true(feet.z < 0.0 and feet.y < 0.45, "腿往 -Z 平放")
-	p.free()
-
-
-## 坐姿（第 2 章黎歐坐在主椅上）：骨盆在座面高度、膝蓋往前（人偶面向 -Z）、小腿垂直往下到地面附近。
+## 程式人偶的坐姿（公會大廳坐著的人，模型不在時）：骨盆在座面高度、膝蓋往前（人偶面向 -Z）、小腿垂直往下到地面附近。
 func test_sitting() -> void:
 	var p: Puppet = _make()
-	p.sitting = true
+	p.pose = "sit"
 	p.advance(0.1)
 	var hips: Vector3 = p.joint("hips").global_position
 	var knee: Vector3 = p.joint("knee_L").global_position
