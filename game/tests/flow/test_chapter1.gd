@@ -1274,14 +1274,22 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 	var mold: MoldSlime = (explore.packs["traps"] as Array)[0] as MoldSlime
 	mold.set_physics_process(true)
 	player.global_position = mold.global_position + Vector3(0, 0.05, 1.2)
+	var swelled: float = 0.0
 	for i: int in 300:
 		await tree.physics_frame
+		if mold.brain.state == EnemyBrain.State.TELEGRAPH:
+			swelled = maxf(swelled, (mold.get_node("Body/Look") as Node3D).scale.x)
 		if player.status_effects.has("weakness"):
 			break
 	assert_eq(player.status_effects.source_of("weakness"), "mold_touch", "被黴菌史萊姆撞到：衰弱")
 	assert_true(player.status_effects.damage_dealt_scale() > 1.0, "對諾恩是砍得更重")
+	assert_true(swelled > 1.15, "要撲之前整顆脹起來（%.2f 倍；劇毒史萊姆是壓扁）" % swelled)
 	# 打倒牠再試下一種（停在出招那一格的敵人會一直佔著「同時只有一個人出手」的名額）
+	var puffs: int = mold.spore_puffs
 	mold.health.apply_damage(9999.0, {"source": player})
+	assert_true(mold.spore_puffs > puffs, "被砍噴孢子")
+	await tree.create_timer(EnemyActor.DIE_KNEEL_SEC + EnemyActor.DIE_DROP_SEC + 0.15).timeout
+	assert_true(mold.spore_puffs >= puffs + 2, "倒下炸成一團孢子雲")
 	# 瘴氣狼：從遠處追上來（比諾恩小跑快），咬到流血
 	var wolf: MiasmaWolf = (explore.packs["wolves"] as Array)[0] as MiasmaWolf
 	wolf.set_physics_process(true)
