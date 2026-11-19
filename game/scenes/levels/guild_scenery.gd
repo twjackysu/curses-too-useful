@@ -8,7 +8,8 @@ extends RefCounted
 ##   關卡讓諾恩與席菈多撞這一層。
 ## - 櫃檯、水晶、佈告欄、招牌是 Tripo 的模型；桌椅、木桶、吊燈、書櫃是 Quaternius 的 CC0 小物（scripts/gen_props.sh 複製進來）；
 ##   牆、地板、樑、迴廊、樓梯是程式拼的（guild_wall／guild_wood／guild_window 三個 shader）。模型檔不在的就不擺（櫃檯與水晶有替身）。
-## - 光：早上太陽從東邊的窗照進來（一道一道的光柱），結尾是傍晚，改成西邊的窗照進橘紅的光、吊燈比較亮（evening）。
+## - 光：早上太陽從東邊的窗照進來（WindowLight：一道一道的光柱＋地上一格一格的窗影），結尾是傍晚，改成西邊的窗照進橘紅的光、
+##   光柱低低地拉長，吊燈比較亮（evening）。吊燈的蠟燭、北牆的壁燈有火苗（CandleFlame，壁燈的會閃）。
 
 const HALF_W: float = 8.0
 const HALF_L: float = 11.0
@@ -44,6 +45,21 @@ const WINDOW_SIZE: Vector2 = Vector2(1.9, 2.7)
 ## 桌子（x、z；長邊順著 Z，兩邊各一條長凳）
 const TABLES: Array[Vector2] = [Vector2(-4.4, 5.2), Vector2(-4.4, -3.3), Vector2(4.4, 5.6), Vector2(4.2, 0.9)]
 const CHANDELIER_Z: Array[float] = [4.0, -2.6]
+## 吊燈（Quaternius 的 Chandelier，量模型量出來的）：八根蠟燭在半徑 0.578 的圈上每 45° 一根，蠟燭頂的高度（模型座標）
+const CANDLE_RADIUS: float = 0.578
+const CANDLE_TOPS: Array[float] = [-0.908, -0.969, -0.943, -0.908, -0.908, -0.969, -0.943, -0.908]
+## 壁燈（Lantern_Wall）的燈籠裡面、火苗的底（模型座標：燈籠的籠子在 y 0.08～0.61、離牆 0.81 m）
+const LANTERN_FLAME: Vector3 = Vector3(0, 0.22, 0.81)
+## 燈籠是實心的：火苗往鏡頭拉近這麼多才不會被擋住
+const LANTERN_PULL: float = 0.22
+## 太陽往哪裡照：早上從東邊的窗斜斜往下（約 38°），傍晚從西邊的窗低低地照進來（約 22°，光柱拉得很長、橫過紅地毯）
+const SUN_DIR_MORNING: Vector3 = Vector3(-1.0, -0.8, 0.18)
+const SUN_DIR_EVENING: Vector3 = Vector3(1.0, -0.42, 0.25)
+## 光柱（每一片面片）與地上窗影的亮度
+const SHAFT_ENERGY: float = 0.05
+const SHAFT_ENERGY_EVENING: float = 0.06
+const PATCH_ENERGY: float = 0.3
+const PATCH_ENERGY_EVENING: float = 0.36
 const COUNTER_MODEL: String = "tripo/prop_guild_counter_v2"
 const CRYSTAL_MODEL: String = "tripo/prop_aptitude_crystal"
 const BOARD_MODEL: String = "tripo/prop_guild_quest_board"
@@ -51,18 +67,29 @@ const SIGN_MODEL: String = "tripo/prop_guild_signboard"
 const WOOD_SHADER: Shader = preload("res://src/world/guild_wood.gdshader")
 const WALL_SHADER: Shader = preload("res://src/world/guild_wall.gdshader")
 const WINDOW_SHADER: Shader = preload("res://src/world/guild_window.gdshader")
-const FLOOR_WOOD: Color = Color(0.46, 0.3, 0.18)
+const CRYSTAL_GLOW_SHADER: Shader = preload("res://src/world/crystal_glow.gdshader")
+const CRYSTAL_TINT_SHADER: Shader = preload("res://src/world/crystal_tint.gdshader")
+## 地板：偏灰的中間棕（以前 0.46/0.3/0.18 在暖色的燈底下整片偏橘）
+const FLOOR_WOOD: Color = Color(0.4, 0.29, 0.2)
 const DARK_WOOD: Color = Color(0.24, 0.15, 0.09)
 const BEAM_WOOD: Color = Color(0.3, 0.19, 0.11)
-## 水晶的三種樣子：平常（藍）、警報（紅，一閃一閃）、測完之後（暗掉）
-const CRYSTAL_CALM: Color = Color(0.35, 0.7, 1.0)
-const CRYSTAL_ALARM: Color = Color(1.0, 0.16, 0.12)
+## 水晶的三種樣子：平常（藍）、警報（紅，一閃一閃）、測完之後（暗掉）。發光那一層只給純的顏色（綠、藍幾乎是 0），
+## 才不會亮過頭被色調映射沖成粉白；模型本身乘上 *_TINT（警報時整顆染紅、測完是灰的）
+const CRYSTAL_CALM: Color = Color(0.3, 0.68, 1.0)
+const CRYSTAL_ALARM: Color = Color(1.0, 0.04, 0.02)
 const CRYSTAL_DEAD: Color = Color(0.3, 0.3, 0.38)
+const CRYSTAL_CALM_TINT: Color = Color(0.92, 1.0, 1.08)
+const CRYSTAL_ALARM_TINT: Color = Color(1.25, 0.16, 0.12)
+const CRYSTAL_DEAD_TINT: Color = Color(0.5, 0.5, 0.56)
 
 var evening: bool = false
 var crystal: Node3D
 var crystal_light: OmniLight3D
 var windows: Array[MeshInstance3D] = []
+## 受光的那一側每扇窗一個（光柱＋地上的窗影）
+var window_lights: Array[WindowLight] = []
+## 有帶燈的火苗（北牆的壁燈）
+var flames: Array[CandleFlame] = []
 ## 大門的兩片門板（門軸；set_door_open 轉它們）
 var door_hinges: Array[Node3D] = []
 ## 門開了多少（0～1）
@@ -70,7 +97,8 @@ var door_open: float = 0.0
 ## 莉莉絲拿出來的那張綠色委託單（放在櫃檯上；關卡在她拿出來的時候才讓它出現）
 var slip: Node3D
 var _root: Node3D
-var _crystal_glow: StandardMaterial3D
+var _crystal_glow: ShaderMaterial
+var _crystal_tint: ShaderMaterial
 
 
 ## 把大廳蓋進 level。p_evening＝傍晚（章節結尾）。
@@ -97,10 +125,13 @@ static func keep_inside(p: Vector3) -> Vector3:
 
 ## 水晶現在的樣子：alarm 0～1（紅的警報有多強，關卡讓它一閃一閃）；dead＝測完暗掉了
 func set_crystal(alarm: float, dead: bool) -> void:
-	var c: Color = CRYSTAL_DEAD if dead else CRYSTAL_CALM.lerp(CRYSTAL_ALARM, clampf(alarm, 0.0, 1.0))
-	var power: float = 0.25 if dead else 1.6 + 3.4 * alarm
-	_crystal_glow.emission = c
-	_crystal_glow.emission_energy_multiplier = power
+	var a: float = clampf(alarm, 0.0, 1.0)
+	# 顏色一響就是紅的（一閃一閃只閃亮度）：以前藍與紅照 alarm 內插，閃到一半是紫的、看起來是粉紅
+	var hue: float = smoothstep(0.0, 0.3, a)
+	var c: Color = CRYSTAL_DEAD if dead else CRYSTAL_CALM.lerp(CRYSTAL_ALARM, hue)
+	_crystal_glow.set_shader_parameter("color", c)
+	_crystal_glow.set_shader_parameter("energy", 0.3 if dead else 0.9 + 1.1 * a)
+	_crystal_tint.set_shader_parameter("tint", CRYSTAL_DEAD_TINT if dead else CRYSTAL_CALM_TINT.lerp(CRYSTAL_ALARM_TINT, hue))
 	crystal_light.light_color = c
 	crystal_light.light_energy = 0.15 if dead else 1.2 + 4.0 * alarm
 
@@ -130,7 +161,7 @@ func _build_environment(level: Node3D) -> void:
 	env.background_color = Color(0.03, 0.022, 0.018)
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.56, 0.44, 0.42) if evening else Color(0.66, 0.58, 0.5)
+	env.ambient_light_color = Color(0.55, 0.47, 0.48) if evening else Color(0.63, 0.6, 0.57)
 	env.ambient_light_energy = 0.62 if evening else 0.8
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.volumetric_fog_enabled = true
@@ -273,6 +304,8 @@ func _build_shell() -> void:
 			mat.shader = WINDOW_SHADER
 			mat.set_shader_parameter("light", _sun_color() if lit else _shade_color())
 			mat.set_shader_parameter("energy", 2.6 if lit else 0.9)
+			mat.set_shader_parameter("seed", float(windows.size()) * 1.37 + side)
+			mat.set_shader_parameter("house_glow", 0.09 if lit else 0.42)
 			var w: MeshInstance3D = _quad("Window", WINDOW_SIZE, Vector3(side * (HALF_W - 0.03), WINDOW_SILL + WINDOW_SIZE.y * 0.5, z), Vector3(0, -90.0 * side, 0), mat)
 			windows.append(w)
 
@@ -351,14 +384,14 @@ func _build_counter() -> void:
 	crystal.position = CRYSTAL_POS
 	_root.add_child(crystal)
 	var look: Node3D = PropModels.instance(CRYSTAL_MODEL)
+	_crystal_tint = ShaderMaterial.new()
+	_crystal_tint.shader = CRYSTAL_TINT_SHADER
 	if look != null:
 		crystal.add_child(look)
-	_crystal_glow = StandardMaterial3D.new()
-	_crystal_glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_crystal_glow.albedo_color = Color(0, 0, 0)
-	_crystal_glow.emission_enabled = true
-	_crystal_glow.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	_crystal_glow.disable_receive_shadows = true
+		for g: Node in look.find_children("*", "GeometryInstance3D", true, false):
+			(g as GeometryInstance3D).material_overlay = _crystal_tint
+	_crystal_glow = ShaderMaterial.new()
+	_crystal_glow.shader = CRYSTAL_GLOW_SHADER
 	var orb := MeshInstance3D.new()
 	orb.name = "Glow"
 	var ball := SphereMesh.new()
@@ -382,8 +415,10 @@ func _build_counter() -> void:
 	_prop("quaternius/Barrel", Vector3(-7.2, 0, -10.2))
 	_prop("quaternius/Barrel", Vector3(-6.4, 0, -10.3))
 	_prop("quaternius/Crate_Wooden", Vector3(7.1, 0.06, -10.1), 12.0)
+	var lamp_i: int = 0
 	for lx: float in [-3.9, 0.0, 3.9]:
-		_prop("quaternius/Lantern_Wall", Vector3(lx, 1.55, -HALF_L + 0.02))
+		_add_flames(_prop("quaternius/Lantern_Wall", Vector3(lx, 1.55, -HALF_L + 0.02)), false, lamp_i)
+		lamp_i += 1
 	# 綠色委託單：一張積了灰的綠紙，上面幾行字（程式拼的）
 	slip = Node3D.new()
 	slip.name = "QuestSlip"
@@ -443,8 +478,10 @@ func _build_furniture() -> void:
 	# 門兩邊的旗子（桿子從牆上伸進屋裡）
 	for side: float in [-1.0, 1.0]:
 		_prop("quaternius/Banner_1", Vector3(side * 4.4, 4.9, HALF_L - 0.05), 90.0)
+	var ci: int = 0
 	for z: float in CHANDELIER_Z:
-		_prop("quaternius/Chandelier", Vector3(0, HEIGHT - 0.75, z), 0.0, 1.7)
+		_add_flames(_prop("quaternius/Chandelier", Vector3(0, HEIGHT - 0.75, z), 0.0, 1.7), true, ci)
+		ci += 1
 
 
 func _light(node_name: String, at: Vector3, color: Color, energy: float, reach: float) -> OmniLight3D:
@@ -459,28 +496,37 @@ func _light(node_name: String, at: Vector3, color: Color, energy: float, reach: 
 	return l
 
 
-## 窗照進來的光（受光的那一側每扇窗一盞聚光燈，體積霧裡看得到光柱）、吊燈、櫃檯的燈
+## 窗照進來的光（受光的那一側每扇窗一道光柱＋地上的窗影，WindowLight）、吊燈、壁燈（火苗＋會閃的小燈）、櫃檯的燈
 func _build_lights() -> void:
 	var side: float = -1.0 if evening else 1.0
+	var dir: Vector3 = SUN_DIR_EVENING if evening else SUN_DIR_MORNING
 	for z: float in WINDOW_Z:
-		var sun := SpotLight3D.new()
-		sun.name = "WindowSun"
-		sun.light_color = _sun_color()
-		sun.light_energy = 9.0 if evening else 7.0
-		sun.spot_range = 17.0
-		sun.spot_angle = 24.0
-		sun.spot_attenuation = 0.6
-		sun.light_volumetric_fog_energy = 2.4
-		sun.shadow_enabled = false
-		sun.position = Vector3(side * (HALF_W + 0.8), WINDOW_SILL + WINDOW_SIZE.y * 0.75, z)
-		_root.add_child(sun)
-		sun.look_at(Vector3(-side * 1.5, 0.0, z + 1.2), Vector3.UP)
+		var center := Vector3(side * (HALF_W - 0.03), WINDOW_SILL + WINDOW_SIZE.y * 0.5, z)
+		var wl: WindowLight = WindowLight.create(center, Vector3(-side, 0, 0), WINDOW_SIZE, dir, _sun_color(),
+			SHAFT_ENERGY_EVENING if evening else SHAFT_ENERGY, PATCH_ENERGY_EVENING if evening else PATCH_ENERGY)
+		_root.add_child(wl)
+		window_lights.append(wl)
 	var warm := Color(1.0, 0.7, 0.4)
 	for z: float in CHANDELIER_Z:
-		_light("ChandelierLight", Vector3(0, HEIGHT - 2.6, z), warm, 3.2 if evening else 1.5, 10.0)
-	for lx: float in [-3.9, 3.9]:
-		_light("CounterLantern", Vector3(lx, 2.3, -HALF_L + 1.0), warm, 1.8, 6.0)
+		_light("ChandelierLight", Vector3(0, HEIGHT - 2.6, z), warm, 2.7 if evening else 1.5, 10.0)
 	# 櫃檯上面一盞：莉莉絲的臉要看得清楚（她站在迴廊底下）
 	_light("CounterFill", Vector3(0, 2.7, COUNTER_POS.z + 0.2), Color(1.0, 0.82, 0.6), 1.5, 5.5)
 	# 二樓：傍晚的那一段巡察官站在這裡——只有一點冷色的光，看得出輪廓
 	_light("LoftGloom", Vector3(0.6, LOFT_Y + 2.2, LOFT_EDGE_Z + 0.6), Color(0.55, 0.6, 0.9), 0.7 if evening else 0.25, 5.0)
+
+
+## 吊燈的八根蠟燭與北牆的壁燈各一朵火苗；壁燈的火帶一盞會閃的小燈（櫃檯後面那一片牆是暖的）
+func _add_flames(lamp: Node3D, is_chandelier: bool, index: int) -> void:
+	if lamp == null:
+		return
+	if is_chandelier:
+		for k: int in CANDLE_TOPS.size():
+			var a: float = deg_to_rad(45.0 * float(k))
+			var f: CandleFlame = CandleFlame.create(Vector2(0.045, 0.085), float(index * 8 + k) * 0.37, 0.12)
+			f.position = Vector3(CANDLE_RADIUS * cos(a), CANDLE_TOPS[k], CANDLE_RADIUS * sin(a))
+			lamp.add_child(f)
+		return
+	var lf: CandleFlame = CandleFlame.create(Vector2(0.13, 0.24), float(index) * 1.9 + 0.4, 0.45, LANTERN_PULL, 1.4 if evening else 1.1, 4.5)
+	lf.position = LANTERN_FLAME
+	lamp.add_child(lf)
+	flames.append(lf)

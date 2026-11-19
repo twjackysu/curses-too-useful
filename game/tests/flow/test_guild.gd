@@ -93,7 +93,17 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	for part: String in ["Floor", "WallNorth", "WallSouth", "WallEast", "WallWest", "Ceiling", "Door", "Loft", "Counter", "CrystalLook", "Carpet"]:
 		assert_not_null(hall.get_node_or_null(part), "大廳有 %s" % part)
 	assert_eq(level.scenery.windows.size(), 6, "東西兩面牆各三扇窗")
-	assert_eq(hall.find_children("*", "SpotLight3D", true, false).size(), 3, "受光的那一側每扇窗一道光")
+	assert_eq(level.scenery.window_lights.size(), 3, "受光的那一側每扇窗一道光柱")
+	for wl: WindowLight in level.scenery.window_lights:
+		assert_eq((wl.shafts.mesh as ArrayMesh).get_surface_count(), 2, "光柱有直的、橫的兩組面片")
+		assert_not_null(wl.patch, "地上有窗影")
+		# 早上從東邊（x＋）的窗斜斜往下照：窗影落在大廳東半邊的地上、在牆裡面
+		assert_true(wl.floor_patch.position.x > 0.0 and wl.floor_patch.end.x < GuildScenery.HALF_W, "窗影在東半邊的地上：%s" % wl.floor_patch)
+	assert_eq(level.scenery.flames.size(), 3, "北牆三盞壁燈各有火")
+	for f: CandleFlame in level.scenery.flames:
+		assert_not_null(f.light, "壁燈的火帶一盞燈")
+	assert_eq(hall.find_children("FlameQuad", "MeshInstance3D", true, false).size(), 3 + 8 * GuildScenery.CHANDELIER_Z.size(),
+		"兩盞吊燈各八根蠟燭也有火苗")
 	# 牆沒有鏡頭會撞到的碰撞（第 1 層只有地板）：鏡頭退到牆外的時候不會被推到諾恩背上
 	for body: Node in hall.find_children("*", "StaticBody3D", true, false):
 		var b := body as StaticBody3D
@@ -190,6 +200,11 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	assert_false(level.crystal_use.enabled, "只測一次")
 	await _frames(2)
 	assert_true(level.scenery.crystal_light.light_color.r > level.scenery.crystal_light.light_color.b, "水晶變紅")
+	# 一閃一閃只閃亮度：閃到最暗的時候也是紅的（以前藍紅內插，閃到一半是紫的、看起來粉紅）
+	for pulse: float in [0.5, 0.75, 1.0]:
+		level.scenery.set_crystal(pulse, false)
+		var c: Color = level.scenery.crystal_light.light_color
+		assert_true(c.r > 0.9 and c.g < 0.1 and c.b < 0.1, "警報 %.2f 時水晶是紅的：%s" % [pulse, c])
 	assert_eq(s.quests.stage_of("ch1_main"), "aptitude", "雷歐還沒講話")
 	# 大廳一陣嘲笑，雷歐走過來
 	var leo: Npc = level.party["Leo"] as Npc
