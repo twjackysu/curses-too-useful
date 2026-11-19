@@ -454,6 +454,8 @@ func test_enraged_golem_gazes_and_an_unshielded_sera_turns_to_stone() -> void:
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_STONED_LINE1", "CH1_STONED_LINE2"]))
 	assert_true(player.status_effects.is_unstoppable(), "諾恩也中了——對他是霸體無敵")
 	await _frames(2)
+	assert_eq(hud.boss_bar.brew_text_key(), "HUD_SERA_BREW_STONED", "生命條下面那一條：席菈被石化了")
+	assert_true(absf(hud.boss_bar.brew - 0.5) < 0.05, "禁藥從一半重裝（%.2f）" % hud.boss_bar.brew)
 	assert_true(player.is_body_glowing(), "整個人蓋一層金光")
 	assert_false(player.health.apply_damage(50.0, {"source": golem}), "霸體無敵：打不動")
 	assert_false(golem.phases.core_open, "禁藥還沒射：核心打不碎")
@@ -512,7 +514,11 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	# 席菈已經退到後面站好了（測試把階段縮短了，她來不及跑到）；諾恩站到魔像與她中間
 	sera.global_position = sera.hold_at
 	player.global_position = golem.global_position.lerp(sera.global_position, 0.6) + Vector3(0, 0.05, 0)
-	await tree.physics_frame
+	await _frames(3)
+	assert_true(sera.is_brewing() and sera.puppet().pose == Sera.BREW_POSE, "席菈跪在後面裝禁藥")
+	assert_true(sera.brew_light() != null and sera.brew_light().is_visible_in_tree() and sera.brew_light().light_energy > Sera.BREW_LIGHT.x, "手弩上那一管亮著")
+	assert_true(hud.boss_bar.brew > 0.4 and hud.boss_bar.brew < 1.0, "凝視的前兆開始：生命條下面那一條過半、還沒滿（%.2f）" % hud.boss_bar.brew)
+	assert_eq(hud.boss_bar.brew_text_key(), "HUD_SERA_BREW")
 	assert_true(golem.is_gaze_blocked(), "站在那道光上：擋住了")
 	for i: int in 120:
 		await tree.physics_frame
@@ -538,6 +544,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 		if golem.phases.core_open:
 			break
 	assert_true(golem.phases.core_open, "禁藥砸中：核心可以粉碎了")
+	assert_true(hud.boss_bar.brew < 0.0 and not sera.is_brewing() and sera.puppet().pose != Sera.BREW_POSE, "射出去了：那一條收起來、她站起來")
 	assert_true(golem.is_core_marked(), "胸口的核心變成金色、一圈一圈往中心收：砍這裡")
 	assert_true(golem.heard.has(PlagueGolem.CORE_GLOW_SFX), "核心亮起來的聲音")
 	assert_true(golem.heard.has(PlagueGolem.GAZE_CHARGE_SFX) and golem.heard.has(PlagueGolem.GAZE_BEAM_SFX), "凝視：前兆的嗡鳴、打出去的那一下")

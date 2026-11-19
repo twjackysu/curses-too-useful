@@ -16,7 +16,7 @@ extends Node3D
 signal footfall
 
 const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave", "fumble",
-	"roar", "gaze", "kneel", "flinch", "punch", "hammer"]
+	"roar", "gaze", "kneel", "flinch", "punch", "hammer", "collapse"]
 const WALK_MIN_SPEED: float = 0.3
 ## 這個速度以上用跑的動作。諾恩平常移動 3.4 m/s 是小跑：以前用「走路」的動作加速到 1.6 倍，腿還是跟不上，
 ## 看起來在地上滑（Jacky 2026-11-14：「走路的音效跟走路速度差很多」）。
@@ -35,7 +35,9 @@ const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "r
 	"fumble": 1.2,
 	# 怪物（魔像、樹人）自己的動作（tools/blender/common.py 的 monster_actions）：吼、凝視、跪照那一段要多久縮放播（play_action 的 seconds），
 	# 直拳與兩手砸停在舉到頂（MONSTER_APEX）等前兆走完（pause_at）
-	"roar": 2.2, "gaze": 2.0, "kneel": 2.0, "flinch": 0.5, "punch": 1.25, "hammer": 1.5}
+	"roar": 2.2, "gaze": 2.0, "kneel": 2.0, "flinch": 0.5, "punch": 1.25, "hammer": 1.5,
+	# 倒下：從跪著垮下去（0.9 秒垮到底，之後停著）
+	"collapse": 2.0}
 ## 怪物出招的兩段動作「舉到頂」在第幾秒（tools/blender/common.py 的 MONSTER_APEX 要一樣）；舉到頂之後 STRIKE_LEAD 秒打到
 const MONSTER_APEX: Dictionary = {"punch": 0.42, "hammer": 0.55}
 const STRIKE_LEAD: float = 0.19
@@ -48,7 +50,7 @@ const TALK_EASE: float = 5.0
 const HEAD_TILT: Dictionary = {"": 0.0, "down": -0.38, "up": 0.16}
 const TILT_SPEED: float = 1.6
 ## 站著不動的時候可以換成的樣子（模型的循環動作；程式人偶只會坐）
-const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump", "down_back", "down_front"]
+const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump", "down_back", "down_front", "brew"]
 ## 「釋放」的姿勢播多久。它不是 action：疊在站姿／走路／出手上面，不佔出手與閃避（放完同一幀照樣能出手）
 const RELEASE_POSE_TIME: float = 0.36
 ## 模型的手骨頭在手腕：手上的掛點往指尖移這麼多（掌心）
@@ -578,6 +580,9 @@ func _pose(speed_t: float) -> void:
 			# 怪物的替身：只有上身往後仰（吼、被砍）或往前垂（凝視、跪）
 			var k2: float = sin(PI * clampf(action_time / float(ACTION_TIME[action]), 0.0, 1.0))
 			_rot("spine", Vector3({"roar": 0.35, "flinch": 0.2, "gaze": -0.3, "kneel": -0.5}[action] * k2, 0, 0))
+		"collapse":
+			# 倒下的替身：上身往前垂到底、不收回來
+			_rot("spine", Vector3(-0.9 * clampf(action_time / 0.9, 0.0, 1.0), 0, 0))
 
 
 ## 仰躺（車上的傷者）：整個人繞骨盆轉成水平、臉朝上、頭朝 +Z，胸口慢慢起伏。

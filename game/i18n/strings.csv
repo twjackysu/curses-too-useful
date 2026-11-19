@@ -36,6 +36,8 @@ QUALITY_HIGH,High,高
 OPT_ON,On,開
 OPT_OFF,Off,關
 HUD_OBJECTIVE,OBJECTIVE,目標
+HUD_SERA_BREW,Sera is loading her forbidden brew,席菈正在裝填禁藥
+HUD_SERA_BREW_STONED,Sera has been turned to stone!,席菈被石化了！
 HUD_STORY_END,That's all for now. More is on the way.,目前的內容到這裡，後面還在做
 HUD_STORY_END_LINE1,To be continued,未完待續
 HUD_STORY_END_LINE2,"That's all for now. Keep exploring, or return to the title from the pause menu.",目前的內容到這裡。可以繼續逛，或從暫停選單回標題。

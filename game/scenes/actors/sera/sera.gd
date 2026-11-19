@@ -47,6 +47,13 @@ const STEP_DB: float = -18.0
 const RUN_STEP_DB: float = -15.0
 ## 被石化時蓋在身上的灰、掉下來的碎屑的顏色
 const STONE_COLOR: Color = Color(0.56, 0.57, 0.62)
+## 裝填禁藥（Boss 戰狂暴之後；D-306）：跪著的動作（Puppet.pose "brew"）、手弩上那一管越來越亮的桃紅色、從手上冒的光點、
+## 每隔一下「喀」一聲。顏色＝禁藥的顏色（statuses.json 的 sera_chaos）；光的強弱照裝到幾成
+const BREW_POSE: String = "brew"
+const BREW_COLOR: Color = Color(1.0, 0.35, 0.82)
+const BREW_CLICK_SEC: float = 1.0
+const BREW_CLICK_DB: float = -14.0
+const BREW_LIGHT: Vector2 = Vector2(0.4, 2.6)
 
 ## 面具戴上／拿下來的那一刻（關卡接這個讓她喊一句）
 signal mask_changed(on: bool)
@@ -106,6 +113,14 @@ var _special_source: String = ""
 ## 對話中要面向的地方（TalkCamera 照那一句的 to／look 叫 talk_to；沒有在對話就清掉、照平常面向諾恩）
 var _talk_point: Vector3 = Vector3.INF
 var _stone_mat: StandardMaterial3D
+## 禁藥裝到幾成（關卡每幀設：GolemPhases.brew_progress；-1＝沒有在裝）
+var brew: float = -1.0
+var _brewing: bool = false
+var _brew_click: float = 0.0
+var _brew_glow: Node3D
+var _brew_light: OmniLight3D
+var _brew_vial: MeshInstance3D
+var _brew_sparks: CPUParticles3D
 var target: PlayerController
 var vials_fired: int = 0
 var last_vial: SeraVial
@@ -156,6 +171,7 @@ func _physics_process(delta: float) -> void:
 	to.y = 0.0
 	var dist: float = to.length()
 	_update_mask(delta)
+	_update_brew(delta)
 	if fumble_left > 0.0 and stoned_left <= 0.0:
 		velocity = Vector3(0.0, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, 0.0)
 		move_and_slide()
@@ -213,6 +229,89 @@ func _physics_process(delta: float) -> void:
 	if was_loading and brain.ask_left <= 0.0:
 		Sfx.play_at(self, "vial_load", global_position + Vector3.UP * 1.1, -6.0, 0.04)
 		reloaded.emit()
+
+
+## 裝填禁藥：站定了（跑到後面、沒在舉弩、沒被石化）就跪下去裝；手弩上那一管照裝到幾成越來越亮。
+func _update_brew(delta: float) -> void:
+	var settled: bool = brew >= 0.0 and stoned_left <= 0.0 and _special_in < 0.0 \
+		and Vector2(velocity.x, velocity.z).length() < 0.2 and (not hold_at.is_finite() or Vector2(hold_at.x - global_position.x, hold_at.z - global_position.z).length() < 0.6)
+	if settled != _brewing:
+		_brewing = settled
+		if settled:
+			_puppet.pose = BREW_POSE
+			_brew_click = BREW_CLICK_SEC * 0.5
+		elif _puppet.pose == BREW_POSE:
+			_puppet.pose = ""
+	if _brew_glow == null:
+		_build_brew_glow()
+	if _brew_glow == null:
+		return
+	var k: float = clampf(brew, 0.0, 1.0)
+	_brew_glow.visible = brew >= 0.0
+	_brew_light.light_energy = lerpf(BREW_LIGHT.x, BREW_LIGHT.y, k * k)
+	_brew_vial.scale = Vector3.ONE * lerpf(0.6, 1.15, k)
+	_brew_sparks.emitting = _brewing
+	if _brewing and stoned_left <= 0.0:
+		_brew_click -= delta
+		if _brew_click <= 0.0:
+			_brew_click = BREW_CLICK_SEC
+			Sfx.play_at(self, "vial_load", global_position + Vector3.UP * 0.8, BREW_CLICK_DB, 0.08)
+
+
+func is_brewing() -> bool:
+	return _brewing
+
+
+func brew_light() -> OmniLight3D:
+	return _brew_light
+
+
+## 手弩上那一管禁藥（平常收著）：一顆自己會亮的桃紅色小瓶＋一盞小燈＋往上飄的光點
+func _build_brew_glow() -> void:
+	if _crossbow == null:
+		return
+	_brew_glow = Node3D.new()
+	_brew_glow.name = "BrewGlow"
+	_brew_glow.visible = false
+	_crossbow.add_child(_brew_glow)
+	_brew_vial = MeshInstance3D.new()
+	var bulb := SphereMesh.new()
+	bulb.radius = 0.045
+	bulb.height = 0.09
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = BREW_COLOR.lerp(Color.WHITE, 0.3)
+	bulb.material = mat
+	_brew_vial.mesh = bulb
+	_brew_vial.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_brew_glow.add_child(_brew_vial)
+	_brew_light = OmniLight3D.new()
+	_brew_light.light_color = BREW_COLOR
+	_brew_light.omni_range = 2.6
+	_brew_light.light_specular = 0.0
+	_brew_light.shadow_enabled = false
+	_brew_glow.add_child(_brew_light)
+	_brew_sparks = CPUParticles3D.new()
+	_brew_sparks.amount = 14
+	_brew_sparks.lifetime = 0.9
+	_brew_sparks.local_coords = false
+	_brew_sparks.emitting = false
+	_brew_sparks.direction = Vector3.UP
+	_brew_sparks.spread = 40.0
+	_brew_sparks.gravity = Vector3(0, 0.6, 0)
+	_brew_sparks.initial_velocity_min = 0.2
+	_brew_sparks.initial_velocity_max = 0.6
+	_brew_sparks.scale_amount_min = 0.4
+	_brew_sparks.scale_amount_max = 1.0
+	var fade := Gradient.new()
+	fade.colors = PackedColorArray([Color.WHITE, Color(1, 1, 1, 0)])
+	_brew_sparks.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.05, 0.05)
+	quad.material = ParticleLook.material(BREW_COLOR, true)
+	_brew_sparks.mesh = quad
+	_brew_sparks.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_brew_glow.add_child(_brew_sparks)
 
 
 ## 對話中轉過去面向 point（TalkCamera 叫：對話開始時面向聽她講話的人，之後照每一句的 to／look）

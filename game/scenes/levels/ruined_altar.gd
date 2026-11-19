@@ -232,7 +232,10 @@ func _physics_process(delta: float) -> void:
 ## Boss 戰中每一幀：魔像醒來、第一次走進光環的說明、核心還在的提示、禁藥砸中
 func _tick_fight(delta: float) -> void:
 	if golem == null or not is_instance_valid(golem) or golem.health.is_dead():
+		_set_brew(-1.0)
 		return
+	# 席菈的禁藥裝到幾成：她跪著裝、生命條下面那一條（凝視打出去的那一刻剛好裝滿）
+	_set_brew(golem.phases.brew_progress())
 	var st: GameState = Game.session.state
 	if _demo == "block" and golem.phases.phase == GolemPhases.Phase.GAZE:
 		# 開發用：凝視的前兆中一直站在那道光上（席菈還在跑也跟著），鏡頭斜斜地看著魔像
@@ -343,6 +346,11 @@ func _spawn_golem() -> void:
 	golem.health.died.connect(_on_golem_down)
 	if _burst_on == "hit":
 		golem.health.damaged.connect(func(_amount: float, _info: Dictionary) -> void: App.burst_start_in(1), CONNECT_ONE_SHOT)
+
+
+func _set_brew(progress: float) -> void:
+	sera.brew = progress
+	_hud.boss_bar.set_brew(progress, sera.is_petrified())
 
 
 ## 狂暴：席菈退到離魔像最遠的石板邊上，開始裝禁藥（不跟、不射平常的藥、玩家也要不到）

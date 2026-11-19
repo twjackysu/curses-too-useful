@@ -80,6 +80,22 @@ func gaze_progress() -> float:
 	return clampf(time_in_phase / gaze_sec, 0.0, 1.0) if phase == Phase.GAZE else 0.0
 
 
+## 席菈的禁藥裝到幾成（狂暴之後她退到後面跪著裝；-1＝還沒開始、或已經擋住凝視、射出去了）。吼＋狂暴＋凝視的前兆一路裝，
+## 凝視打出去的那一刻剛好裝滿——玩家看得出「擋住這一下，她就好了」。沒擋住（她被石化）重來一輪狂暴＋前兆，從一半開始裝
+func brew_progress() -> float:
+	if phase == Phase.CALM or phase == Phase.SPENT or blocked:
+		return -1.0
+	var first: bool = gazes == 0
+	var lead: float = roar_sec if first else 0.0
+	var done: float = time_in_phase
+	if phase == Phase.RAGE:
+		done += lead
+	elif phase == Phase.GAZE:
+		done += lead + rage_sec
+	var start: float = 0.0 if first else 0.5
+	return clampf(start + (1.0 - start) * done / maxf(lead + rage_sec + gaze_sec, 0.01), 0.0, 1.0)
+
+
 ## 生命最低可以被打到剩幾成：核心還不能粉碎的時候不低於 hp_floor
 func floor_ratio() -> float:
 	return 0.0 if core_open else hp_floor

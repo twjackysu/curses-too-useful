@@ -649,7 +649,8 @@ def release_action(a, frames=9):
 def social_actions(a):
     """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、倒在地上（down_back 仰躺、down_front 趴著）、
     伸手摸（reach）、遞東西（give），
-    對話的手勢（nod 點頭、bow 鞠躬、point 指、chest 左手按胸口、shrug 攤手、fist 握拳、wave 左手揮手）、慌張地找面具（fumble），
+    對話的手勢（nod 點頭、bow 鞠躬、point 指、chest 左手按胸口、shrug 攤手、fist 握拳、wave 左手揮手）、慌張地找面具（fumble）、
+    跪著裝填禁藥（brew），
     扛東西（idle_carry、walk_carry、run_carry：左手扶著扛在左肩上的東西，腳照平常走）。
     角度的意思跟 standard_actions 一樣：arm_pose 的 hang 離垂直往外、swing 往前擺、elbow 手肘往前彎、twist 整條手臂繞垂直軸（正＝往左前帶）。"""
     bones = a.arm.data.bones
@@ -860,6 +861,22 @@ def social_actions(a):
         a.rot("LeftLowerLeg", f, (X, -55))
         a.leg_pose("Right", f, thigh=-4, knee=6, foot=-10)
 
+    def brew(f, t):
+        # 席菈裝填禁藥（Boss 戰狂暴之後，她退到石板邊上；D-306）：右膝跪地、左腳踩在前面，低著頭看手上；右手把手弩橫在胸前、
+        # 左手在弩上一下一下地往下壓（往裡面塞藥瓶、扳緊弓弦）。一秒壓兩下，循環
+        pump = math.sin(t * math.tau * 2.0)
+        b = math.sin(t * math.tau)
+        drop = thigh * 0.9
+        a.rot("Hips", f, (X, -4), (Z, -8))
+        a.move("Hips", f, (0, 0.06 * thigh, -drop + 0.004 * b))
+        a.rot("Spine", f, (X, -12 + 1.0 * b), (Z, 4))
+        a.rot("Chest", f, (X, -8 + 1.5 * b), (Z, 6))
+        a.rot("Head", f, (X, -22 + 2 * pump), (Z, -6))
+        a.leg_pose("Left", f, thigh=74, knee=80, foot=6)
+        a.leg_pose("Right", f, thigh=-8, knee=94, foot=-32)
+        a.arm_pose("Right", f, hang=14, swing=30, elbow=52, twist=26)
+        a.arm_pose("Left", f, hang=12, swing=32 + 5 * pump, elbow=58 + 12 * pump, twist=-30)
+
     def carried(base):
         # 扛東西：左手舉過肩、手肘往後折，手腕在左肩上面約 19 cm、往前 6 cm（諾恩的模型上量的），扶著扛在肩上的東西
         def fn(f, t):
@@ -883,6 +900,7 @@ def social_actions(a):
     a.action("fist", 26, fist, step=1)
     a.action("wave", 36, wave, step=1)
     a.action("fumble", 29, fumble, step=1)
+    a.action("brew", 48, brew, step=2)
     a.action("down_back", 96, down_back, step=8)
     a.action("down_front", 96, down_front, step=8)
     a.action("idle_carry", 72, carried(idle), step=6)
@@ -892,7 +910,7 @@ def social_actions(a):
 
 def monster_actions(a):
     """怪物（魔像、樹人）自己的動作（人不做）：吼（roar）、石化凝視的前兆（gaze）、單膝跪地（kneel：失衡、力竭）、
-    被砍的那一下（flinch）、右手直拳（punch）、兩手舉過頭一起砸下去（hammer）。
+    被砍的那一下（flinch）、右手直拳（punch）、兩手舉過頭一起砸下去（hammer）、倒下時從跪著垮下去（collapse）。
     以前這些都借人的動作或整個人前後仰（D-303）。遊戲裡照 24 fps 播；出招的兩段（punch、hammer）在「舉到頂」那一刻
     （MONSTER_APEX）停住等前兆走完、剩 0.19 秒才砸下去（Puppet.pause_at）；吼、凝視、跪照那一段要多久整段縮放播
     （Puppet.play_action 的 seconds）——所以「做到位 → 停著 → 收回來」三段的比例比秒數重要。
@@ -947,6 +965,22 @@ def monster_actions(a):
         a.arm_pose("Right", f, hang=20 - 6 * k, swing=34 * k, elbow=20 - 10 * k)
         a.arm_pose("Left", f, hang=20 - 8 * k, swing=52 * k, elbow=20 + 58 * k)
 
+    def collapse(f, t):
+        # 倒下（核心被粉碎、生命歸零）：從單膝跪地（kneel 做到位的樣子）出發——前面那隻腳也跪下去（兩膝著地）、骨盆往下坐、
+        # 上身整個往前垂、頭垂到胸前、兩手軟掉垂到地上；t≈0.45 垂到底（遊戲裡這一刻是倒地的那一聲），之後再往下沉一點、不收回來。
+        # 以前是跪姿整個往後轉 76°，折著的腿翻到半空中（D-306）
+        k = keys(t, [(0, 0), (0.4, 0.92), (0.45, 1.0), (0.52, 0.96), (1, 1.04)])
+        drop = thigh * 0.8 + (shin * 0.9 - thigh * 0.8) * k
+        a.rot("Hips", f, (X, -2 - 16 * k), (Z, -6 + 3 * k))
+        a.move("Hips", f, (0, (0.05 - 0.12 * k) * thigh, -drop))
+        a.rot("Spine", f, (X, -14 - 26 * k))
+        a.rot("Chest", f, (X, -10 - 20 * k))
+        a.rot("Head", f, (X, -18 - 24 * k), (Z, 8 * k))
+        a.leg_pose("Left", f, thigh=72 - 80 * k, knee=78 + 14 * k, foot=6 - 36 * k)
+        a.leg_pose("Right", f, thigh=-10 + 2 * k, knee=92, foot=-30)
+        a.arm_pose("Right", f, hang=14 - 4 * k, swing=34 + 6 * k, elbow=10 + 6 * k)
+        a.arm_pose("Left", f, hang=12 - 2 * k, swing=52 - 12 * k, elbow=78 - 62 * k)
+
     def flinch(f, t):
         # 被砍的那一下：上身往後一抽、往旁邊歪，兩手甩開一點，馬上回來
         k = keys(t, [(0, 0), (0.18, 1), (0.42, 0.6), (1, 0)])
@@ -983,6 +1017,7 @@ def monster_actions(a):
     a.action("roar", 53, roar, step=1)
     a.action("gaze", 48, gaze, step=1)
     a.action("kneel", 48, kneel, step=2)
+    a.action("collapse", 48, collapse, step=1)
     a.action("flinch", 12, flinch, step=1)
     a.action("punch", 30, punch, step=1)
     a.action("hammer", 36, hammer, step=1)

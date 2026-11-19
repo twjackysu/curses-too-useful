@@ -72,6 +72,30 @@ func test_unblocked_gaze_comes_again_and_a_blocked_one_spends_the_golem() -> voi
 	assert_eq(p.floor_ratio(), 0.0, "禁藥上身之後核心可以粉碎")
 
 
+## 席菈的禁藥：狂暴開始裝、凝視打出去的那一刻剛好裝滿；沒擋住從一半重裝；擋住了（射出去了）就收起來
+func test_seras_brew_fills_up_exactly_when_the_gaze_fires() -> void:
+	var p: GolemPhases = _phases()
+	assert_eq(p.brew_progress(), -1.0, "還沒狂暴：還沒開始裝")
+	_run(p, 0.1, 0.4)
+	assert_true(p.brew_progress() >= 0.0 and p.brew_progress() < 0.05, "一狂暴就開始裝")
+	_run(p, 2.0, 0.4)
+	var mid: float = p.brew_progress()
+	_run(p, 3.0, 0.4)
+	assert_true(p.brew_progress() > mid, "一路往上裝（%.2f → %.2f）" % [mid, p.brew_progress()])
+	_run(p, 3.1, 0.4)
+	assert_eq(p.phase, GolemPhases.Phase.GAZE)
+	assert_true(p.brew_progress() > 0.7 and p.brew_progress() < 1.0, "前兆開始時快好了（%.2f）" % p.brew_progress())
+	assert_eq(_run(p, 3.1, 0.4), PackedStringArray(["fire"]))
+	assert_true(p.brew_progress() > 0.99, "凝視打出去的那一刻剛好裝滿")
+	p.resolve_gaze(false)
+	assert_true(absf(p.brew_progress() - 0.5) < 0.02, "沒擋住（她被石化）：從一半重裝（%.2f）" % p.brew_progress())
+	_run(p, 6.1, 0.4)
+	assert_eq(_run(p, 3.1, 0.4), PackedStringArray(["fire"]))
+	assert_true(p.brew_progress() > 0.99, "第二次凝視打出去的那一刻也剛好裝滿")
+	p.resolve_gaze(true)
+	assert_eq(p.brew_progress(), -1.0, "擋住了：射出去了，收起來")
+
+
 func test_blocking_means_standing_between_the_golem_and_sera() -> void:
 	var golem := Vector3(0, 0, 0)
 	var sera := Vector3(0, 0, 10)
