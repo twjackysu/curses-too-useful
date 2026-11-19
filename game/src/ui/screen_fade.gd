@@ -28,6 +28,8 @@ var duck: float = 0.0
 var _duck_target: float = 0.0
 var _duck_sec: float = IN_SEC
 var _amp: AudioEffectAmplify
+## 全黑等換場景的時候右下角的「讀取中……」（載入卡住的那幾秒畫面停在這一格）
+var _loading: Label
 
 
 func _init() -> void:
@@ -40,10 +42,27 @@ func _init() -> void:
 	_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_rect)
+	_loading = Label.new()
+	_loading.name = "Loading"
+	_loading.text = "LOADING"
+	_loading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_loading.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_loading.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_loading.offset_left = -360.0
+	_loading.offset_top = -64.0
+	_loading.offset_right = -40.0
+	_loading.offset_bottom = -28.0
+	_loading.add_theme_font_size_override("font_size", 18)
+	_loading.add_theme_color_override("font_color", Color(0.62, 0.6, 0.58, 0.8))
+	_loading.visible = false
+	add_child(_loading)
 	_apply()
 
 
 func _ready() -> void:
+	var font: Font = UiFonts.load_font(UiFonts.UI_SANS)
+	if font != null:
+		_loading.add_theme_font_override("font", font)
 	_amp = AudioEffectAmplify.new()
 	AudioServer.add_bus_effect(0, _amp)
 	_apply_audio()
@@ -148,6 +167,8 @@ func _done() -> void:
 	var f: Callable = _then
 	_then = Callable()
 	if f.is_valid():
+		# 要換場景了：載入卡住的那一格畫面寫著「讀取中」，新的一關開始淡進來就收掉
+		_loading.visible = true
 		f.call()
 
 
@@ -156,6 +177,13 @@ func _apply_audio() -> void:
 		_amp.volume_db = maxf(linear_to_db(maxf(1.0 - duck, 0.0001)), -80.0)
 
 
+## 「讀取中」現在看不看得到（測試用）
+func loading_shown() -> bool:
+	return _loading.visible and visible
+
+
 func _apply() -> void:
 	_rect.modulate.a = alpha
 	visible = alpha > 0.001
+	if alpha < 1.0 or (target < 1.0 and _hold <= 0):
+		_loading.visible = false

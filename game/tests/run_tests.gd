@@ -29,7 +29,7 @@ func _run() -> void:
 
 	# 2) 測試
 	# 有的測試改設定（語言、自動攻擊、按鍵）會存檔：改存到一個用完就丟的檔。以前存在真的設定檔裡，跑完測試會留下
-	# auto_attack=false、locale=en——接著在同一台機器上截圖（本機、CI 的盤點截圖），諾恩不會自己砍、字變成英文
+	# auto_attack=false、locale=en——接著在同一台機器上截圖（本機、CI 第一個 job 測試之後拍的那兩張；盤點截圖是另一個 job、不跑測試），諾恩不會自己砍、字變成英文
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SETTINGS))
 	root.get_node("Settings").call("load_settings", TEST_SETTINGS)
 	var test_files: PackedStringArray = []

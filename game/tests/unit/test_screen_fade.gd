@@ -36,6 +36,7 @@ func test_fade_out_calls_back_once_when_black_and_fade_in_waits_a_few_frames() -
 			break
 	assert_eq(f.alpha, 1.0, "全黑")
 	assert_eq(calls[0], 1, "黑了呼叫一次")
+	assert_true(f.loading_shown(), "要換場景了：右下角「讀取中」（載入卡住的那幾秒停在這一格）")
 	for i: int in 3000:
 		if f.duck >= 1.0:
 			break
@@ -47,12 +48,14 @@ func test_fade_out_calls_back_once_when_black_and_fade_in_waits_a_few_frames() -
 	await tree.process_frame
 	await tree.process_frame
 	assert_eq(f.alpha, 1.0, "新的一關載入後先黑著幾幀")
+	assert_true(f.loading_shown(), "黑著的那幾幀還寫著")
 	for i: int in 3000:
 		await tree.process_frame
 		if f.alpha <= 0.0:
 			break
 	assert_eq(f.alpha, 0.0, "淡進來")
 	assert_false(f.visible, "淡完就不畫")
+	assert_false(f.loading_shown(), "開始淡進來就收掉")
 	for i: int in 3000:
 		if f.duck <= 0.0:
 			break
