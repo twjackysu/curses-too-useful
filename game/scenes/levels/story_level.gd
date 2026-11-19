@@ -19,3 +19,11 @@ func lock_for_cutscene(on: bool = true) -> void:
 		add_to_group(Game.CUTSCENE_GROUP)
 	elif is_in_group(Game.CUTSCENE_GROUP):
 		remove_from_group(Game.CUTSCENE_GROUP)
+
+
+## 開發旗標 `--talk-skip=N` 用的：按掉一句（遇到選項選第一個）
+static func skip_line(r: DialogueRunner) -> void:
+	if not r.visible_choices.is_empty():
+		r.choose(0)
+	else:
+		r.advance()

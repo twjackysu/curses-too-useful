@@ -155,14 +155,15 @@ func _ready() -> void:
 	# 截圖用：`--boss` 跳過抵達的那段話直接開打；`--phase2` 魔像一醒來就只剩一半的生命（馬上狂暴）
 	if args.has("boss") or args.has("phase2") or args.has("after") or args.has("floor"):
 		Game.session.set_flag(FLAG_TALKED, true)
-	# `--after`：魔像已經倒了，進場一秒多之後戰後那段話開始；`--talk-skip=N` 對話一開始先按掉 N 句（拍第 N+1 句的鏡位）
+	# `--after`：魔像已經倒了，進場一秒多之後戰後那段話開始；`--talk-skip=N` 對話一開始先按掉 N 句（遇到選項選第一個；拍第 N+1 句的鏡位，
+	# 例：`--after --talk-skip=8` 整段講完、直接看等卡的鏡頭）
 	if args.has("after"):
 		Game.session.set_flag(FLAG_GOLEM_DOWN, true)
 	var talk_skip: int = int(str(args.get("talk-skip", "0")))
 	if talk_skip > 0:
 		Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
 			for i: int in talk_skip:
-				r.advance.call_deferred())
+				skip_line.call_deferred(r))
 	_burst_on = str(args.get("burst-on", ""))
 	_demo = str(args.get("demo", ""))
 	scenery = AltarScenery.build(self, _rng)

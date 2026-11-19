@@ -212,7 +212,7 @@ func _ready() -> void:
 	if talk_skip > 0:
 		Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
 			for i: int in talk_skip:
-				_skip_line.call_deferred(r))
+				skip_line.call_deferred(r))
 	scenery = GuildScenery.build(self, is_epilogue())
 	_mark("GuildDoor", GuildScenery.DOOR_POS + Vector3(0, 0, -0.6))
 	_player.collision_mask |= GuildScenery.PEOPLE_LAYER
@@ -339,13 +339,6 @@ func _talk(dialogue_id: String, order: Array[String]) -> bool:
 func _current_speaker() -> String:
 	var r: DialogueRunner = Game.dialogue
 	return str(r.current().get("speaker", "")) if r != null and r.is_running() else ""
-
-
-static func _skip_line(r: DialogueRunner) -> void:
-	if not r.visible_choices.is_empty():
-		r.choose(0)
-	else:
-		r.advance()
 
 
 func _speaker_node(key: String) -> Node3D:
