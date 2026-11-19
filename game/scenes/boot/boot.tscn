@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scenes/boot/boot.gd" id="1_boot"]
-[ext_resource type="Shader" path="res://scenes/boot/title_fog.gdshader" id="2_fog"]
+[ext_resource type="Shader" path="res://scenes/boot/title_forest.gdshader" id="2_fog"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fog"]
 shader = ExtResource("2_fog")
