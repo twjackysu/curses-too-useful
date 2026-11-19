@@ -59,6 +59,13 @@ const CORE_TAKE_SEC: float = 0.7
 ## 第一次走進光環的那兩行說明出來之後，隔多久席菈才喊面具的那一句（開打的頭幾秒字太多：說明、雷歐的一句、魔像的第一拳都擠在這時候）
 const AURA_BARK_GAP: float = 7.0
 const GOLD: Color = Color(1.0, 0.84, 0.4)
+## 祭壇的環境音（石柱間的風、水滴、低低的疫病嗡嗡聲；整片）與 Boss 戰的配樂（魔像醒來淡入、粉碎核心之後淡出）
+const AIR_SFX: String = "altar_air"
+const AIR_DB: float = -14.0
+const BOSS_MUSIC: String = "boss_theme"
+const BOSS_MUSIC_DB: float = -6.0
+const BOSS_MUSIC_FADE_IN: float = 1.5
+const BOSS_MUSIC_FADE_OUT: float = 3.0
 
 var scenery: AltarScenery
 var sera: Sera
@@ -85,6 +92,8 @@ var _pulse_t: float = 0.0
 var _aura_bark_in: float = 0.0
 ## 開發用（連拍）：凝視一開始就把諾恩放到那道光上、核心一開就去砍
 var _demo: String = ""
+## Boss 戰的配樂（魔像醒來才有；粉碎核心之後淡掉、釋放）
+var boss_music: AudioStreamPlayer
 var _burst_on: String = ""
 
 @onready var _player: PlayerController = $Player
@@ -121,6 +130,7 @@ func _ready() -> void:
 	_demo = str(args.get("demo", ""))
 	scenery = AltarScenery.build(self, _rng)
 	_spores = ForestScenery.build_spores(self)
+	Ambience.play(self, AIR_SFX, AIR_DB, "AltarAir")
 	_mark("AltarRuins", Vector3(0, 0, 6.0))
 	_player.global_position = AltarScenery.ENTRANCE
 	# 截圖用：`--at=x,z` 把諾恩放到別的地方、`--cam-yaw=90` 鏡頭繞到側面、`--weapon=split_blade` 換一把武器
@@ -224,6 +234,8 @@ func _tick_fight(delta: float) -> void:
 			_wake_in -= delta
 			if _wake_in < 0.0:
 				golem.wake()
+				if boss_music == null:
+					boss_music = Ambience.music(self, BOSS_MUSIC, BOSS_MUSIC_DB, BOSS_MUSIC_FADE_IN, "BossMusic")
 		return
 	if _player.status_effects.has(StatusEffects.PLAGUE) and st.grant_once("ch1.aura_seen"):
 		_hud.show_center_lines("CH1_AURA_LINE1", "CH1_AURA_LINE2", 6.0)
@@ -381,11 +393,25 @@ func _on_sera_freed() -> void:
 
 ## 核心被粉碎的那一刀：定格 → 碎片用慢動作飛出來；鏡頭切到兩人的側面（過肩鏡頭裡這一刻只看得到魔像的肚子），看牠跪下、往後倒，再還給玩家
 func _on_core_shattered() -> void:
+	_fade_out_music()
 	Game.hit_stop(FINISH_STOP_SEC, FINISH_SLOW_SEC, FINISH_SLOW_SCALE)
 	_player.shake(0.8)
 	_hud.hide_center_lines()
 	finisher = FinisherCamera.play(self, _player.global_position, golem.global_position, FINISH_HOLD_SEC,
 		FINISH_CAM_DIST, FINISH_CAM_HEIGHT, FINISH_AIM_HEIGHT, [_player.get_rid(), golem.get_rid()])
+
+
+## 粉碎核心之後配樂慢慢收掉（不跟著慢動作變慢：照真的時間收）
+func _fade_out_music() -> void:
+	if boss_music == null or not is_instance_valid(boss_music):
+		return
+	var p: AudioStreamPlayer = boss_music
+	boss_music = null
+	var t: Tween = p.create_tween()
+	t.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	t.set_ignore_time_scale(true)
+	t.tween_property(p, "volume_db", Ambience.MUTED_DB, BOSS_MUSIC_FADE_OUT)
+	t.tween_callback(p.queue_free)
 
 
 ## 魔像倒了：光環消失、席菈回到諾恩身邊，隔一下三個人講話

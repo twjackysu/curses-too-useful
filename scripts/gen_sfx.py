@@ -1345,6 +1345,140 @@ def stone_peel(seconds=0.9, seed=331):
     return out
 
 
+# ---- 祭壇的環境音與 Boss 戰的配樂 ----
+
+
+def altar_air(seconds=12.0, seed=337):
+    """廢棄祭壇（可循環 12 秒；整片）：石柱之間低低的風（比森林悶、沒有葉子，6 秒一次慢慢漲落）
+    ＋遠處的石頭偶爾悶悶地「嗡」一聲（很低的長音）＋水滴落進石縫的「滴」（帶兩道石壁的回音）
+    ＋很低、會拍頻的疫病嗡嗡聲。頭尾交叉淡化。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    fade = int(1.5 * RATE)
+    total = n + fade
+    wind = onepole_lp(onepole_lp(hp(noise(total, rng), 80), 380), 520)
+    whistle = svf_band(noise(total, rng), lambda i: 820.0 + 120.0 * math.sin(2 * math.pi * 2 * i / n), 0.04)
+    out = []
+    for i in range(total):
+        g = 0.6 + 0.4 * math.sin(2 * math.pi * 2 * i / n + 0.4)
+        t = i / RATE
+        hum = 0.03 * (math.sin(2 * math.pi * 55.0 * t) + 0.6 * math.sin(2 * math.pi * 55.7 * t) + 0.3 * math.sin(2 * math.pi * 110.4 * t))
+        out.append(wind[i] * 2.6 * g + whistle[i] * 0.05 * g * g + hum)
+    for at in (2.2, 8.4):
+        m = int(2.2 * RATE)
+        ph = 0.0
+        start = int(at * RATE)
+        for k in range(m):
+            x = k / m
+            ph += 2 * math.pi * (41.0 + 6.0 * x) / RATE
+            out[start + k] += 0.09 * math.sin(math.pi * x) ** 2 * (math.sin(ph) + 0.4 * math.sin(2 * ph))
+    drip = _ping(0.25, 1.0, 1.0)
+    for k in range(6):
+        at = 0.7 + k * 1.9 + rng.uniform(-0.3, 0.3)
+        f = rng.uniform(1700.0, 2500.0)
+        d = []
+        ph = 0.0
+        for j in range(int(0.12 * RATE)):
+            t = j / RATE
+            ph += 2 * math.pi * f * (1.0 + 0.6 * t / 0.12) / RATE
+            d.append(math.exp(-t * 40.0) * math.sin(ph))
+        d = _echo(d + [0.0] * int(0.6 * RATE), ((0.13, 0.3), (0.29, 0.15)))
+        _mix_at(out, at, d, rng.uniform(0.05, 0.09))
+    looped = _loop_crossfade(out, n, fade)
+    peak = max(abs(v) for v in looped) or 1.0
+    return [v / peak * 0.7 for v in looped]
+
+
+def _drum(seconds, f0, f1, decay, click, seed):
+    """一下太鼓：往下掉的正弦（f0 → f1）＋鼓皮的一點雜訊。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    skin = onepole_lp(noise(n, rng), 1200)
+    out = []
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        ph += 2 * math.pi * (f1 + (f0 - f1) * math.exp(-t * 25.0)) / RATE
+        out.append(math.exp(-t * decay) * (math.sin(ph) + click * skin[i] * math.exp(-t * 40.0)))
+    return out
+
+
+def _saw_note(seconds, f, rng, detune=0.004, cutoff=900.0, attack=0.01, release=0.08):
+    """一個鋸齒波的音（兩個微微走音的聲部，低通）：低音的頑固音型、銅管一樣的和弦。"""
+    n = int(seconds * RATE)
+    raw = []
+    pa = rng.random()
+    pb = rng.random()
+    for i in range(n):
+        pa = (pa + f / RATE) % 1.0
+        pb = (pb + f * (1.0 + detune) / RATE) % 1.0
+        raw.append((2.0 * pa - 1.0) + (2.0 * pb - 1.0))
+    raw = onepole_lp(onepole_lp(raw, cutoff), cutoff * 1.3)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        env = min(1.0, t / attack) * min(1.0, (seconds - t) / release)
+        out.append(env * raw[i])
+    return out
+
+
+def boss_theme(seed=347):
+    """深淵疫病魔像的戰鬥配樂（可循環 16 秒＝120 BPM、8 小節；走 Music 匯流排）：D 弗里吉亞（D、Eb 往返，很不安）。
+    底下是太鼓（每小節第一拍最重的一下、反拍的小鼓）＋八分音符的低音頑固音型（D2 D2 Eb2 D2…，鋸齒波低通）
+    ＋兩小節換一次的銅管和弦（Dm → Eb → Dm → Bb、A；前一個和弦拖進下一個 0.2 秒，換的時候不會斷）＋第 1、5 小節標題那三聲往下走的鐘（D4、C4、A3），但快、硬、帶回音。
+    循環的頭尾是同一拍（第 8 小節的最後一拍接回第 1 小節），不用交叉淡化；尾巴的殘響加回開頭。"""
+    rng = random.Random(seed)
+    beat = 0.5
+    bar = 4 * beat
+    n = int(8 * bar * RATE)
+    out = [0.0] * (n + int(2.0 * RATE))
+    big = _drum(0.9, 120.0, 46.0, 4.5, 0.8, seed + 1)
+    mid = _drum(0.5, 160.0, 70.0, 8.0, 1.0, seed + 2)
+    small = _drum(0.25, 260.0, 140.0, 18.0, 1.4, seed + 3)
+    for b in range(8):
+        t0 = b * bar
+        _mix_at(out, t0, big, 0.55)
+        _mix_at(out, t0 + 1.5 * beat, mid, 0.3)
+        _mix_at(out, t0 + 2 * beat, mid, 0.38)
+        _mix_at(out, t0 + 3.5 * beat, small, 0.25)
+        if b % 2 == 1:
+            _mix_at(out, t0 + 3.0 * beat, mid, 0.3)
+            _mix_at(out, t0 + 3.25 * beat, small, 0.2)
+            _mix_at(out, t0 + 3.75 * beat, small, 0.25)
+    D2, Eb2, Bb1, A1 = 73.42, 77.78, 58.27, 55.0
+    roots = [D2, D2, Eb2, Eb2, D2, D2, Bb1, A1]
+    pattern = [0, 0, 1, 0, 0, 1, 0, 2]
+    for b in range(8):
+        r = roots[b]
+        for e in range(8):
+            step = pattern[e]
+            f = r if step == 0 else (r * 2.0 if step == 1 else r * 1.0595)
+            note = _saw_note(beat / 2 * 0.85, f, rng, 0.003, 700.0, 0.004, 0.03)
+            _mix_at(out, b * bar + e * beat / 2, note, 0.16 if e % 2 == 0 else 0.11)
+    chords = [(0, [146.83, 174.61, 220.0]), (2, [155.56, 196.0, 233.08]), (4, [146.83, 174.61, 220.0]),
+              (6, [116.54, 146.83, 174.61]), (7, [110.0, 138.59, 164.81])]
+    for k, (b, freqs) in enumerate(chords):
+        bars = (chords[k + 1][0] if k + 1 < len(chords) else 8) - b
+        for f in freqs:
+            note = _saw_note(bars * bar + 0.2, f, rng, 0.006, 1100.0, 0.25, 0.35)
+            _mix_at(out, b * bar, note, 0.08)
+    bells = {}
+    for b in (0, 4):
+        for k, (off, f) in enumerate(((0.0, 293.66), (0.75, 261.63), (1.5, 220.0))):
+            if f not in bells:
+                bb = onepole_lp(bell(f, 2.2), 3000)
+                pk = max(abs(v) for v in bb) or 1.0
+                bells[f] = [v / pk for v in bb]
+            for delay, tap in ((0.0, 0.22), (0.375, 0.08), (0.75, 0.04)):
+                _mix_at(out, b * bar + off * beat + delay, bells[f], tap * (1.0 if k < 2 else 1.2))
+    tail = out[n:]
+    looped = out[:n]
+    for i, v in enumerate(tail):
+        looped[i] += v
+    peak = max(abs(v) for v in looped) or 1.0
+    return [v / peak * 0.7 for v in looped]
+
+
 def main():
     made = [
         write("blunt", thump(0.3, 140, 55, seed=2)),
@@ -1394,6 +1528,8 @@ def main():
         write("stone_deflect", stone_deflect()),
         write("core_land", core_land()),
         write("stone_peel", stone_peel()),
+        write("altar_air", altar_air()),
+        write("boss_theme", boss_theme()),
     ]
     for p in made:
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

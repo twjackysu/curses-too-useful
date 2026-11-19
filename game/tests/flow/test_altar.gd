@@ -180,6 +180,13 @@ func test_arriving_finds_leos_party_down_then_the_golem_wakes_and_its_plague_fee
 	await _frames(int(RuinedAltar.WAKE_DELAY * 60.0) + 8)
 	assert_true(golem.awake and level.aura.active, "魔像醒了、光環打開")
 	assert_true(golem.heard.has(PlagueGolem.ROAR_SFX), "醒來吼一聲")
+	if Sfx.stream(RuinedAltar.BOSS_MUSIC) != null:
+		var air: AudioStreamPlayer = level.get_node_or_null("AltarAir") as AudioStreamPlayer
+		assert_true(air != null and air.playing and Ambience.sfx_of(air) == RuinedAltar.AIR_SFX, "祭壇有自己的環境音")
+		assert_true(level.boss_music != null and level.boss_music.playing, "醒來就開始 Boss 戰的配樂")
+		if level.boss_music != null:
+			assert_eq(level.boss_music.bus, &"Music", "走「音樂」音量")
+			assert_eq(Ambience.sfx_of(level.boss_music), RuinedAltar.BOSS_MUSIC)
 	await tree.process_frame
 	hud.boss_bar.refresh(golem)
 	assert_true(hud.boss_bar.shown, "Boss 的生命條出現")
@@ -488,6 +495,8 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_true(golem.health.is_dead(), "一刀粉碎核心")
 	assert_eq(shattered, [true] as Array[bool])
 	assert_true(golem.heard.has(PlagueGolem.CORE_SHATTER_SFX), "粉碎核心有自己的聲音（不再跟反轉的碎裂聲同一個）")
+	var music: AudioStreamPlayer = level.get_node_or_null("BossMusic") as AudioStreamPlayer
+	assert_true(level.boss_music == null, "粉碎核心：配樂開始淡出")
 	# 那一刀的演出：定格、鏡頭切到兩人的側面、核心炸成碎片（晶片兩把＋石塊）
 	assert_true(Engine.time_scale < 1.0, "定格，接著慢動作")
 	assert_not_null(level.finisher, "鏡頭切到側面")
@@ -514,6 +523,8 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	await _frames(100)
 	assert_true(absf(level.core.global_position.y - GolemCore.RADIUS - golem.global_position.y) < 0.05, "停在地上")
 	assert_true(golem.heard.has(PlagueGolem.CORE_LAND_SFX), "核心落地的那一聲")
+	assert_true(music == null or not is_instance_valid(music) or music.volume_db < RuinedAltar.BOSS_MUSIC_DB - 20.0,
+		"魔像倒下時配樂已經快收完了（%.0f dB；收完就拿掉）" % (music.volume_db if is_instance_valid(music) else -99.0))
 	var rolled: float = Vector2(level.core.global_position.x - golem.global_position.x, level.core.global_position.z - golem.global_position.z).length()
 	assert_true(rolled > 2.0 and rolled < 5.0, "在牠旁邊（%.1f m）" % rolled)
 	assert_true(level.core.global_position.distance_to(player.global_position) > 0.8, "不會滾到諾恩腳下")
