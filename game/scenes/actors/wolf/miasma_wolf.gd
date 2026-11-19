@@ -3,7 +3,8 @@ extends EnemyActor
 ## 瘴氣狼（docs/story/chapter-1.md 時段 B）：跑得快，到面前壓低身體、撲上來咬一口。
 ## 咬到除了傷害還上一層流血（data/status/statuses.json 的 wolf_bite）——對諾恩是出手加速。
 ## 外型：Tripo 的四足模型（scripts/gen_props.sh 用 tools/blender/tripo_quadruped.py 轉好，帶骨架與一段原地走路 walk）；
-## 跑的時候把走路播快，壓低、撲、倒下用程式擺整個身體。檔案不在就用程式拼的替身。
+## 跑的時候把走路播快；蹲低要撲、騰空、被砍、失衡趴下、倒地的腿與脖子是 WolfPose 疊上去的（D-303），整隻壓低、騰起來、
+## 側躺還是程式擺整個身體。檔案不在就用程式拼的替身（只有整個身體會動）。
 
 const MODEL: String = "tripo/enemy_miasma_wolf"
 const BITE_SOURCE: String = "wolf_bite"
@@ -16,9 +17,15 @@ const BODY_RADIUS: float = 0.45
 const WALK_CLIP_SPEED: float = 1.5
 const WALK_ANIM: String = "walk"
 
+## 姿勢的權重往目標跟上去多快（每秒）
+const POSE_EASE: float = 14.0
+## 倒地：腿軟掉要多久
+const DEAD_POSE_SEC: float = 0.3
+
 var _lunge_dir: Vector3 = Vector3.ZERO
 var _look: Node3D
 var _anim: AnimationPlayer
+var _pose: WolfPose
 
 
 func tuning_id() -> String:
@@ -58,7 +65,19 @@ func _build_body() -> void:
 			_anim.get_animation(WALK_ANIM).loop_mode = Animation.LOOP_LINEAR
 			_anim.play(WALK_ANIM)
 			_anim.speed_scale = 0.0
+	var skels: Array[Node] = _look.find_children("*", "Skeleton3D", true, false)
+	if not skels.is_empty():
+		_pose = WolfPose.new()
+		_pose.name = "WolfPose"
+		var sk: Skeleton3D = skels[0] as Skeleton3D
+		sk.add_child(_pose)
+		_pose.setup(sk)
 	add_toxic_glow(_look, 2.6)
+
+
+## 腿與脖子的姿勢（沒有模型時是 null）
+func pose() -> WolfPose:
+	return _pose
 
 
 ## 有沒有在播走路的動作（測試用；沒有模型時是 false）
@@ -112,6 +131,21 @@ func _update_look() -> void:
 	_look.position.y = lerpf(_look.position.y, lift, 0.3)
 	if not health.is_dead():
 		_set_glow(lerpf(1.0, GLOW_WINDUP, crouch))
+	if _pose != null:
+		var want: Dictionary = {"crouch": crouch, "leap": 0.0, "hurt": 0.0, "lie": 0.0}
+		match brain.state:
+			EnemyBrain.State.STRIKE:
+				want["leap"] = 1.0
+			EnemyBrain.State.RECOVER:
+				# 落地之後腿慢慢收回來
+				want["leap"] = clampf(1.0 - brain.time_in_state / 0.25, 0.0, 1.0)
+			EnemyBrain.State.FLINCH:
+				want["hurt"] = sin(clampf(brain.time_in_state / maxf(brain.flinch_sec, 0.01), 0.0, 1.0) * PI)
+			EnemyBrain.State.STAGGERED:
+				want["lie"] = 1.0
+		var k: float = clampf(POSE_EASE * get_physics_process_delta_time(), 0.0, 1.0)
+		for key: String in want:
+			_pose.weights[key] = lerpf(float(_pose.weights.get(key, 0.0)), float(want[key]), k)
 
 
 ## 倒下：往旁邊一歪、側躺（共用的「向前撲倒」是給站著的人的，四隻腳的會變成倒栽蔥）
@@ -119,6 +153,13 @@ func _on_died() -> void:
 	_begin_death()
 	if _anim != null:
 		_anim.speed_scale = 0.0
+	if _pose != null:
+		# 腿軟掉、頭垂下去（_update_look 不跑了，這裡自己轉過去）
+		var from: Dictionary = _pose.weights.duplicate()
+		create_tween().tween_method(func(k: float) -> void:
+			for key: String in from:
+				_pose.weights[key] = float(from[key]) * (1.0 - k)
+			_pose.weights["dead"] = k, 0.0, 1.0, DEAD_POSE_SEC)
 	var t := create_tween()
 	_fall_tween = t
 	t.tween_property(_body, "rotation:z", deg_to_rad(86.0), DIE_DROP_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)

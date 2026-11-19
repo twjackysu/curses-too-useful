@@ -1295,16 +1295,31 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 	assert_true(closed > PlayerController.WALK_SPEED * 1.05, "一秒追近 %.1f m，比諾恩小跑快" % closed)
 	if PropModels.scene_for(MiasmaWolf.MODEL) != null:
 		assert_true(trotted, "跑的時候在播走路的動作")
+	var crouched: float = 0.0
+	var leapt: float = 0.0
 	for i: int in 300:
 		await tree.physics_frame
+		if wolf.pose() != null:
+			crouched = maxf(crouched, float(wolf.pose().weights.get("crouch", 0.0)))
+			leapt = maxf(leapt, float(wolf.pose().weights.get("leap", 0.0)))
 		if player.status_effects.has("bleed"):
 			break
 	assert_eq(player.status_effects.source_of("bleed"), "wolf_bite", "被狼咬到：流血")
+	for i: int in 12:
+		await tree.physics_frame
+		if wolf.pose() != null:
+			leapt = maxf(leapt, float(wolf.pose().weights.get("leap", 0.0)))
+	if PropModels.scene_for(MiasmaWolf.MODEL) != null:
+		assert_true(wolf.pose() != null and wolf.pose().part_count() == WolfPose.PARTS.size(), "四條腿、脖子、背、尾巴的骨頭都找到了")
+		assert_true(crouched > 0.6 and leapt > 0.5, "撲之前蹲低（%.2f）、撲出去前腳伸直後腳蹬直（%.2f）" % [crouched, leapt])
 	assert_true(_playing(wolf, MiasmaWolf.BITE_SFX), "撲上來是低吼＋咬合的聲音（不再借爪擊）")
 	assert_eq(wolf.last_notice_sfx, MiasmaWolf.GROWL_SFX, "發現諾恩時低吼一聲")
 	assert_eq(wolf.fall_sfx(), MiasmaWolf.YELP_SFX, "倒下時哀叫")
 	assert_true(player.status_effects.attack_speed() > 1.0, "對諾恩是出手加速")
 	wolf.health.apply_damage(9999.0, {"source": player})
+	if wolf.pose() != null:
+		await tree.create_timer(MiasmaWolf.DEAD_POSE_SEC + 0.15).timeout
+		assert_true(float(wolf.pose().weights.get("dead", 0.0)) > 0.99, "倒地：腿軟掉、頭垂下去")
 	# 孢子樹人：前兆很長、打不斷，砸到緩速＋致盲
 	var treant: SporeTreant = (explore.packs["hollow"] as Array)[0] as SporeTreant
 	assert_true(treant.brain.telegraph_sec >= 1.0 and treant.brain.flinch_sec <= 0.0, "樹人前兆長、不會後仰")
