@@ -150,7 +150,7 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_GUILD_LINE1", "CH1_GUILD_LINE2"]), "一進來先說這是哪裡")
 	assert_false(hud.guide.shown, "中間的字還在，指引的菱形先不畫（不疊在字上）")
 	assert_false(level.scenery.slip.visible, "綠色委託單還沒拿出來")
-	assert_true(level.get_node_or_null("HallMurmur") != null or Sfx.stream("market_murmur") == null, "大廳的人聲")
+	assert_true(level.get_node_or_null("HallMurmur") != null or Sfx.stream(GuildHall.MURMUR_SFX) == null, "大廳的人聲")
 
 
 func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> void:
@@ -194,6 +194,11 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	var leo_start: Vector3 = leo.global_position
 	await _frames(int(GuildHall.ALARM_LEO_WALKS * 60.0) + 10)
 	assert_true(hud.bark_keys().has("BARK_ADV_LAUGH_A") or hud.bark_keys().has("BARK_ADV_LAUGH_B"), "冒險者笑出來")
+	var laugh: AudioStream = Sfx.stream(GuildHall.LAUGH_SFX)
+	var laughing: int = 0
+	for c: Node in level.get_children():
+		laughing += 1 if c is AudioStreamPlayer3D and (c as AudioStreamPlayer3D).stream == laugh else 0
+	assert_true(laugh == null or laughing >= 1, "聽得到笑聲")
 	assert_true(leo.is_walking(), "雷歐走過來")
 	for key: String in ["AdventurerA", "AdventurerB"]:
 		assert_eq((level.crowd[key] as Npc).pose, "laugh", "%s 在笑" % key)
@@ -229,8 +234,10 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 			break
 	assert_false(is_instance_valid(leo), "雷歐走出去了")
 	assert_true(door_opened, "大門為他們打開")
+	assert_true(level.door_creaks >= 1, "門被推開的時候吱嘎一聲")
 	await _frames(int(60.0 / GuildHall.DOOR_SPEED) + 30)
 	assert_true(level.scenery.door_open < 0.05, "人走了，門關上")
+	assert_true(level.door_shuts >= 1, "關上的時候碰一聲")
 	assert_true(level.lilith_use.enabled, "可以跟莉莉絲說話")
 
 

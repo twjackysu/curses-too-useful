@@ -87,6 +87,14 @@ const SERA_TALK_DIST: float = 2.3
 const END_CARD_DELAY: float = 1.4
 const END_MUSIC_DB: float = -5.0
 const MURMUR_DB: float = -17.0
+## 大廳的人聲（整片循環）、「第一章　完」的配樂、警報之後冒險者的笑聲、大門打開的吱嘎
+const MURMUR_SFX: String = "hall_murmur"
+const END_MUSIC: String = "chapter_end_theme"
+const LAUGH_SFX: String = "crowd_laugh"
+const LAUGH_DB: float = -4.0
+const DOOR_SFX: String = "door_creak"
+const DOOR_SHUT_SFX: String = "door_shut"
+const DOOR_DB: float = -6.0
 ## 結尾席菈跟在諾恩左後方半步（玩家的鏡頭裡看得到她整個人）
 const SERA_FOLLOW_OFFSET: Vector3 = Vector3(-1.3, 0.0, 0.7)
 ## 有人走到離大門這麼近就開門（走出去的雷歐小隊、席菈、諾恩）；開關的速度（每秒幾成）
@@ -98,6 +106,9 @@ const SLIP_IN_HANDS: Vector3 = Vector3(-0.15, 0.03, -0.05)
 ## 正在走出大門的人（門要為他們開）
 const LEAVING_GROUP: String = "guild_leaving"
 
+## 大門從關著被推開幾次（每次吱嘎一聲）、關上幾次（碰一聲）；測試用
+var door_creaks: int = 0
+var door_shuts: int = 0
 var scenery: GuildScenery
 var lilith: Npc
 var sera: Sera
@@ -178,7 +189,7 @@ func _ready() -> void:
 	_spawn_cast()
 	_build_interactables()
 	Game.dialogue_ended.connect(_on_dialogue_ended)
-	Ambience.play(self, "market_murmur", MURMUR_DB, "HallMurmur")
+	Ambience.play(self, MURMUR_SFX, MURMUR_DB, "HallMurmur")
 	if is_epilogue() and stage() == STAGE_REPORT:
 		_attach_core()
 	elif stage() == STAGE_REGISTER:
@@ -431,10 +442,13 @@ func _tick_alarm(delta: float) -> void:
 		b.face(_player.global_position)
 		a.pose = "laugh"
 		_hud.show_bark(a, "BARK_ADV_LAUGH_A", 3.0, ADVENTURER_KEY)
+		Sfx.play_at(self, LAUGH_SFX, a.global_position + Vector3.UP * 1.5, LAUGH_DB, 0.05, 6.0)
 	elif _alarm_step == 1 and _alarm_t >= ALARM_LAUGH_B:
 		_alarm_step = 2
 		b.pose = "laugh"
 		_hud.show_bark(b, "BARK_ADV_LAUGH_B", 3.0, ADVENTURER_KEY)
+		# 第二陣比較多人（雷歐小隊也跟著笑）：音高換一點，不要聽起來是同一段
+		Sfx.play_at(self, LAUGH_SFX, b.global_position + Vector3.UP * 1.5, LAUGH_DB + 1.0, 0.12, 7.0)
 		for key: String in party:
 			(party[key] as Npc).face(_player.global_position)
 			if key != "Leo":
@@ -476,7 +490,14 @@ func _tick_door(delta: float) -> void:
 		if n != null and is_instance_valid(n) and n.is_inside_tree() and n.global_position.distance_to(GuildScenery.DOOR_POS) < DOOR_NEAR:
 			near = true
 			break
-	scenery.set_door_open(move_toward(scenery.door_open, 1.0 if near else 0.0, delta * DOOR_SPEED))
+	var was: float = scenery.door_open
+	if near and was <= 0.01:
+		door_creaks += 1
+		Sfx.play_at(self, DOOR_SFX, GuildScenery.DOOR_POS + Vector3.UP * 1.5, DOOR_DB, 0.05, 5.0)
+	scenery.set_door_open(move_toward(was, 1.0 if near else 0.0, delta * DOOR_SPEED))
+	if was > 0.01 and scenery.door_open <= 0.01:
+		door_shuts += 1
+		Sfx.play_at(self, DOOR_SHUT_SFX, GuildScenery.DOOR_POS + Vector3.UP * 1.2, DOOR_DB, 0.05, 5.0)
 
 
 ## 水晶的光：警報中紅的一閃一閃；測過了就暗掉
@@ -587,7 +608,7 @@ func _party_leaves() -> void:
 func _play_end_card() -> void:
 	if card != null:
 		return
-	Ambience.music(self, "part_end_theme", END_MUSIC_DB, 1.2, "EndTheme")
+	Ambience.music(self, END_MUSIC, END_MUSIC_DB, 1.2, "EndTheme")
 	card = ChapterCard.play(self, "CARD_END_SMALL", "CARD_END_TITLE", Game.back_to_title)
 
 

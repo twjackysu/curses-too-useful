@@ -12,6 +12,8 @@ const MIN_TALK_SEC: float = 0.5
 var camera: TalkCamera
 var _line: String = ""
 var _marks: Array[MangaMark] = []
+## 最近一個漫符的聲音（測試用）
+var last_sound: String = ""
 var _speaking: Puppet = null
 var _talk_left: float = 0.0
 ## 角色 → 他的 Puppet（找一次就記住）
@@ -81,6 +83,8 @@ func _on_line(r: DialogueRunner) -> void:
 		var m: MangaMark = MangaMark.pop(emote, who, puppet)
 		if m != null:
 			_marks.append(m)
+			last_sound = str(MangaMark.SOUND.get(emote, ""))
+			Sfx.play_flat(who, last_sound, MangaMark.SOUND_DB)
 	if puppet == null:
 		return
 	var act: String = str(n.get("act", ""))

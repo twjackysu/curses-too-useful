@@ -18,6 +18,12 @@ const LOOK: Dictionary = {
 	"question": {"size": 0.15, "side": 0.19, "up": 0.3, "front": 0.0},
 }
 const FACE_KINDS: PackedStringArray = ["blush", "gloom"]
+## 對話裡冒出來時的聲音（漫畫的效果音）：驚嚇與怒筋「咚！」、閃亮與臉紅「叮♪」、汗與陰影線「咻～」、問號「嗯？」
+const SOUND: Dictionary = {
+	"sweat": "manga_drop", "anger": "manga_shock", "sparkle": "manga_sparkle", "blush": "manga_sparkle",
+	"shock": "manga_shock", "gloom": "manga_drop", "question": "manga_question",
+}
+const SOUND_DB: float = -9.0
 const POP_SEC: float = 0.2
 const FADE_SEC: float = 0.25
 ## 汗往下滑多少（m）

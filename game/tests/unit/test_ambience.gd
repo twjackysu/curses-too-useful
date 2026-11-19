@@ -3,7 +3,7 @@ extends TestCase
 
 
 func test_looped_copy_does_not_touch_shared_stream() -> void:
-	for n: String in ["market_murmur", "title_theme", "part_end_theme", "forest_night", "swamp_bubble", "campfire_crackle", "vent_hiss", "altar_air", "boss_theme"]:
+	for n: String in ["hall_murmur", "title_theme", "chapter_end_theme", "forest_night", "swamp_bubble", "campfire_crackle", "vent_hiss", "altar_air", "boss_theme"]:
 		var s: AudioStreamWAV = Ambience.looped(n)
 		assert_not_null(s, "有 %s" % n)
 		if s == null:
@@ -20,21 +20,21 @@ func test_looped_copy_does_not_touch_shared_stream() -> void:
 func test_play_flat_and_positional() -> void:
 	var root := Node3D.new()
 	tree.root.add_child(root)
-	var flat: AudioStreamPlayer = Ambience.play(root, "market_murmur", -13.0)
+	var flat: AudioStreamPlayer = Ambience.play(root, "hall_murmur", -13.0)
 	assert_not_null(flat)
 	if flat != null:
 		assert_eq(str(flat.name), "Ambience")
 		assert_eq(flat.bus, &"SFX", "跟著「音效」音量")
 		assert_eq(flat.volume_db, -13.0)
-		assert_eq(Ambience.sfx_of(flat), "market_murmur")
+		assert_eq(Ambience.sfx_of(flat), "hall_murmur")
 		assert_true(flat.playing, "一放進場景就開始播")
-	var fire: AudioStreamPlayer3D = Ambience.play_at(root, "market_murmur", Vector3(1, 0.4, -2), -6.0, 3.0, "WindGap")
+	var fire: AudioStreamPlayer3D = Ambience.play_at(root, "hall_murmur", Vector3(1, 0.4, -2), -6.0, 3.0, "WindGap")
 	assert_not_null(fire)
 	if fire != null:
 		assert_eq(fire.bus, &"SFX")
 		assert_eq(fire.global_position, Vector3(1, 0.4, -2), "從指定的位置發出來")
 		assert_eq(fire.unit_size, 3.0)
-		assert_eq(Ambience.sfx_of(fire), "market_murmur")
+		assert_eq(Ambience.sfx_of(fire), "hall_murmur")
 	# 掛在還沒進場景的東西上（關卡 _ready 裡先組好噴發口再放進去）：進場景那一刻才開始播
 	var later := Node3D.new()
 	var vent: AudioStreamPlayer3D = Ambience.play_at(later, "vent_hiss", Vector3(0, 0.4, 0), -10.0, 2.5, "VentHiss")

@@ -8,7 +8,7 @@ func test_all_sfx_generated_and_loadable() -> void:
 		assert_not_null(s, "缺音效 %s（scripts/gen_sfx.py）" % n)
 		if s != null:
 			assert_true(s.get_length() > 0.1, "%s 長度" % n)
-	for gone: String in ["bell", "bell_ninth", "hearth_crackle", "frost_wind_indoor", "frost_wind", "step_snow", "poison_charge", "step_heavy", "rubble_scrape"]:
+	for gone: String in ["bell", "bell_ninth", "hearth_crackle", "frost_wind_indoor", "frost_wind", "step_snow", "poison_charge", "step_heavy", "rubble_scrape", "market_murmur", "part_end_theme", "claw", "poison_hiss"]:
 		assert_false(Sfx.NAMES.has(gone), "%s 已經沒有人播，不再產生" % gone)
 
 

@@ -2,19 +2,18 @@
 """程序生成音效（不進 git），輸出到 game/assets/generated/sfx/*.wav。
 
 只用標準函式庫（wave、math、random），固定亂數種子，每次產生的檔案相同。
-- （bell() 沒有自己的音檔了：鐘聲的合成只給 title_theme／part_end_theme 裡遠遠的鐘用。非諧波泛音、各自指數衰減。）
-- blunt / blunt_weak：鈍擊（魔像的拳、樹人的下砸、敵人倒地）。低頻下滑正弦＋短噪音；blunt_weak 多一層高頻「喀」。
-- cut_hit／cut_heavy：諾恩的劍砍中（平常的一刀／收尾那一刀與砍在破綻上）。刃口的「嚓」＋砍進黏液的濕悶聲＋身體的低頻「咚」＋鏽鐵的一點餘響；重的那一聲低一個八度、拖得長、多幾聲碎裂。
-- claw：爪擊。高通噪音快掃。
-- slash：揮劍。帶通噪音＋金屬泛音。
-- vial_shot／vial_shatter／vial_load：席菈的手弩射出一瓶（弓弦＋彈簧＋木頭）、藥瓶在諾恩身上碎掉（小小的玻璃＋潑開的藥水）、下一瓶裝好（兩下機關聲＋一點玻璃）。
-- whoosh：閃避風聲。慢起慢落的低通噪音。
-- ui_tick：選單切換值。很小的一聲高音鐘「叮」（兩個非諧波泛音快速衰減）＋極短的木頭「喀」。
-- market_murmur：地下市場的底噪（可循環 12 秒，D-230）。六個遠處的人聲（鋸齒波聲帶＋一個共振峰，音節一個個起伏、句子之間停頓）疊成聽不出內容的嗡嗡聲＋岩洞的空氣聲＋兩道短回音＋偶爾很小的碰撞聲。
-- title_theme：標題畫面的配樂（可循環 24 秒，D-181；走 Music 匯流排）。低低的長音鋪底（D2＋A2＋D3，每個音兩個微微走音的聲部互相拍頻，12 秒一次慢慢漲落）＋霧裡遠遠的鐘聲動機：D4、C4、A3 往下走三聲，十二秒後 D4、C4 再往下落到 F3（第二次停在更低的地方）；鐘聲低通、帶三個越來越悶的回音。
-- step_dirt／step_stone／step_wood：腳步聲（D-182，各約 0.12～0.16 秒；播放時音高與音量隨機一點）。土（森林）：軟軟的低頻悶聲＋幾片乾葉子碎掉的細響；石：很短的低頻「咚」＋一點砂粒的高頻擦聲；木：中空的「叩」（180／420 Hz 兩個共鳴快速衰減）＋一點木板的吱。
-- part_end_theme：第一部前半的收尾配樂（可循環 28 秒，D-188；結尾卡＋感謝試玩頁，走 Music 匯流排）。回答標題的鐘聲：標題是往下走（D4、C4、A3，第二次落到 F3），這裡從 F3 往上走（F3、A3、C4），第二次 A3、C4 停在 D4＝標題開頭那個音。底下是 F2＋C3 的長音（比收束的小三度暖一點）＋很小聲的 A3，14 秒一次漲落；鐘聲帶三個越來越悶的回音。
-- step_heavy：送葬者的拖步（D-187，約 0.65 秒；不分地面）。很重的低頻「咚」（72 → 38 Hz 往下掉、加一個高八度的泛音讓小喇叭也聽得到）＋落地的悶悶碎響＋拖在後面的鐵鏈擦地（高通噪音、斷斷續續地抖）＋三下鐵環碰撞。
+每一個音的樣子寫在它自己的函式說明裡；這裡只列有哪些（main() 的順序）：
+- 戰鬥：blunt／blunt_weak（敵人倒地、樹人的下砸）、cut_hit／cut_heavy（諾恩的劍砍中）、slash（揮劍）、whoosh（閃避）、
+  iron_clang、interrupt、brace_warn、poison_burst（poison_hiss 只是它的一層）、curse_sting＋reversal_shatter（反轉回饋的前後半）
+- 腳步：step_dirt／step_stone／step_wood、treant_step、golem_step
+- 席菈：vial_shot／vial_shatter／vial_load；glass_clink（喝藥）
+- 森林：forest_night（整片的夜晚）、swamp_bubble、campfire_crackle、vent_hiss（從東西發出來的循環）、
+  mushroom_pick、fruit_bite、web_stick、wolf_bite、chest_open、distant_scream
+- 祭壇：altar_air（整片）、boss_theme（Boss 戰配樂）、golem_roar、gaze_charge／gaze_beam、golem_slam、
+  core_glow、stone_deflect、core_shatter、core_land、stone_peel（席菈的石殼剝落）
+- 公會：hall_murmur（人聲）、crystal_alarm、crowd_laugh、door_creak／door_shut、chapter_end_theme（「第一章　完」）
+- 介面與漫符：ui_tick、title_theme（標題配樂）、manga_shock／manga_sparkle／manga_drop／manga_question
+- 循環的（環境音、配樂）頭尾交叉淡化，Ambience 設成整段循環；bell() 只給配樂裡的鐘聲用。
 授權：程序生成，無外部素材（docs/CREDITS.md）。
 """
 import math
@@ -239,9 +238,9 @@ def _far_voice(total, rng, f0, formant_lo, formant_hi):
     return out
 
 
-def market_murmur(seconds=12.0, seed=131):
-    """地下市場的底噪（可循環 12 秒，D-230）：六個遠處的人聲疊起來（聽不出內容的嗡嗡聲，有起伏、不會整片安靜）
-    ＋岩洞裡低低的空氣聲＋兩道短回音（岩壁）＋偶爾一聲很小的鍋蓋／瓶子的碰撞。頭尾交叉淡化。"""
+def hall_murmur(seconds=12.0, seed=131):
+    """公會大廳的人聲（可循環 12 秒）：六個人在別桌講話疊起來（聽不出內容的嗡嗡聲，有起伏、不會整片安靜）
+    ＋屋裡低低的空氣聲＋兩道短回音（木牆）＋偶爾一聲很小的杯子、餐具碰撞。頭尾交叉淡化。"""
     rng = random.Random(seed)
     n = int(seconds * RATE)
     fade = int(1.2 * RATE)
@@ -252,17 +251,17 @@ def market_murmur(seconds=12.0, seed=131):
         voice = _far_voice(total, rng, f0, 290.0, 820.0)
         for i in range(total):
             crowd[i] += voice[i] * gain
-    # 遠、隔著攤子與布棚：高頻收掉
+    # 隔著幾張桌子：高頻收掉
     crowd = onepole_lp(onepole_lp(crowd, 2400), 3200)
     room = onepole_lp(onepole_lp(hp(noise(total, rng), 60), 260), 340)
     out = [crowd[i] + room[i] * 2.2 for i in range(total)]
-    # 岩壁的兩道短回音
+    # 木牆的兩道短回音
     for delay, amount in ((int(0.083 * RATE), 0.3), (int(0.137 * RATE), 0.22)):
         for i in range(delay, total):
             out[i] += out[i - delay] * amount
     peak = max(abs(v) for v in out) or 1.0
     out = [v / peak for v in out]
-    # 偶爾的小碰撞聲（鍋蓋、玻璃瓶）：很小聲，不落在交叉淡化的那一段
+    # 偶爾的小碰撞聲（杯子、餐具）：很小聲，不落在交叉淡化的那一段
     for _ in range(4):
         at = int(rng.uniform(0.8, seconds - 1.0) * RATE)
         freq = rng.uniform(1900.0, 3300.0)
@@ -325,8 +324,8 @@ def title_theme(seconds=24.0, seed=67):
     return [v / peak * 0.7 for v in looped]
 
 
-def part_end_theme(seconds=28.0, seed=97):
-    """第一部前半的收尾配樂（D-188）：F2＋C3 的長音、往上走的鐘聲（回答標題往下走的那三聲），第二次停在 D4。"""
+def chapter_end_theme(seconds=28.0, seed=97):
+    """「第一章　完」的配樂（回答標題的鐘聲）：F2＋C3 的長音、往上走的鐘聲（回答標題往下走的那三聲），第二次停在 D4。"""
     rng = random.Random(seed)
     n = int(seconds * RATE)
     fade = int(2.5 * RATE)
@@ -425,7 +424,7 @@ def step_wood(seed=79):
 
 
 def poison_hiss(seconds=0.9, seed=107):
-    """噴毒（D-207）：高頻的嘶聲（滑動的帶通噪音＋一點更高的氣聲），快起慢落＋一聲很短的低頻「噗」。"""
+    """毒爆的嘶聲那一層：高頻的嘶聲（滑動的帶通噪音＋一點更高的氣聲），快起慢落＋一聲很短的低頻「噗」。"""
     rng = random.Random(seed)
     n = int(seconds * RATE)
     src = noise(n, rng)
@@ -1479,22 +1478,125 @@ def boss_theme(seed=347):
     return [v / peak * 0.7 for v in looped]
 
 
+# ---- 公會大廳與漫符 ----
+
+
+def crowd_laugh(seconds=1.6, seed=349):
+    """公會裡的冒險者在笑（水晶警報之後）：兩三個人「哈、哈、哈」的笑聲（每一聲是一個短音節：鋸齒波的聲帶
+    往下滑一點，經過「啊」的共振峰，帶一點氣音），一個低一個高、錯開一點，最後一聲拖長。木頭大廳的短回音。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    for f0, start, count, gap, gain in ((128.0, 0.0, 6, 0.15, 1.0), (176.0, 0.08, 5, 0.17, 0.8), (150.0, 0.32, 4, 0.19, 0.6)):
+        t = start
+        for k in range(count):
+            last = k == count - 1
+            dur = 0.24 if last else rng.uniform(0.08, 0.11)
+            m = int(dur * RATE)
+            src = []
+            ph = 0.0
+            for i in range(m):
+                x = i / m
+                f = f0 * (1.25 - 0.3 * x) * (1.0 - 0.04 * k)
+                ph = (ph + f / RATE) % 1.0
+                env = min(1.0, x / 0.12) * (1.0 - x) ** 1.4
+                src.append(env * ((2.0 * ph - 1.0) + 0.7 * rng.uniform(-1.0, 1.0)))
+            syl = [0.0] * m
+            for fc, d, g in ((750.0, 0.18, 1.0), (1200.0, 0.2, 0.6), (2600.0, 0.25, 0.25)):
+                b = svf_band(src, lambda i, fc=fc: fc, d)
+                for i in range(m):
+                    syl[i] += g * b[i]
+            _mix_at(out, t, syl, gain * (1.0 - 0.08 * k))
+            t += gap * rng.uniform(0.9, 1.15)
+    out = onepole_lp(out, 4200)
+    return _echo(out, ((0.045, 0.22), (0.09, 0.12)))
+
+
+def door_creak(seconds=1.1, seed=353):
+    """公會的大門打開：門閂拉開的「喀」→ 厚木門板的一聲長「嘰——呀」（低的木頭吱嘎，越來越慢）
+    ＋門外的風灌進來一點（低通雜訊慢慢漲）。關門不另外做。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    _mix_at(out, 0.0, thump(0.1, 700, 260, crack=0.8, seed=seed + 1), 0.45)
+    creak = onepole_lp(_creak(seed + 2, 0.75), 2200)
+    _mix_at(out, 0.12, creak, 0.7)
+    air = onepole_lp(onepole_lp(noise(n, rng), 500), 700)
+    for i in range(n):
+        x = i / n
+        out[i] += 1.4 * air[i] * min(1.0, max(0.0, x - 0.15) / 0.5) * (1.0 - x) ** 0.5
+    return out
+
+
+def _glide(seconds, f0, f1, decay, partials=((1.0, 1.0), (2.0, 0.25))):
+    """往上或往下滑的一聲（漫畫的效果音）。"""
+    n = int(seconds * RATE)
+    out = []
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        x = i / n
+        ph += 2 * math.pi * (f0 * (f1 / f0) ** x) / RATE
+        env = min(1.0, t / 0.004) * math.exp(-t * decay)
+        out.append(env * sum(a * math.sin(r * ph) for r, a in partials))
+    return out
+
+
+def manga_shock(seed=359):
+    """漫符：驚嚇線、怒筋冒出來的「咚！」（短短一下往下掉的低音＋一點拍掌一樣的雜訊），漫畫的那一下。"""
+    rng = random.Random(seed)
+    out = _glide(0.28, 420.0, 160.0, 14.0, ((1.0, 1.0), (2.0, 0.4), (3.0, 0.15)))
+    slap = onepole_lp(hp(noise(int(0.03 * RATE), rng), 900), 5000)
+    for i, v in enumerate(slap):
+        out[i] += 0.6 * v * math.exp(-i / RATE * 120)
+    return out
+
+
+def manga_sparkle(seed=361):
+    """漫符：閃亮、臉紅冒出來的「叮♪」（兩個很快往上的高音，像小小的鈴）。"""
+    out = [0.0] * int(0.5 * RATE)
+    _mix_at(out, 0.0, _ping(0.4, 1567.98, 9.0, 0.003), 0.5)
+    _mix_at(out, 0.07, _ping(0.4, 2349.32, 8.0, 0.003), 0.45)
+    return out
+
+
+def manga_drop(seed=367):
+    """漫符：汗、陰影線冒出來的「咻～」（往下滑的軟軟一聲，像一滴汗掉下來）。"""
+    return _glide(0.36, 1150.0, 380.0, 7.0, ((1.0, 1.0), (2.0, 0.12)))
+
+
+def manga_question(seed=373):
+    """漫符：問號冒出來的「嗯？」（往上翹的軟軟一聲）。"""
+    return _glide(0.3, 420.0, 900.0, 7.5, ((1.0, 1.0), (2.0, 0.15)))
+
+
+def door_shut(seconds=0.55, seed=379):
+    """公會的大門關上：厚木門板撞上門框的悶悶一聲「碰」＋門閂落下的「喀」＋門板微微震一下。"""
+    out = [0.0] * int(seconds * RATE)
+    _mix_at(out, 0.0, thump(0.4, 170, 58, crack=0.4, seed=seed), 1.0)
+    _mix_at(out, 0.05, thump(0.08, 1100, 500, crack=1.0, seed=seed + 1), 0.25)
+    knock = [0.0] * int(0.3 * RATE)
+    knock[0] = 1.0
+    body = svf_band(knock, lambda i: 230.0, 0.04)
+    peak = max(abs(v) for v in body) or 1.0
+    _mix_at(out, 0.0, [v / peak for v in body], 0.35)
+    return out
+
+
 def main():
     made = [
         write("blunt", thump(0.3, 140, 55, seed=2)),
         write("blunt_weak", thump(0.38, 170, 50, crack=0.8, seed=3)),
-        write("claw", swish(0.22, 1800, 9000, seed=4, rise=0.2)),
         write("slash", swish(0.28, 900, 7000, seed=5, rise=0.3, metal=0.25)),
         write("whoosh", swish(0.35, 200, 1600, seed=6, rise=0.45)),
         write("iron_clang", clang()),
         write("ui_tick", ui_tick()),
-        write("market_murmur", market_murmur()),
+        write("hall_murmur", hall_murmur()),
         write("title_theme", title_theme()),
-        write("part_end_theme", part_end_theme()),
+        write("chapter_end_theme", chapter_end_theme()),
         write("step_dirt", step_dirt()),
         write("step_stone", step_stone()),
         write("step_wood", step_wood()),
-        write("poison_hiss", poison_hiss(0.9, seed=109)),
         write("glass_clink", glass_clink()),
         write("interrupt", interrupt_crack()),
         write("brace_warn", brace_warn()),
@@ -1530,6 +1632,13 @@ def main():
         write("stone_peel", stone_peel()),
         write("altar_air", altar_air()),
         write("boss_theme", boss_theme()),
+        write("crowd_laugh", crowd_laugh()),
+        write("door_creak", door_creak()),
+        write("door_shut", door_shut()),
+        write("manga_shock", manga_shock()),
+        write("manga_sparkle", manga_sparkle()),
+        write("manga_drop", manga_drop()),
+        write("manga_question", manga_question()),
     ]
     for p in made:
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

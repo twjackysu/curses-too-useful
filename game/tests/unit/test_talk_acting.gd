@@ -37,6 +37,7 @@ func test_each_line_pops_its_mark_plays_its_gesture_and_moves_the_head() -> void
 	var marks: Array[MangaMark] = cam.acting.marks()
 	assert_eq(marks.size(), 1, "第一句冒一個漫符")
 	assert_eq(marks[0].kind, "sweat")
+	assert_eq(cam.acting.last_sound, "manga_drop", "汗冒出來是「咻～」")
 	assert_true(marks[0].get_parent() == a, "冒在講話的人身上")
 	assert_eq(a.puppet.action, "bow", "做這一句的手勢")
 	assert_true(a.puppet.talking, "講話的人頭會動")
@@ -150,6 +151,8 @@ func test_model_head_nods_on_top_of_the_animation() -> void:
 func test_marks_pop_follow_the_head_and_fade_away() -> void:
 	for k: String in DialogueDB.EMOTES:
 		assert_true(MangaMark.KINDS.has(k) and MangaMark.LOOK.has(k), "對話資料用得到的漫符都畫得出來：%s" % k)
+	for k: String in MangaMark.KINDS:
+		assert_true(MangaMark.SOUND.has(k) and Sfx.NAMES.has(str(MangaMark.SOUND[k])), "每一種漫符都有聲音：%s" % k)
 	var nobody := Node3D.new()
 	assert_eq(MangaMark.pop("dance", nobody), null, "不認得的不冒")
 	nobody.free()
