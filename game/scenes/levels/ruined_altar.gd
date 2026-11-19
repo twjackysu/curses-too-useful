@@ -66,6 +66,10 @@ const BOSS_MUSIC: String = "boss_theme"
 const BOSS_MUSIC_DB: float = -6.0
 const BOSS_MUSIC_FADE_IN: float = 1.5
 const BOSS_MUSIC_FADE_OUT: float = 3.0
+## 狂暴之後配樂整首升半音、快 6%（不另外做一首：同一首聽得出「變急了」），大聲一點
+const BOSS_RAGE_PITCH: float = 1.06
+const BOSS_RAGE_DB: float = 2.0
+const BOSS_RAGE_SHIFT_SEC: float = 1.5
 
 var scenery: AltarScenery
 var sera: Sera
@@ -336,6 +340,11 @@ func _on_golem_enraged() -> void:
 	sera.hands_full = true
 	chatter.hint_paused = true
 	_hud.set_extra_hint("")
+	if boss_music != null and is_instance_valid(boss_music):
+		var t: Tween = boss_music.create_tween().set_parallel(true)
+		t.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+		t.tween_property(boss_music, "pitch_scale", BOSS_RAGE_PITCH, BOSS_RAGE_SHIFT_SEC)
+		t.tween_property(boss_music, "volume_db", BOSS_MUSIC_DB + BOSS_RAGE_DB, BOSS_RAGE_SHIFT_SEC)
 	if _burst_on == "enrage":
 		App.burst_start_in(1)
 

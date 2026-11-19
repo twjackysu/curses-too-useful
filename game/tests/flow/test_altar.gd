@@ -394,6 +394,8 @@ func test_enraged_golem_gazes_and_an_unshielded_sera_turns_to_stone() -> void:
 	var frozen_at: Vector3 = sera.global_position
 	await _frames(30)
 	assert_true(sera.global_position.distance_to(frozen_at) < 0.01 and sera.vials_fired == 0, "石化中不動、不射")
+	if level.boss_music != null:
+		assert_true(level.boss_music.pitch_scale > 1.005 and level.boss_music.pitch_scale <= RuinedAltar.BOSS_RAGE_PITCH + 0.001, "狂暴之後配樂變急（×%.3f）" % level.boss_music.pitch_scale)
 	assert_eq(str(hud.get("_extra_hint_key")), "", "那一行收掉")
 	# 過一陣子再凝視一次；她的石化先解開
 	sera.stoned_left = 0.05
