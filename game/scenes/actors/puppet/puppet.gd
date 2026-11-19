@@ -360,7 +360,7 @@ func _animate_model() -> void:
 		return
 	if model_animation != name_found:
 		model_animation = name_found
-		anim.play(name_found, 0.05 if state == "release" else 0.15)
+		anim.play(name_found, blend_for(state))
 	# 步頻跟速度走：腳踩在地上的那一段，腳往後的速度要跟人往前的速度差不多
 	match state:
 		"walk":
@@ -377,6 +377,16 @@ func _animate_model() -> void:
 		anim.play(name_found, 0.0)
 		anim.speed_scale = 0.0
 		anim.seek(_hold_at, true)
+
+
+## 換動作時跟前一個動作混多久（秒）。出手的拉開只有 0.09 秒（0.55 秒的 16%），混 0.15 秒的話拉開還沒到頂就被往下劈蓋掉，
+## 看起來像劍直接從腰間劈出去；釋放也是一下子的。
+const BLEND_SEC: float = 0.15
+const QUICK_BLEND_SEC: float = 0.05
+
+
+static func blend_for(state_name: String) -> float:
+	return QUICK_BLEND_SEC if state_name in ["attack", "release"] else BLEND_SEC
 
 
 ## 換成正式模型；沒有骨架就放棄（回傳 false，用程序人偶）。

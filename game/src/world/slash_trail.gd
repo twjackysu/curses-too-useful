@@ -23,6 +23,9 @@ const SPAN_BIG: Vector2 = Vector2(0.12, 1.35)
 ## 每一段留幾秒（遊戲時間：打擊停頓時弧也停在那裡）。出手變快也不縮短——超頻時前一刀的弧還在，下一刀已經出來
 const LIFE: float = 0.16
 const LIFE_BIG: float = 0.22
+## 刀痕的方向看劍尖最近這麼多秒走的方向（`sweep()`）：砍中那一刻前後劍正在轉彎（劈到底、開始帶過去），
+## 只看最後一兩幀會量到轉彎之後的方向
+const SWEEP_SEC: float = 0.04
 ## 兩個取樣之間劍每轉這麼多度補一段（只有兩三個取樣的時候也是圓的）
 const STEP_DEG: float = 6.0
 
@@ -86,13 +89,26 @@ func sample_count() -> int:
 	return _hands.size()
 
 
-## 劍尖剛剛往哪裡走（世界座標的方向；刀痕照這個方向畫）。還沒有兩個取樣就是零向量。
+## 劍尖剛剛往哪裡走（世界座標的方向；刀痕照這個方向畫）：現在的劍尖減掉 SWEEP_SEC 秒前的劍尖（兩個取樣中間照時間內插）。
+## 照時間取、不是照「最近幾個取樣」——幀率高低、剛好卡一下，量到的都是同一段揮的方向。還沒有兩個取樣就是零向量。
 func sweep() -> Vector3:
-	var n: int = _tips.size()
+	var d: Vector3 = global_basis * sweep_delta(_tips, _ages, SWEEP_SEC)
+	return d.normalized() if d.length() > 0.001 else Vector3.ZERO
+
+
+## 劍尖在 sec 秒內走了多少（tips 照時間排、ages＝每一個取樣幾秒前記的）；取樣不夠久就從最舊的那一個算。純函式。
+static func sweep_delta(tips: PackedVector3Array, ages: PackedFloat32Array, sec: float) -> Vector3:
+	var n: int = mini(tips.size(), ages.size())
 	if n < 2:
 		return Vector3.ZERO
-	var d: Vector3 = global_basis * (_tips[n - 1] - _tips[maxi(n - 3, 0)])
-	return d.normalized() if d.length() > 0.001 else Vector3.ZERO
+	var newest: Vector3 = tips[n - 1]
+	var want: float = ages[n - 1] + sec
+	for i: int in range(n - 2, -1, -1):
+		if ages[i] >= want:
+			var span: float = ages[i] - ages[i + 1]
+			var k: float = (want - ages[i + 1]) / span if span > 0.0001 else 1.0
+			return newest - tips[i + 1].lerp(tips[i], k)
+	return newest - tips[0]
 
 
 func _process(delta: float) -> void:

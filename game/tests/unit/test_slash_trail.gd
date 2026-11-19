@@ -175,3 +175,62 @@ func test_second_swing_sweeps_from_the_left_shoulder_across_to_the_right() -> vo
 		assert_true(tall[i] > (right[i] - left[i]) * 1.4, "第 %d 下是直的（高 %.2f、寬 %.2f m）" % [i + 1, tall[i], right[i] - left[i]])
 	root.queue_free()
 	await tree.process_frame
+
+
+## 刀痕的方向照時間取（SWEEP_SEC 秒前到現在），不是照「最近幾個取樣」：同一段揮，每秒 30 幀與 150 幀量到的方向一樣。
+## 以前取最後三個取樣——幀率高時只看到最後 0.02 秒（劍劈到底、正在轉彎），剛好卡一下時又看到拉開的那一段。
+func test_sweep_takes_the_same_time_span_at_any_frame_rate() -> void:
+	# 劍尖畫一段往下、最後往右彎的弧：0.1 秒內從 (0, 2) 劈到 (0.6, 0.6)
+	var path := func(t: float) -> Vector3: return Vector3(0.6 * pow(t / 0.1, 3.0), 2.0 - 1.4 * (t / 0.1), 0.0)
+	var dirs: Array[Vector3] = []
+	for fps: float in [30.0, 60.0, 150.0]:
+		var tips := PackedVector3Array()
+		var ages := PackedFloat32Array()
+		var n: int = int(0.1 * fps) + 1
+		for i: int in n:
+			var t: float = 0.1 * float(i) / float(n - 1)
+			tips.append(path.call(t))
+			ages.append(0.1 - t)
+		dirs.append(SlashTrail.sweep_delta(tips, ages, SlashTrail.SWEEP_SEC).normalized())
+	var want: Vector3 = (path.call(0.1) - path.call(0.1 - SlashTrail.SWEEP_SEC)).normalized()
+	for i: int in dirs.size():
+		assert_true(dirs[i].angle_to(want) < deg_to_rad(4.0), "第 %d 種幀率：方向一樣（%s 對 %s）" % [i, dirs[i], want])
+	var two := SlashTrail.sweep_delta(PackedVector3Array([Vector3.ZERO, Vector3.UP]), PackedFloat32Array([0.01, 0.0]), 0.04)
+	assert_eq(two, Vector3.UP, "取樣不夠久：從最舊的那一個算")
+	assert_eq(SlashTrail.sweep_delta(PackedVector3Array([Vector3.UP]), PackedFloat32Array([0.0]), 0.04), Vector3.ZERO, "只有一個取樣沒有方向")
+
+
+## 出手的拉開看得到：換到出手的動作只混一下（以前混 0.15 秒，比拉開的 0.09 秒還長——劍還沒舉到頂就被往下劈蓋掉，
+## 從背後看像劍直接從腰間劈出去）。三下拉開到頂時，劍尖都已經舉到肩膀後面（身體座標 z > -0.2；以前三下都還在身體前面）。
+func test_wind_up_reaches_behind_the_shoulder_before_the_swing() -> void:
+	assert_true(Puppet.blend_for("attack") <= 0.6 * float(Puppet.ACTION_TIME["attack"]) * 0.16, "出手混的時間比拉開短（%.2f 秒）" % Puppet.blend_for("attack"))
+	assert_eq(Puppet.blend_for("walk"), Puppet.BLEND_SEC, "其他動作照舊")
+	var root := Node3D.new()
+	tree.root.add_child(root)
+	var player: PlayerController = (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as PlayerController
+	root.add_child(player)
+	for i: int in 6:
+		await tree.process_frame
+	var hand: Node3D = player.puppet().hand("R")
+	var weapon: Node3D = hand.get_node_or_null("Weapon") as Node3D if hand != null else null
+	if not player.puppet().uses_model() or weapon == null:
+		root.queue_free()
+		await tree.process_frame
+		return
+	var body: Node3D = player.get_node("Body") as Node3D
+	var tip_at: Vector3 = PlayerController.blade_tip(weapon)
+	for swing: int in 3:
+		player.start_attack()
+		var top := Vector3.ZERO
+		for i: int in 120:
+			await tree.process_frame
+			if player.puppet().action != "attack":
+				break
+			var t: float = player.puppet().action_time / float(Puppet.ACTION_TIME["attack"])
+			if t < PlayerController.TRAIL_WINDOW.x:
+				top = body.global_transform.affine_inverse() * (player.puppet().joint_now("hand_R") * weapon.transform * tip_at)
+		assert_true(top.z > -0.2, "第 %d 下拉開到頂：劍尖在肩膀後面（%s）" % [swing + 1, top])
+		for i: int in 10:
+			await tree.physics_frame
+	root.queue_free()
+	await tree.process_frame
