@@ -28,7 +28,7 @@ const WALK_CLIP_SPEED: float = 1.3
 const RUN_CLIP_SPEED: float = 3.2
 ## 一圈步態（0～1）裡腳落地的兩個時間點：大腿擺到最前面的那一刻
 const FOOT_CONTACTS: PackedFloat32Array = [0.25, 0.75]
-const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "reach": 1.0, "give": 1.25,
+const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "reach": 1.0, "give": 2.0,
 	# 對話的手勢（DialogueDB.ACTS；模型的動作在 social_actions）
 	"nod": 0.9, "bow": 1.4, "point": 1.3, "chest": 1.4, "shrug": 1.3, "fist": 1.1, "wave": 1.5,
 	# 席菈走到瘴氣邊上慌張地找防毒面具（social_actions 的 fumble）
@@ -49,8 +49,15 @@ const TALK_EASE: float = 5.0
 ## 低頭／抬頭多少（弧度）與轉過去多快（每秒）
 const HEAD_TILT: Dictionary = {"": 0.0, "down": -0.38, "up": 0.16}
 const TILT_SPEED: float = 1.6
+## 頭轉過去看旁邊（坐著的人身體不能轉：Npc.face 改轉頭）最多幾弧度、轉多快（每秒）
+const LOOK_YAW_MAX: float = 1.05
+const LOOK_YAW_SPEED: float = 2.4
+## 坐著喝的那一口（common.py 的 sit_drink：舉到嘴邊 up、仰頭喝 sip 的關鍵影格，兩邊要一樣）：杯子跟著手傾斜多少弧度
+const DRINK_UP_KEYS: Array[Vector2] = [Vector2(0, 0), Vector2(0.45, 0), Vector2(0.6, 1), Vector2(0.82, 1), Vector2(0.95, 0), Vector2(1, 0)]
+const DRINK_SIP_KEYS: Array[Vector2] = [Vector2(0, 0), Vector2(0.6, 0), Vector2(0.7, 1), Vector2(0.8, 1), Vector2(0.88, 0), Vector2(1, 0)]
+const DRINK_TILT: Vector2 = Vector2(0.2, 0.85)
 ## 站著不動的時候可以換成的樣子（模型的循環動作；程式人偶只會坐）
-const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump", "down_back", "down_front", "sit_ground", "brew"]
+const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "sit_laugh", "laugh", "slump", "down_back", "down_front", "sit_ground", "brew"]
 ## 「釋放」的姿勢播多久。它不是 action：疊在站姿／走路／出手上面，不佔出手與閃避（放完同一幀照樣能出手）
 const RELEASE_POSE_TIME: float = 0.36
 ## 模型的手骨頭在手腕：手上的掛點往指尖移這麼多（掌心）
@@ -112,6 +119,9 @@ var _talk_w: float = 0.0
 ## 講這一句時頭低著還是抬著（HEAD_TILT 的 key；TalkActing 設）
 var head: String = ""
 var _tilt: float = 0.0
+## 頭往左（正）右（負）轉多少弧度去看旁邊（Npc.face 叫；身體不轉的人用）。慢慢轉過去
+var look_yaw: float = 0.0
+var _yaw: float = 0.0
 
 ## true＝模型吃場景的光、平塗（toon 漫射）——Jacky 2026-11-13 看了兩種的圖選的（「會受環境光影響比較好」）。
 ## false＝照原檔（VRoid 範例角色是「不受光」：暗的地方人還是亮的）；只剩開發旗標 `-- --char-unlit` 會關（Game 讀）。
@@ -149,7 +159,7 @@ func head_tilt() -> float:
 
 ## 疊在動作上面的頭的角度（角色自己的座標）：講話時的點頭晃頭 × talk_weight ＋ 低頭／抬頭
 func head_offset() -> Vector3:
-	return nod_angles() * talk_weight() + Vector3(_tilt, 0.0, 0.0)
+	return nod_angles() * talk_weight() + Vector3(_tilt, _yaw, 0.0)
 
 
 ## 講話時頭的角度（點頭、左右轉、歪頭；角色自己的座標，乘上 talk_weight 才是真的轉多少）：
@@ -160,6 +170,33 @@ func nod_angles() -> Vector3:
 		NOD_AMP.x * (0.6 * sin(t * TAU * 2.1) + 0.4 * sin(t * TAU * 3.4 + 1.0)) - NOD_AMP.x * 0.3,
 		NOD_AMP.y * sin(t * TAU * 0.7 + 0.5),
 		NOD_AMP.z * sin(t * TAU * 1.1 + 2.0))
+
+
+## 頭現在往旁邊轉了多少弧度（look_yaw 慢慢轉過去的那個值）
+func head_yaw() -> float:
+	return _yaw
+
+
+## 坐著喝的人手上的杯子現在要往嘴的方向傾斜多少弧度（UprightHeld.tilt_by 用）：正在播 sit_drink 時照那一口的時間軸，
+## 其他時候（擱著、笑、程式人偶）是 0
+func sip_tilt() -> float:
+	if anim == null or pose != "sit_drink" or current_state() != "idle":
+		return 0.0
+	var clip: String = CharacterModels.find_animation(anim, "sit_drink")
+	if clip == "" or anim.current_animation != clip or anim.current_animation_length <= 0.0:
+		return 0.0
+	var t: float = anim.current_animation_position / anim.current_animation_length
+	return DRINK_TILT.x * _keys(t, DRINK_UP_KEYS) + DRINK_TILT.y * _keys(t, DRINK_SIP_KEYS)
+
+
+## 跟 common.py 的 keys() 一樣：幾個 (時間, 值) 中間用 smoothstep 接
+static func _keys(t: float, pts: Array[Vector2]) -> float:
+	for i: int in pts.size() - 1:
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		if t >= a.x and t <= b.x:
+			return lerpf(a.y, b.y, smoothstep(0.0, 1.0, (t - a.x) / (b.x - a.x)))
+	return pts[-1].y
 
 
 ## head_offset() 換到骨架的座標（模型被轉了半圈的話左右、前後反過來）
@@ -341,6 +378,7 @@ func advance(delta: float) -> void:
 			action_time = 0.0
 	_talk_w = move_toward(_talk_w, 1.0 if talking else 0.0, delta * TALK_EASE)
 	_tilt = move_toward(_tilt, float(HEAD_TILT.get(head, 0.0)), delta * TILT_SPEED)
+	_yaw = move_toward(_yaw, clampf(look_yaw, -LOOK_YAW_MAX, LOOK_YAW_MAX), delta * LOOK_YAW_SPEED)
 	var release_t: float = 1.0 - release_left / RELEASE_POSE_TIME
 	release_left = maxf(release_left - delta, 0.0)
 	if model != null:
@@ -359,8 +397,10 @@ func gait_cycle() -> float:
 		return -1.0
 	if model == null:
 		return phase / TAU
-	if anim == null or not anim.is_playing() or anim.current_animation_length <= 0.0 \
-			or model_animation != CharacterModels.find_animation(anim, state):
+	if anim == null or not anim.is_playing() or anim.current_animation_length <= 0.0:
+		return -1.0
+	# 扛著東西走的是 walk_carry／run_carry（以前只認 walk／run：扛著核心回公會的那一段沒有腳步聲）
+	if model_animation != CharacterModels.find_animation(anim, state) and model_animation != CharacterModels.find_animation(anim, state + "_carry"):
 		return -1.0
 	return fposmod(anim.current_animation_position / anim.current_animation_length, 1.0)
 

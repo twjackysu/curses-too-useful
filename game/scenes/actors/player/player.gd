@@ -93,6 +93,8 @@ const WEAPONS: Dictionary = {
 const DEFAULT_WEAPON: String = "rusty_sword"
 const WEAPON_FLAG: String = "noen.weapon"
 var weapon_id: String = DEFAULT_WEAPON
+## 扛著重的東西時走多快的倍數（結尾扛著魔像核心回公會：GuildHall.CARRY_PACE）；1＝平常
+var burden: float = 1.0
 ## true＝這一關不能動手（公會大廳）：出手與釋放的按鍵沒有反應，閃避照常；劍收到背上
 var peaceful: bool = false:
 	set(value):
@@ -381,7 +383,7 @@ func _physics_process(delta: float) -> void:
 			invulnerable = false
 	else:
 		# 緩速被反轉＝跑得更快（沒反轉的人是變慢）
-		var target: Vector3 = dir * (SPRINT_SPEED if sprinting else WALK_SPEED) * status_effects.move_speed_scale()
+		var target: Vector3 = dir * (SPRINT_SPEED if sprinting else WALK_SPEED) * status_effects.move_speed_scale() * burden
 		horizontal = horizontal.lerp(target, clampf(ACCEL * delta, 0.0, 1.0))
 	# 出手的那一小步疊在走路上面，但不記進下一幀的速度（不然滑完還會往前溜）
 	var lunge: Vector3 = _lunge_velocity(delta) if _dodge_left <= 0.0 else Vector3.ZERO

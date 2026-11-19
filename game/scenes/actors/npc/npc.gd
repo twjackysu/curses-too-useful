@@ -23,7 +23,7 @@ var _speed: float = 0.0
 var _look: Vector3 = Vector3.INF
 var _shape: CollisionShape3D
 var footsteps: Footsteps = Footsteps.new(STEP_DB, STEP_DB)
-## 站著不動時的樣子（Puppet.POSES：""、sit、sit_hunch、sit_drink、laugh、slump）
+## 站著不動時的樣子（Puppet.POSES：""、sit、sit_hunch、sit_drink、sit_laugh、laugh、slump）
 var pose: String = "":
 	set(value):
 		pose = value
@@ -84,9 +84,17 @@ func gesture(action_name: String) -> void:
 	puppet.play_action(action_name)
 
 
-## 轉過去看 point（站著的時候）
+## 轉過去看 point：站著的人整個人轉過去；坐著的人（身體不能離開座位）只轉頭（最多 Puppet.LOOK_YAW_MAX）。
+## Vector3.INF＝不看了（坐著的人頭轉回正前方）
 func face(point: Vector3) -> void:
 	_look = point
+	if not point.is_finite() and puppet != null:
+		puppet.look_yaw = 0.0
+
+
+## 坐著的樣子（身體不轉，轉頭）
+func is_seated() -> bool:
+	return pose.begins_with("sit")
 
 
 ## 對話開始時 TalkCamera 會叫：面向對方
@@ -121,6 +129,11 @@ func _physics_process(delta: float) -> void:
 		if dir.length() < 0.05:
 			return
 		dir = dir.normalized()
+		if is_seated():
+			# 往左轉是正的：身體的正前方轉到 dir 要轉多少
+			var fwd: Vector3 = -global_basis.z
+			puppet.look_yaw = atan2(fwd.cross(dir).y, fwd.dot(dir))
+			return
 	if dir != Vector3.ZERO:
 		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
 

@@ -65,6 +65,12 @@ const PATRONS: Array[Array] = [
 ]
 ## 喝酒的客人手上的杯子：離手腕多遠（他的座標：往上、往前）
 const MUG_IN_HAND: Vector3 = Vector3(0.0, -0.06, -0.05)
+## 摸水晶：諾恩先挪到水晶正前方這一點（右手剛好對著水晶；櫃檯前最近站得到的地方）、面向北，再伸手。挪多久；伸手的那一秒不能動
+const TOUCH_SPOT: Vector3 = Vector3(GuildScenery.CRYSTAL_POS.x - 0.29, 0.05, GuildScenery.STAFF_LINE_Z + GuildScenery.WALL_MARGIN)
+const TOUCH_STEP_SEC: float = 0.3
+const TOUCH_REACH: float = 3.0
+## 扛著魔像核心走路的速度（倍數：重，走慢一點）
+const CARRY_PACE: float = 0.8
 ## 佈告欄前面走到走道上的那一點（直線走會穿過桌子）
 const AISLE_WEST: Vector3 = Vector3(-2.3, 0, 0.4)
 ## 席菈縮在西北的角落，坐在武器架旁邊的凳子上、面向牆角；坐的時候外型往上抬多少（凳子比長凳高，腳會懸空一點）
@@ -115,10 +121,12 @@ const SERA_FOLLOW_OFFSET: Vector3 = Vector3(-1.3, 0.0, 0.7)
 ## 有人走到離大門這麼近就開門（走出去的雷歐小隊、席菈、諾恩）；開關的速度（每秒幾成）
 const DOOR_NEAR: float = 3.2
 const DOOR_SPEED: float = 1.6
-## 莉莉絲兩手拿著委託單遞出來，手收回來的時候放到櫃檯上（give 播到這裡）；拿著的時候在右手腕往左多少（兩手中間）
-const SLIP_SHOW_SEC: float = 0.95
-const SLIP_IN_HANDS: Vector3 = Vector3(-0.15, 0.03, -0.05)
-const SLIP_HELD_SCALE: float = 0.7
+## 莉莉絲拿出委託單給諾恩看（give，Puppet.ACTION_TIME 2 秒；時間軸跟 common.py 的 give 一樣）：右手的指尖捏著上緣（離掌心多遠，
+## 她的座標：往上、往前）、0.5～0.86 秒左手把對摺的下半張往下翻開、舉著給他看、1.44 秒起手放低、整張往前倒平，1.72 秒擱到櫃檯上
+const SLIP_PINCH: Vector3 = Vector3(0.0, 0.02, -0.07)
+const SLIP_UNFOLD: Vector2 = Vector2(0.5, 0.36)
+const SLIP_LAY: Vector2 = Vector2(1.44, 0.28)
+const SLIP_SHOW_SEC: float = 1.72
 ## 正在走出大門的人（門要為他們開）
 const LEAVING_GROUP: String = "guild_leaving"
 ## 莉莉絲拿出綠色委託單的那一句、蓋章的那一句：畫面右邊拿出那張紙（PaperNote）、蓋上「受理」
@@ -388,7 +396,8 @@ func _spawn_cast() -> void:
 		patrons[str(spec[0])] = who
 		var mug: Node3D = PropModels.instance("quaternius/Mug") if who.pose == "sit_drink" else null
 		if mug != null and who.puppet.hand("R") != null:
-			UprightHeld.attach(mug, who.puppet.hand("R"), who, MUG_IN_HAND)
+			var held: UprightHeld = UprightHeld.attach(mug, who.puppet.hand("R"), who, MUG_IN_HAND)
+			held.tilt_by = who.puppet.sip_tilt
 	if evening:
 		# 逃回來的雷歐小隊：累垮了，駝著背喘氣
 		for key: String in party:
@@ -441,18 +450,18 @@ func _refresh_interactables() -> void:
 	scenery.slip.visible = Game.session.in_story() and _flag(FLAG_QUEST) and not is_epilogue()
 
 
-## 莉莉絲兩手拿著綠色委託單遞出來，手收回來的時候放到櫃檯上
+## 莉莉絲拿出綠色委託單：右手捏著對摺的紙、左手往下翻開、舉著給諾恩看，手放下來的時候擱到櫃檯上
 func _hand_over_slip() -> void:
 	lilith.gesture("give")
 	var held: UprightHeld = null
 	var hand: Node3D = lilith.puppet.hand("R")
 	if hand != null:
-		var copy := scenery.slip.duplicate() as Node3D
-		copy.visible = true
-		# 拿在手上的那張小一點（放在櫃檯上的那張要在玩的距離看得到；拿在手上的在近景裡會大得像托盤）
-		copy.transform = Transform3D.IDENTITY.scaled(Vector3.ONE * SLIP_HELD_SCALE)
-		held = UprightHeld.attach(copy, hand, lilith, SLIP_IN_HANDS)
+		var paper := QuestSlip.create(1.0, 0.0)
+		held = UprightHeld.attach(paper, hand, lilith, SLIP_PINCH)
 		held.name = "HeldSlip"
+		var t: Tween = paper.create_tween().set_parallel()
+		t.tween_property(paper, "fold", 0.0, SLIP_UNFOLD.y).set_delay(SLIP_UNFOLD.x).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		t.tween_property(paper, "lay", 1.0, SLIP_LAY.y).set_delay(SLIP_LAY.x).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	get_tree().create_timer(SLIP_SHOW_SEC).timeout.connect(func() -> void:
 		if held != null and is_instance_valid(held):
 			held.queue_free()
@@ -467,7 +476,7 @@ func touch_crystal() -> void:
 	_alarm_step = 0
 	Game.session.set_flag(FLAG_CRYSTAL, true)
 	_refresh_interactables()
-	_player.gesture("reach", GuildScenery.CRYSTAL_POS)
+	_step_to_crystal()
 	# 「把手放到水晶上」做了：雷歐講完、走掉之前左上不寫下一步
 	_hud.objective_held = true
 	Sfx.play_flat(self, "crystal_alarm", -3.0)
@@ -480,6 +489,22 @@ func touch_crystal() -> void:
 		leo.global_position = _beside_player(Vector3(-1.5, 0, 1.3))
 		leo.face(_player.global_position)
 		_alarm_step = 4
+
+
+## 挪到水晶正前方（TOUCH_SPOT）、面向北，伸手按在水晶上；伸手的那一秒不能動（不然手按在空中）。
+## 離水晶比互動的範圍還遠（開發旗標直接觸發、拍別的地方的人怎麼反應）就原地朝水晶伸手
+func _step_to_crystal() -> void:
+	var spot := Vector3(TOUCH_SPOT.x, _player.global_position.y, TOUCH_SPOT.z)
+	lock_for_cutscene(true)
+	if _player.global_position.distance_to(spot) > TOUCH_REACH:
+		_player.gesture("reach", GuildScenery.CRYSTAL_POS)
+	else:
+		_player.gesture("reach", _player.global_position + Vector3.FORWARD)
+		var t: Tween = _player.create_tween()
+		t.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+		t.tween_property(_player, "global_position", spot, TOUCH_STEP_SEC).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	get_tree().create_timer(float(Puppet.ACTION_TIME["reach"]), true, true).timeout.connect(func() -> void:
+		lock_for_cutscene(false))
 
 
 func is_alarm_ringing() -> bool:
@@ -510,6 +535,11 @@ func _tick_alarm(delta: float) -> void:
 			(party[key] as Npc).face(_player.global_position)
 			if key != "Leo":
 				(party[key] as Npc).pose = "laugh"
+		# 坐在桌邊的客人也轉過頭來看、坐著笑
+		for key: String in patrons:
+			var who: Npc = patrons[key] as Npc
+			who.face(_player.global_position)
+			who.pose = "sit_laugh"
 	elif _alarm_step == 2 and _alarm_t >= ALARM_LILITH:
 		_alarm_step = 3
 		_hud.show_bark(lilith, "BARK_LILITH_ALARM", 2.6, LILITH_KEY)
@@ -525,6 +555,9 @@ func _tick_alarm(delta: float) -> void:
 			for who: Npc in [a, b, party.get("LeoMage") as Npc, party.get("LeoTank") as Npc]:
 				if who != null:
 					who.pose = ""
+			# 坐著的客人笑完回到原本的樣子（還看著諾恩，雷歐走了才轉回去）
+			for key: String in patrons:
+				(patrons[key] as Npc).pose = _patron_pose(key)
 
 
 ## 諾恩旁邊的一個位置（offset 是相對他的位移；不會落在櫃檯裡面或牆外）
@@ -645,6 +678,8 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 			slip_note = null
 		LEO_DIALOGUE:
 			_party_leaves()
+			for key: String in patrons:
+				(patrons[key] as Npc).face(Vector3.INF)
 			_alarm_t = -1.0
 			_music_to(HALL_MUSIC_DB, MUSIC_BACK_SEC)
 			_hud.objective_held = false
@@ -746,6 +781,15 @@ func _play_credits() -> void:
 func _attach_core() -> void:
 	core = GolemCore.create()
 	core.carry_on(_player.get_node("Body") as Node3D, 0.0, _player.puppet())
+	_player.burden = CARRY_PACE
+
+
+## 坐著的客人本來的樣子（PATRONS 的最後一欄）
+static func _patron_pose(node_name: String) -> String:
+	for spec: Array in PATRONS:
+		if str(spec[0]) == node_name:
+			return str(spec[4])
+	return "sit"
 
 
 ## 照順序第一個有模型的角色 id；都沒有回傳 ""

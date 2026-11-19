@@ -23,6 +23,8 @@ const ANIM_MAP: Dictionary = {
 	"sit": ["sit"],
 	"sit_hunch": ["sit_hunch"],
 	"sit_drink": ["sit_drink"],
+	# 坐著大笑（水晶警報時坐在桌邊的客人）
+	"sit_laugh": ["sit_laugh"],
 	"laugh": ["laugh"],
 	"slump": ["slump"],
 	# 倒在地上的人（整個人放倒；雷歐小隊）
@@ -55,7 +57,7 @@ const ANIM_MAP: Dictionary = {
 	"collapse": ["collapse"],
 }
 ## 會循環播放的動作
-const LOOPING: PackedStringArray = ["idle", "walk", "run", "sit", "sit_hunch", "sit_drink", "laugh", "slump", "down_back", "down_front", "sit_ground", "idle_carry", "walk_carry", "run_carry", "brew"]
+const LOOPING: PackedStringArray = ["idle", "walk", "run", "sit", "sit_hunch", "sit_drink", "sit_laugh", "laugh", "slump", "down_back", "down_front", "sit_ground", "idle_carry", "walk_carry", "run_carry", "brew"]
 ## 掛點骨骼：小寫、去掉 Mixamo 前綴（Godot 匯入時 "mixamorig:" 會變成 "mixamorig_"）後比對（Mixamo、Blender Rigify／一般命名）
 const HAND_BONES: Dictionary = {
 	"L": ["lefthand", "hand_l", "hand.l", "l_hand"],

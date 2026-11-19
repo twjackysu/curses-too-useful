@@ -516,3 +516,154 @@ func test_the_request_board_shows_what_is_posted_and_closes_when_walking_away() 
 	assert_not_null(level.board_note)
 	level.board_use.use(player)
 	assert_true(level.board_note == null, "再按一次收起來")
+
+
+## 手勢與小東西（打磨第十三個主題，D-308）：諾恩的手真的按在水晶上、莉莉絲捏著對摺的委託單翻開給他看再擱到櫃檯上、
+## 坐著的客人警報時轉頭笑、杯子喝的時候跟著傾斜、扛著核心走得慢、每一步核心往下頓
+func test_norn_steps_up_and_his_palm_lands_on_the_crystal() -> void:
+	_game().call("new_game", false)
+	_session().set_flag(GuildHall.FLAG_REGISTERED, true)
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	# 從斜後方一點按互動（互動的範圍 2.4 m）：先挪到水晶正前方
+	player.global_position = Vector3(GuildScenery.CRYSTAL_POS.x + 0.9, 0.05, GuildScenery.STAFF_LINE_Z + 1.3)
+	await tree.physics_frame
+	level.touch_crystal()
+	await tree.physics_frame
+	assert_true(bool(_game().call("in_cutscene")), "伸手的那一秒不能動")
+	await _frames(int(GuildHall.TOUCH_STEP_SEC * 60.0) + 4)
+	var spot: Vector3 = GuildHall.TOUCH_SPOT
+	assert_true(Vector2(player.global_position.x - spot.x, player.global_position.z - spot.z).length() < 0.05, "挪到水晶正前方：%s" % player.global_position)
+	assert_true(player.facing().dot(Vector3.FORWARD) > 0.99, "面向北邊的櫃檯")
+	if player.puppet().uses_model():
+		# 伸到底、停著的那一段（0.35～0.75）：掌心按在水晶發光的那顆球上
+		await _frames(18)
+		var orb: Vector3 = level.scenery.crystal.global_position + Vector3(0, 0.36, 0)
+		var palm: Vector3 = player.puppet().hand("R").global_position
+		var gap: float = palm.distance_to(orb) - 0.2
+		assert_true(absf(gap) < 0.09, "掌心碰到水晶（離球面 %.2f m；掌心 %s、球心 %s）" % [gap, palm, orb])
+	await _frames(int(float(Puppet.ACTION_TIME["reach"]) * 60.0))
+	assert_false(bool(_game().call("in_cutscene")), "伸完手就能動了")
+
+
+func test_lilith_holds_the_folded_request_by_its_edge_flips_it_open_and_lays_it_on_the_counter() -> void:
+	_game().call("new_game", false)
+	var s: GameSession = _session()
+	for flag: String in [GuildHall.FLAG_REGISTERED, GuildHall.FLAG_CRYSTAL, GuildHall.FLAG_LEO_LEFT]:
+		s.set_flag(flag, true)
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	await _press_interact()
+	var held: UprightHeld = level.lilith.get_node_or_null("HeldSlip") as UprightHeld
+	assert_not_null(held, "莉莉絲拿著委託單")
+	if held == null:
+		return
+	var paper: QuestSlip = held.get_child(0) as QuestSlip
+	await _frames(int(GuildHall.SLIP_UNFOLD.x * 60.0) - 6)
+	assert_true(paper.fold > 0.95, "拿出來的時候是對摺的（%.2f）" % paper.fold)
+	await _frames(int((GuildHall.SLIP_UNFOLD.y + 0.2) * 60.0))
+	var elapsed: int = int(GuildHall.SLIP_UNFOLD.x * 60.0) - 6 + int((GuildHall.SLIP_UNFOLD.y + 0.2) * 60.0)
+	assert_true(paper.fold < 0.05 and paper.lay < 0.05, "翻開、立著給他看（摺 %.2f、倒 %.2f）" % [paper.fold, paper.lay])
+	# 字朝諾恩、捏著上緣：紙的上緣在她的掌心旁邊，整張在櫃檯上面
+	var to_norn: Vector3 = player.global_position - level.lilith.global_position
+	to_norn.y = 0.0
+	var face: Vector3 = -paper.global_basis.z
+	assert_true(face.dot(to_norn.normalized()) > 0.9, "字朝著諾恩（%.2f）" % face.dot(to_norn.normalized()))
+	var palm: Vector3 = level.lilith.puppet.hand("R").global_position
+	assert_true(paper.global_position.distance_to(palm) < 0.1, "上緣捏在指尖（離掌心 %.2f m）" % paper.global_position.distance_to(palm))
+	var bottom: float = paper.global_position.y - QuestSlip.SIZE.y
+	if level.lilith.puppet.uses_model():
+		assert_true(bottom > GuildScenery.SLIP_ON_COUNTER.y + 0.005, "整張舉在櫃檯上面（下緣 %.3f m）" % bottom)
+		assert_true(paper.global_position.distance_to(level.lilith.global_position + Vector3(0, paper.global_position.y, 0)) > 0.35, "手伸到她前面")
+	await _frames(int(GuildHall.SLIP_SHOW_SEC * 60.0) - elapsed - 4)
+	assert_true(paper.lay > 0.85, "擱下去之前整張往前倒平（%.2f）" % paper.lay)
+	var laid_at: Vector3 = paper.global_position
+	await _frames(10)
+	assert_true(level.scenery.slip.visible, "擱到櫃檯上")
+	assert_true(level.lilith.get_node_or_null("HeldSlip") == null)
+	var counter: QuestSlip = level.scenery.slip as QuestSlip
+	assert_true(counter.global_position.distance_to(laid_at) < 0.25, "櫃檯上那張在她手放下來的地方（差 %.2f m）" % counter.global_position.distance_to(laid_at))
+	assert_true(counter.fold < 0.01 and counter.lay > 0.99, "攤開、平放")
+	assert_true((-(counter.get_node("Sheet") as Node3D).global_basis.y).dot(Vector3.BACK) > 0.9, "從上緣往大門那邊攤開（標題在她那一邊）")
+	assert_true((-(counter.get_node("Sheet") as Node3D).global_basis.z).dot(Vector3.UP) > 0.9, "字朝上")
+
+
+func test_seated_patrons_turn_their_heads_and_laugh_at_the_alarm() -> void:
+	_game().call("new_game", false)
+	_session().set_flag(GuildHall.FLAG_REGISTERED, true)
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var merchant: Npc = level.patrons.get("Merchant") as Npc
+	if merchant == null:
+		return
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var facing0: float = merchant.rotation.y
+	assert_eq(merchant.pose, "sit_drink")
+	player.global_position = Vector3(GuildScenery.CRYSTAL_POS.x, 0.05, GuildScenery.STAFF_LINE_Z + 0.6)
+	level.touch_crystal()
+	await _frames(int(GuildHall.ALARM_LAUGH_B * 60.0) + 60)
+	assert_eq(merchant.pose, "sit_laugh", "坐著笑")
+	assert_true(absf(merchant.rotation.y - facing0) < 0.01, "坐著的人身體不轉（不會轉離座位）")
+	var to_p: Vector3 = player.global_position - merchant.global_position
+	to_p.y = 0.0
+	var fwd: Vector3 = -merchant.global_basis.z
+	var want: float = clampf(atan2(fwd.cross(to_p.normalized()).y, fwd.dot(to_p.normalized())), -Puppet.LOOK_YAW_MAX, Puppet.LOOK_YAW_MAX)
+	assert_true(absf(merchant.puppet.head_yaw() - want) < 0.05, "頭轉過來看諾恩（%.2f，要 %.2f）" % [merchant.puppet.head_yaw(), want])
+	assert_true(absf(want) > 0.2, "諾恩不在他正前方（這個測試才有意義）")
+	await _until_dialogue(int(GuildHall.ALARM_TIMEOUT * 60.0))
+	assert_eq(merchant.pose, "sit_drink", "雷歐開口：笑完回去喝")
+	_finish_dialogue(0)
+	await _frames(int(Puppet.LOOK_YAW_MAX / Puppet.LOOK_YAW_SPEED * 60.0) + 10)
+	assert_true(absf(merchant.puppet.head_yaw()) < 0.01, "雷歐走了，頭轉回去")
+
+
+func test_the_drinkers_mug_tips_toward_his_mouth_on_each_sip() -> void:
+	_game().call("new_game", false)
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var merchant: Npc = level.patrons.get("Merchant") as Npc
+	if merchant == null or not merchant.puppet.uses_model():
+		return
+	var mug: UprightHeld = merchant.get_node_or_null("Held") as UprightHeld
+	assert_not_null(mug, "手上有杯子")
+	var anim: AnimationPlayer = merchant.puppet.anim
+	await _frames(12)
+	var len: float = anim.current_animation_length
+	# 擱在腿上（前半）：直立
+	anim.seek(len * 0.2, true)
+	await tree.process_frame
+	assert_true(mug.tilt() < 0.01, "擱著的時候杯子直立（%.2f）" % mug.tilt())
+	# 仰頭喝的那一口：杯口往他的臉倒
+	anim.seek(len * 0.75, true)
+	await tree.process_frame
+	assert_true(mug.tilt() > 0.8, "喝的時候杯子傾斜（%.2f 弧度）" % mug.tilt())
+	var up: Vector3 = mug.global_basis.y
+	var back: Vector3 = merchant.global_basis.z
+	assert_true(up.dot(back) > 0.6, "杯口朝他自己（%.2f）" % up.dot(back))
+
+
+func test_the_golem_core_weighs_norn_down() -> void:
+	_game().call("new_game", false)
+	GuildHall.skip_to_return(_session())
+	var level: GuildHall = _load_level()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	assert_eq(player.burden, GuildHall.CARRY_PACE, "扛著核心走得慢一點")
+	if not player.puppet().uses_model():
+		return
+	# 往北走：每一步肩上的核心往下頓一下
+	var deepest: float = 0.0
+	var start: Vector3 = player.global_position
+	Input.action_press("move_forward")
+	var steps: Array[int] = [0]
+	player.puppet().footfall.connect(func() -> void: steps[0] += 1)
+	for i: int in 50:
+		await tree.physics_frame
+		deepest = maxf(deepest, level.core.dip)
+	Input.action_release("move_forward")
+	var walked: float = player.global_position.distance_to(start)
+	assert_true(steps[0] >= 1, "扛著走也有腳步（以前扛著走的動作不算走路，沒有腳步聲）")
+	assert_true(deepest > GolemCore.STEP_DIP * 0.8, "踩下去核心往下頓（最多 %.3f m）" % deepest)
+	assert_true(walked < PlayerController.WALK_SPEED * GuildHall.CARRY_PACE * 50.0 / 60.0 + 0.05, "走得比平常慢（50 幀 %.2f m）" % walked)

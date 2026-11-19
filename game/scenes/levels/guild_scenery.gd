@@ -30,8 +30,11 @@ const STREET_HALF_W: float = 14.0
 const COUNTER_POS: Vector3 = Vector3(0, 0, -8.0)
 const COUNTER_STRETCH: float = 1.45
 const STAFF_LINE_Z: float = -7.35
-## 適性測試水晶：放在櫃檯右邊第一個矮櫃上
-const CRYSTAL_POS: Vector3 = Vector3(2.0, 1.0, -8.0)
+## 適性測試水晶：放在櫃檯右邊第一個矮櫃上、靠外側的邊（站在櫃檯前伸手摸得到）
+const CRYSTAL_POS: Vector3 = Vector3(2.0, 1.0, -7.8)
+## 莉莉絲擱到櫃檯上的那張綠色委託單：上緣（標題那一邊）在這裡、朝大門那邊攤開——她手放下來的地方
+const SLIP_ON_COUNTER: Vector3 = Vector3(-0.07, 1.168, -8.31)
+const SLIP_ON_COUNTER_YAW: float = 172.0
 const BOARD_POS: Vector3 = Vector3(-7.5, 0, 0.0)
 ## 西北角武器架旁邊的凳子（開場席菈縮著坐在上面）與它的高度
 const STOOL_POS: Vector3 = Vector3(-6.3, 0, -6.4)
@@ -461,22 +464,12 @@ func _build_counter() -> void:
 	for lx: float in [-3.9, 0.0, 3.9]:
 		_add_flames(_prop("quaternius/Lantern_Wall", Vector3(lx, 1.55, -HALF_L + 0.02)), false, lamp_i)
 		lamp_i += 1
-	# 綠色委託單：一張積了灰的綠紙，上面幾行字（程式拼的）
-	slip = Node3D.new()
-	slip.name = "QuestSlip"
-	slip.position = COUNTER_POS + Vector3(0.45, 1.165, 0.22)
-	slip.rotation_degrees = Vector3(0, -14, 0)
+	# 綠色委託單：攤開、平放在櫃檯上（莉莉絲拿出來之後才出現；她手上那一張也是 QuestSlip）
+	slip = QuestSlip.create(0.0, 1.0)
+	slip.position = SLIP_ON_COUNTER
+	slip.rotation_degrees = Vector3(0, SLIP_ON_COUNTER_YAW, 0)
 	slip.visible = false
 	_root.add_child(slip)
-	var paper := StandardMaterial3D.new()
-	paper.albedo_color = Color(0.36, 0.62, 0.34)
-	paper.roughness = 1.0
-	var ink := StandardMaterial3D.new()
-	ink.albedo_color = Color(0.1, 0.2, 0.1)
-	ink.roughness = 1.0
-	_box(slip, Vector3(0.3, 0.008, 0.4), Vector3.ZERO, paper)
-	for row: int in 4:
-		_box(slip, Vector3(0.2 if row > 0 else 0.24, 0.004, 0.022 if row > 0 else 0.04), Vector3(0, 0.006, -0.13 + 0.075 * float(row)), ink)
 	_prop("quaternius/Book_Stack_1", COUNTER_POS + Vector3(-1.7, 1.0, 0.05), 20.0)
 	_prop("quaternius/Bottle_1", COUNTER_POS + Vector3(3.3, 1.0, 0.0))
 	_prop("quaternius/Bottle_1", COUNTER_POS + Vector3(3.5, 1.0, 0.08))

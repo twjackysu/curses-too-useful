@@ -13,8 +13,16 @@ const CARRY_POS: Vector3 = Vector3(-0.3, 1.6, 0.1)
 const SHOULDER_OFFSET: Vector3 = Vector3(0.02, 0.2, 0.08)
 ## 扛著的時候縮小一點（在地上滾的時候跟魔像比是剛好的，扛在人的肩上偏大）
 const CARRY_SCALE: float = 0.72
+## 扛著走路：每一步踩下去肩上的核心往下頓多少（m）、多久彈回來（秒）——重
+const STEP_DIP: float = 0.035
+const STEP_DIP_SEC: float = 0.26
 
 var ball: MeshInstance3D
+## 扛著時在骨頭座標裡的位置（頓一下是從這裡往下）；沒有在扛＝INF
+var _rest: Vector3 = Vector3.INF
+## 現在往下頓了多少（m；測試看這個）
+var dip: float = 0.0
+var _dip_t: float = 1.0
 
 
 static func create() -> GolemCore:
@@ -55,18 +63,39 @@ func carry_on(who: Node3D, fly_sec: float = 0.0, puppet: Puppet = null) -> void:
 		parent = chest
 		to = puppet.joint_now("chest").affine_inverse() * at
 		puppet.carry = true
+		if not puppet.footfall.is_connected(_on_step):
+			puppet.footfall.connect(_on_step)
 	if get_parent() != null:
 		get_parent().remove_child(self)
 	parent.add_child(self)
 	rotation = Vector3.ZERO
+	_rest = Vector3.INF
 	if not flying:
 		position = to
 		scale = Vector3.ONE * CARRY_SCALE
+		_rest = to
 		return
 	global_position = from
 	var t: Tween = create_tween().set_parallel()
 	t.tween_property(self, "position", to, fly_sec).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(self, "scale", Vector3.ONE * CARRY_SCALE, fly_sec)
+	t.chain().tween_callback(func() -> void: _rest = to)
+
+
+## 扛著的人一腳踩下去：肩上的核心往下頓一下再彈回來
+func _on_step() -> void:
+	if _rest.is_finite():
+		_dip_t = 0.0
+
+
+func _process(delta: float) -> void:
+	if not _rest.is_finite():
+		return
+	_dip_t = minf(_dip_t + delta / STEP_DIP_SEC, 1.0)
+	# 很快壓下去（前 25%）、慢慢彈回來
+	dip = STEP_DIP * (smoothstep(0.0, 0.25, _dip_t) if _dip_t < 0.25 else 1.0 - smoothstep(0.25, 1.0, _dip_t))
+	position = _rest
+	global_position += Vector3.DOWN * dip
 
 
 ## 扛在 who（他的 Body）身上嗎（直接掛在 Body 上或掛在他的骨頭上）

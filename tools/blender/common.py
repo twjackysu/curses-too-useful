@@ -646,6 +646,18 @@ def release_action(a, frames=9):
             a.leg_pose(side, f, thigh=30 * c + 4, knee=60 * c + 6, foot=30 * c)
     a.action("release", frames, fn, step=1)
 
+# 伸手摸水晶（reach）：骨盆、脊椎、胸口往前傾幾度；骨盆往前挪多少（m，右腳踏半步）；右手往前擺多少、手肘伸直多少
+REACH_LEAN = (0.0, 17.0, 11.0)
+REACH_STEP = 0.17
+REACH_ARM = (114.0, 35.0)
+# 拿出委託單（give）的右手：胸前（hang, swing, elbow, twist）、舉到對方面前要再加多少、擱到櫃檯上要再加多少；
+# 左手：扶著對摺的下緣、翻開往下拉要再加多少（角度是在莉莉絲的模型上量的，GuildHall.SLIP_* 照這裡的時間軸）
+GIVE_RIGHT = ((8.0, 50.0, 85.0, 14.0), (2.0, 74.0, -110.0, -6.0), (0.0, 10.0, -55.0, 0.0))
+GIVE_LEFT = ((4.0, 50.0, 62.0, -25.0), (0.0, 8.0, -32.0, -12.0))
+# 扛著魔像核心：脊椎、胸口、頭往右（離開左肩上的重物）歪幾度
+CARRY_LEAN = (5.0, 4.0, 7.0)
+
+
 def social_actions(a):
     """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、倒在地上（down_back 仰躺、down_front 趴著）、坐在地上（sit_ground：撐起上身）、
     伸手摸（reach）、遞東西（give），
@@ -699,6 +711,19 @@ def social_actions(a):
         # 舉到下巴前面：手肘抬到胸前、前臂往上往內（角度是在諾恩的模型上量的：手腕在肩膀前 13 cm、高 9 cm）
         a.arm_pose("Right", f, hang=9 + 21 * up, swing=40 + 33 * up, elbow=50 + 60 * up + 6 * sip, twist=6 + 39 * up)
 
+    def sit_laugh(f, t):
+        # 坐著大笑（水晶警報時坐在桌邊的客人）：往後仰、肩膀一抽一抽，左手一下一下拍大腿；
+        # 右手照 sit_drink 擱著的位置（杯子還拿在手上，不要甩）。頭轉向諾恩是遊戲裡疊上去的（Puppet.look_yaw）
+        shake = math.sin(t * math.tau * 3)
+        bounce = abs(math.sin(t * math.tau * 3))
+        seated(f, 0.0)
+        a.move("Hips", f, (0, 0, -sit_drop + 0.006 * bounce))
+        a.rot("Spine", f, (X, 3 + 1.5 * shake))
+        a.rot("Chest", f, (X, 5 + 3 * shake), (Z, 3.0))
+        a.rot("Head", f, (X, 12 + 4 * shake), (Z, -4.0))
+        a.arm_pose("Left", f, hang=8, swing=30 + 12 * bounce, elbow=34 + 14 * bounce, twist=-6)
+        a.arm_pose("Right", f, hang=9, swing=40, elbow=50, twist=6)
+
     def laugh(f, t):
         # 站著大笑：往後仰、肩膀一抽一抽，左手按著肚子、右手指著對方
         shake = math.sin(t * math.tau * 3)
@@ -727,28 +752,45 @@ def social_actions(a):
         a.leg_pose("Right", f, thigh=2, knee=14, foot=0)
 
     def reach(f, t):
-        # 伸手摸前面的東西（水晶）：0～0.35 伸出去、停著、0.75 之後收回來
+        # 伸手摸前面櫃檯上的水晶：0～0.35 往前靠、右手伸直舉到胸口高（手掌按在水晶上：諾恩的模型上量的，
+        # 手在身體前面約 0.7 m、高 1.3 m）、停著、0.75 之後收回來。右腳往前踏半步、上身往前傾
         r = keys(t, [(0, 0), (0.35, 1), (0.75, 1), (1, 0)])
-        a.rot("Hips", f, (Z, -6.0 + 4 * r))
-        a.move("Hips", f, (0, 0.04 * r, -0.012 - 0.015 * r))
-        a.rot("Spine", f, (X, -1.5 - 9 * r), (Z, 4.0 - 6 * r))
-        a.rot("Chest", f, (X, -1.0 - 5 * r), (Z, 6.0 - 6 * r))
-        a.rot("Head", f, (X, 3.0 - 6 * r), (Z, -4.0 + 4 * r))
-        a.arm_pose("Left", f, hang=9, swing=-3 - 4 * r, elbow=14)
-        a.arm_pose("Right", f, hang=13 - 5 * r, swing=12 + 70 * r, elbow=38 - 30 * r, twist=6 * r)
-        a.leg_pose("Left", f, thigh=9 - 6 * r, knee=10, foot=-2)
-        a.leg_pose("Right", f, thigh=-5 + 14 * r, knee=6 + 6 * r, foot=4)
+        a.rot("Hips", f, (Z, -6.0 + 4 * r), (X, -REACH_LEAN[0] * r))
+        a.move("Hips", f, (0, REACH_STEP * r, -0.012 - 0.03 * r))
+        a.rot("Spine", f, (X, -1.5 - REACH_LEAN[1] * r), (Z, 4.0 - 6 * r))
+        a.rot("Chest", f, (X, -1.0 - REACH_LEAN[2] * r), (Z, 6.0 - 6 * r))
+        a.rot("Head", f, (X, 3.0 + 4 * r), (Z, -4.0 + 4 * r))
+        a.arm_pose("Left", f, hang=9 + 6 * r, swing=-3 - 14 * r, elbow=14 + 10 * r)
+        a.arm_pose("Right", f, hang=13 - 5 * r, swing=12 + REACH_ARM[0] * r, elbow=38 - REACH_ARM[1] * r, twist=6 * r)
+        a.leg_pose("Left", f, thigh=9 - 16 * r, knee=10 + 6 * r, foot=-2 + 8 * r)
+        a.leg_pose("Right", f, thigh=-5 + 30 * r, knee=6 + 22 * r, foot=4 - 6 * r)
 
     def give(f, t):
-        # 兩手把東西遞出去（莉莉絲的委託單）：0～0.35 遞出去、微微彎腰，停著、0.8 之後收回來
-        r = keys(t, [(0, 0), (0.35, 1), (0.8, 1), (1, 0)])
-        a.rot("Hips", f, (Z, -6.0 + 6 * r))
+        # 拿出一張紙給對面的人看（莉莉絲的綠色委託單；GuildHall.HeldSlip 照同一條時間軸翻開、放到櫃檯上）：
+        # 0～0.25 兩手把對摺的紙拿到胸前（右手捏著上緣、左手扶著下緣）→ 0.25～0.45 左手把下半張往下翻開、放開垂回去，
+        # 右手同時把紙舉到對方面前（肩膀高、手伸過櫃檯）→ 停著給他看 → 0.72～0.88 手放低、把紙擱到櫃檯上 → 收回來
+        lift = keys(t, [(0, 0), (0.25, 1), (0.88, 1), (1, 0)])
+        show = keys(t, [(0, 0), (0.25, 0), (0.45, 1), (0.72, 1), (0.88, 0), (1, 0)])
+        place = keys(t, [(0, 0), (0.72, 0), (0.86, 1), (0.9, 1), (1, 0)])
+        hold = keys(t, [(0, 0), (0.2, 1), (0.42, 1), (0.62, 0), (1, 0)])
+        flip = keys(t, [(0, 0), (0.25, 0), (0.42, 1), (1, 1)])
+        a.rot("Hips", f, (Z, -6.0 + 6 * lift))
         a.move("Hips", f, (0, 0, -0.012))
-        a.rot("Spine", f, (X, -1.5 - 7 * r), (Z, 4.0 - 4 * r))
-        a.rot("Chest", f, (X, -1.0 - 4 * r), (Z, 6.0 - 6 * r))
-        a.rot("Head", f, (X, 3.0 - 6 * r), (Z, -4.0 + 4 * r))
-        a.arm_pose("Left", f, hang=9 - 2 * r, swing=-3 + 55 * r, elbow=14 + 46 * r, twist=-14 * r)
-        a.arm_pose("Right", f, hang=13 - 4 * r, swing=12 + 43 * r, elbow=38 + 22 * r, twist=14 * r)
+        a.rot("Spine", f, (X, -1.5 - 3 * lift - 4 * show - 6 * place), (Z, 4.0 - 4 * lift))
+        a.rot("Chest", f, (X, -1.0 - 2 * lift - 2 * show - 3 * place), (Z, 6.0 - 6 * lift))
+        a.rot("Head", f, (X, 3.0 - 8 * lift + 3 * show), (Z, -4.0 + 4 * lift))
+        # 右手：胸前 → 舉到對方面前 → 放低擱到櫃檯上
+        rh = GIVE_RIGHT
+        a.arm_pose("Right", f, hang=13 + (rh[0][0] - 13) * lift + rh[1][0] * show + rh[2][0] * place,
+                   swing=12 + (rh[0][1] - 12) * lift + rh[1][1] * show + rh[2][1] * place,
+                   elbow=38 + (rh[0][2] - 38) * lift + rh[1][2] * show + rh[2][2] * place,
+                   twist=rh[0][3] * lift + rh[1][3] * show + rh[2][3] * place)
+        # 左手：扶著下緣 → 往下一拉（翻開）→ 放開、垂回去
+        lh = GIVE_LEFT
+        a.arm_pose("Left", f, hang=9 + (lh[0][0] - 9 + lh[1][0] * flip) * hold,
+                   swing=-3 + (lh[0][1] + 3 + lh[1][1] * flip) * hold,
+                   elbow=14 + (lh[0][2] - 14 + lh[1][2] * flip) * hold,
+                   twist=(lh[0][3] + lh[1][3] * flip) * hold)
         a.leg_pose("Left", f, thigh=9, knee=10, foot=-2)
         a.leg_pose("Right", f, thigh=-5, knee=6, foot=4)
 
@@ -896,10 +938,20 @@ def social_actions(a):
         a.arm_pose("Right", f, hang=14, swing=30, elbow=52, twist=26)
         a.arm_pose("Left", f, hang=12, swing=32 + 5 * pump, elbow=58 + 12 * pump, twist=-30)
 
-    def carried(base):
-        # 扛東西：左手舉過肩、手肘往後折，手腕在左肩上面約 19 cm、往前 6 cm（諾恩的模型上量的），扶著扛在肩上的東西
+    def carried(base, dip):
+        # 扛重的東西（魔像核心）：左手舉過肩、手肘往後折，手腕在左肩上面約 19 cm、往前 6 cm（諾恩的模型上量的），扶著扛在肩上的東西；
+        # 被壓著：上身往右（離開重物那一邊）歪、頭往右偏、背微微駝，膝蓋多彎一點、骨盆低一點（dip＝走路時每一步再往下沉多少）
         def fn(f, t):
             base(f, t)
+            # 走路一圈兩步：每一步踩下去的那一刻（cos(2p) 最低）多沉一點
+            sink = 0.5 - 0.5 * math.cos(2 * t * math.tau) if dip > 0 else 0.0
+            a.add_move("Hips", f, (0, 0, -0.025 - dip * sink))
+            a.add_rot("Spine", f, (X, -3.0), (Y, CARRY_LEAN[0]))
+            a.add_rot("Chest", f, (X, -2.0), (Y, CARRY_LEAN[1]))
+            a.add_rot("Head", f, (X, 3.0), (Y, CARRY_LEAN[2]))
+            for side in ("Left", "Right"):
+                a.add_rot(side + "UpperLeg", f, (X, 5.0))
+                a.add_rot(side + "LowerLeg", f, (X, -9.0))
             a.arm_pose("Left", f, hang=34, swing=112, elbow=104)
         return fn
 
@@ -907,10 +959,11 @@ def social_actions(a):
     a.action("sit", 72, sit, step=6)
     a.action("sit_hunch", 72, sit_hunch, step=6)
     a.action("sit_drink", 96, sit_drink, step=2)
+    a.action("sit_laugh", 30, sit_laugh, step=1)
     a.action("laugh", 30, laugh, step=1)
     a.action("slump", 72, slump, step=6)
     a.action("reach", 24, reach, step=1)
-    a.action("give", 30, give, step=1)
+    a.action("give", 48, give, step=1)
     a.action("nod", 22, nod, step=1)
     a.action("bow", 34, bow, step=1)
     a.action("point", 31, point, step=1)
@@ -923,9 +976,9 @@ def social_actions(a):
     a.action("down_back", 96, down_back, step=8)
     a.action("down_front", 96, down_front, step=8)
     a.action("sit_ground", 96, sit_ground, step=8)
-    a.action("idle_carry", 72, carried(idle), step=6)
-    a.action("walk_carry", 30, carried(walk), step=2)
-    a.action("run_carry", 18, carried(run), step=1)
+    a.action("idle_carry", 72, carried(idle, 0.0), step=6)
+    a.action("walk_carry", 30, carried(walk, 0.022), step=2)
+    a.action("run_carry", 18, carried(run, 0.03), step=1)
 
 
 def monster_actions(a):
@@ -1074,6 +1127,22 @@ class Animator:
     def move(self, bone, frame, offset):
         pb = self.arm.pose.bones[bone]
         pb.location = self.rest[bone].inverted() @ Vector(offset)
+        pb.keyframe_insert("location", frame=frame)
+
+    def add_rot(self, bone, frame, *steps):
+        """疊在這一格已經擺好的姿勢上面再轉（rot 會整個蓋掉；這個保留原本的，例：走路的扭腰上面再往旁邊歪）。同一格要先 rot 過"""
+        q = Quaternion()
+        for axis, deg in steps:
+            q = Quaternion(axis, math.radians(deg)) @ q
+        r = self.rest[bone]
+        pb = self.arm.pose.bones[bone]
+        pb.rotation_quaternion = (r.inverted() @ q @ r) @ pb.rotation_quaternion
+        pb.keyframe_insert("rotation_quaternion", frame=frame)
+
+    def add_move(self, bone, frame, offset):
+        """疊在這一格已經擺好的位置上面再挪（世界座標，公尺）"""
+        pb = self.arm.pose.bones[bone]
+        pb.location = pb.location + self.rest[bone].inverted() @ Vector(offset)
         pb.keyframe_insert("location", frame=frame)
 
     def arm_pose(self, side, frame, hang=10.0, swing=0.0, elbow=15.0, twist=0.0):
