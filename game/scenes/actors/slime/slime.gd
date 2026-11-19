@@ -11,8 +11,13 @@ const SPLAT_SFX: String = "slime_splat"
 const BODY_RADIUS: float = 0.45
 const LUNGE_SPEED: float = 5.0
 
+## 被砍的那一下：多久彈回來、最多壓扁幾成
+const SQUISH_SEC: float = 0.28
+const SQUISH: float = 0.35
+
 var _lunge_dir: Vector3 = Vector3.ZERO
 var _look: Node3D
+var _squish: float = 0.0
 
 
 func tuning_id() -> String:
@@ -71,6 +76,11 @@ func _build_body() -> void:
 	add_toxic_glow(_look)
 
 
+func _on_damaged(amount: float, info: Dictionary) -> void:
+	super._on_damaged(amount, info)
+	_squish = 1.0
+
+
 func fall_sfx() -> String:
 	return SPLAT_SFX
 
@@ -96,12 +106,21 @@ func _on_strike_tick(_delta: float) -> Vector3:
 func _update_look() -> void:
 	if _look == null:
 		return
-	_look.scale = _look.scale.lerp(_shape(), 0.25)
+	var shape: Vector3 = _shape()
+	# 被砍的那一下疊在上面（不經過慢慢跟上的 lerp）：往下一壓、往兩邊鼓，再彈回來
+	_squish = move_toward(_squish, 0.0, get_physics_process_delta_time() / SQUISH_SEC)
+	if _squish > 0.0:
+		var k: float = sin((1.0 - _squish) * PI) * SQUISH
+		shape = Vector3(shape.x * (1.0 + k * 0.5), shape.y * (1.0 - k), shape.z * (1.0 + k * 0.5))
+		_look.scale = shape
+		return
+	_look.scale = _look.scale.lerp(shape, 0.25)
 	if not health.is_dead():
 		_set_glow(lerpf(1.0, GLOW_WINDUP, brain.telegraph_progress()))
 
 
-## 這一刻要變成什麼形狀（外型的縮放）：劇毒史萊姆蓄力壓扁、撲出去拉長、跪著攤平。別種覆寫（MoldSlime 是吸飽氣脹起來）
+## 這一刻要變成什麼形狀（外型的縮放）：劇毒史萊姆蓄力壓扁、撲出去拉長、跪著攤平。
+## 別種覆寫（MoldSlime 是吸飽氣脹起來）
 func _shape() -> Vector3:
 	var squash: float = 1.0 - 0.35 * brain.telegraph_progress()
 	if brain.state == EnemyBrain.State.STRIKE:

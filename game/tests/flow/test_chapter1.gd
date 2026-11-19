@@ -1305,6 +1305,13 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 	assert_true(player.status_effects.damage_dealt_scale() > 1.0, "對諾恩是砍得更重")
 	assert_true(swelled > 1.15, "要撲之前整顆脹起來（%.2f 倍；劇毒史萊姆是壓扁）" % swelled)
 	# 打倒牠再試下一種（停在出招那一格的敵人會一直佔著「同時只有一個人出手」的名額）
+	# 被砍：往下一壓再彈回來（什麼時候被砍都會）
+	mold.health.apply_damage(5.0, {"source": player, "cut": Vector3.RIGHT})
+	var squashed: float = 9.0
+	for i: int in 10:
+		await tree.physics_frame
+		squashed = minf(squashed, (mold.get_node("Body/Look") as Node3D).scale.y)
+	assert_true(squashed < 0.85, "被砍往下一壓（%.2f）" % squashed)
 	var puffs: int = mold.spore_puffs
 	mold.health.apply_damage(9999.0, {"source": player})
 	assert_true(mold.spore_puffs > puffs, "被砍噴孢子")
@@ -1380,12 +1387,24 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 	assert_true(player.status_effects.has("slow") and player.status_effects.has("blind"), "被樹人砸到：緩速＋致盲")
 	assert_true(player.status_effects.strikes_weakpoint() and player.status_effects.move_speed_scale() > 1.0, "對諾恩是刀刀砍中要害＋跑得更快")
 	assert_true(swung and held, "前兆是兩手舉過頭停著、再砸下來（有沒有舉到頂停著：%s）" % str(held))
+	# 被砍（追人、破綻的時候）演一下往後一抽；狀態機照舊（打不斷）。先離開讓牠追（諾恩站在旁邊會自己砍）
+	player.global_position = treant.global_position + Vector3(0, 0.05, 9.0)
+	for i: int in 240:
+		await tree.physics_frame
+		if i > 60 and treant.brain.state == EnemyBrain.State.CHASE:
+			break
+	treant.puppet().stop_action()
+	treant.health.apply_damage(5.0, {"source": player, "cut": Vector3.RIGHT})
+	assert_eq(treant.puppet().action, "flinch", "被砍往後一抽")
+	assert_eq(treant.brain.state, EnemyBrain.State.CHASE, "沒有被打斷什麼")
 	treant.set_physics_process(false)
 	assert_eq(treant.last_notice_sfx, SporeTreant.GROAN_SFX, "醒來時整棵樹被扭的一聲")
 	assert_eq(treant.fall_sfx(), SporeTreant.FALL_SFX, "倒下是樹幹裂開砸地")
 	# 整群打倒：記旗標、存檔；讀回來那一群不在
-	for e: EnemyActor in (explore.packs["wolves"] as Array):
-		e.health.apply_damage(9999.0, {"source": player})
+	for e: Variant in (explore.packs["wolves"] as Array):
+		# 前面打倒的那一隻可能已經被釋放了（不能用有型別的迴圈變數走）
+		if is_instance_valid(e):
+			(e as EnemyActor).health.apply_damage(9999.0, {"source": player})
 	await tree.physics_frame
 	await tree.physics_frame
 	assert_eq(s.state.get_flag(ForestExplore.pack_flag("wolves")), true, "狼群清掉了")

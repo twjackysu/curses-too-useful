@@ -74,6 +74,9 @@ const JOLT_SEC: float = 0.22
 const JOLT_PUSH: float = 0.2
 const JOLT_LEAN: float = 0.08
 const JOLT_GLOW: float = 2.4
+## 被砍掉的石屑：幾塊、多大（公尺）——0.18 m 的八塊在玩的距離只是幾顆灰點
+const CHIP_COUNT: int = 12
+const CHIP_SIZE: float = 0.3
 
 ## 最近發出的聲音（_sound 記的；測試用）
 var heard: Array[String] = []
@@ -305,7 +308,7 @@ func _on_cut(from: Vector3) -> void:
 		_since_flinch = 0.0
 		_puppet.play_action("flinch")
 	_jolt_dir = -hit_dir(from)
-	RockDebris.burst(get_parent(), hit_point(from), hit_dir(from) + Vector3.UP * 0.7, 8, 0.18, STONE_COLOR, Vector2(3.0, 6.5))
+	RockDebris.burst(get_parent(), hit_point(from), hit_dir(from) + Vector3.UP * 0.7, CHIP_COUNT, CHIP_SIZE, STONE_COLOR, Vector2(3.0, 6.5))
 	if not phases.core_open and health.min_hp > 0.0 and health.hp <= health.min_hp + 0.5:
 		ward_count += 1
 		_core_kick = 1.0

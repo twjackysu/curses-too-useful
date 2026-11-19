@@ -15,8 +15,12 @@ const GROAN_SFX: String = "treant_groan"
 const FALL_SFX: String = "treant_fall"
 const STAND_IN_SCALE: float = 1.5
 
+## 被砍的那一下（flinch 動作）最少隔幾秒才再演一次
+const FLINCH_GAP: float = 0.9
+
 var _puppet: Puppet
 var _swung: bool = false
+var _since_flinch: float = 99.0
 
 
 func tuning_id() -> String:
@@ -59,6 +63,15 @@ func _build_body() -> void:
 	add_toxic_glow(_puppet, 3.4)
 
 
+## 被諾恩砍中：手上沒在出招、沒在跪，演一下往後一抽（不改狀態機——樹人打不斷）
+func _on_damaged(amount: float, info: Dictionary) -> void:
+	super._on_damaged(amount, info)
+	if info.get("source") is PlayerController and not health.is_dead() and _since_flinch >= FLINCH_GAP \
+			and _puppet.action in ["", "flinch"] and brain.state in [EnemyBrain.State.CHASE, EnemyBrain.State.RECOVER, EnemyBrain.State.IDLE]:
+		_since_flinch = 0.0
+		_puppet.play_action("flinch")
+
+
 ## 失衡滿了：單膝跪地，照跪多久整段縮放播
 func _on_kneel() -> void:
 	super._on_kneel()
@@ -93,6 +106,7 @@ func _update_look() -> void:
 	if _puppet == null:
 		return
 	_puppet.set_move_speed(Vector2(velocity.x, velocity.z).length())
+	_since_flinch += get_physics_process_delta_time()
 	var windup: float = brain.telegraph_progress()
 	if brain.state == EnemyBrain.State.TELEGRAPH:
 		if not _swung:
