@@ -84,7 +84,7 @@ func _physics_process(delta: float) -> void:
 			var face: float = atan2(-d.x, -d.z)
 			_body.rotation.y = lerp_angle(_body.rotation.y, face, clampf(TURN_SPEED * delta, 0.0, 1.0))
 	if _held(delta):
-		# 劇情動作中（送葬者把燈柱舉過頭）：不追、不出招。劇情走位由 _held_velocity 給水平速度，照樣用自己的腳走
+		# 劇情動作中（魔像還沒醒、在吼、在擺凝視）：不追、不出招。劇情走位由 _held_velocity 給水平速度，照樣用自己的腳走
 		var held_v: Vector3 = _held_velocity(delta)
 		velocity = Vector3(held_v.x, 0.0 if is_on_floor() else velocity.y - 18.0 * delta, held_v.z)
 		move_and_slide()
@@ -582,7 +582,7 @@ func _collect_brace_meshes(n: Node) -> void:
 # ---------------------------------------------------------------- 被打中的那一下
 ## 打中敵人原本只有聲音、頓一下、鏡頭晃——畫面上沒有東西飛出來。現在每次扣到血：
 ## 命中點（朝攻擊者那一側、胸口高度）噴一把冷白的霜屑（往攻擊者那邊飛、往下掉），打中弱點（鐵件）再多一把橘色火星；
-## 同一點一盞很短的閃光——暗色的身體在那一下有輪廓。掛在關卡上（敵人倒下沉進雪裡也不會被帶走），自己收掉。
+## 同一點一盞很短的閃光——暗色的身體在那一下有輪廓。掛在關卡上（敵人倒下沉進地面也不會被帶走），自己收掉。
 ## 一次性粒子照 ：節點先擺到位置，粒子才開始噴。
 const HIT_CHIP_COLOR: Color = Color(0.82, 0.93, 1.0)
 const HIT_SPARK_COLOR: Color = Color(1.0, 0.7, 0.32)
@@ -763,7 +763,7 @@ func _hit_particles(node_name: String, amount: int, color: Color, out: Vector3, 
 
 
 # ---------------------------------------------------------------- 跪地
-## 失衡滿了跪下的那一刻：膝蓋落地的重音＋一小團雪粉——「現在是破綻」聽得出來，不用盯著畫面。
+## 失衡滿了跪下的那一刻：膝蓋落地的重音＋一小團灰——「現在是破綻」聽得出來，不用盯著畫面。
 ## 致命的一擊不算（接著就是倒下，倒下有自己的聲音）。聲音掛在關卡上（跟腳步一樣）。
 
 ## 跪下過幾次、最後一次播了哪些音（測試用）
@@ -778,7 +778,7 @@ func _on_kneel() -> void:
 	last_kneel_sounds = _play_kneel(get_parent() if get_parent() != null else self)
 
 
-## 子類別決定跪地的聲音與雪粉；回傳播了哪些音名。一般敵人：腳下地面的腳步聲壓低八度左右＋很輕的悶響。
+## 子類別決定跪地的聲音與揚起的灰；回傳播了哪些音名。一般敵人：腳下地面的腳步聲壓低八度左右＋很輕的悶響。
 func _play_kneel(parent: Node) -> PackedStringArray:
 	var at: Vector3 = global_position + forward() * 0.35
 	var step: String = "step_" + Footsteps.surface_at(self)
@@ -790,7 +790,7 @@ func _play_kneel(parent: Node) -> PackedStringArray:
 	return PackedStringArray([step, "blunt"])
 
 
-## 跪地的雪粉：可能跪很多次，噴完就釋放（倒下的雪粉跟著敵人一起被釋放）。
+## 跪地揚起的灰：可能跪很多次，噴完就釋放（倒下的粉跟著敵人一起被釋放）。
 func _kneel_puff(at: Vector3, extents: Vector3, amount: int) -> void:
 	var ps: CPUParticles3D = _ground_puff(at, extents, amount, Color(0.74, 0.77, 0.84, 0.5))
 	ps.name = "KneelPuff"
@@ -798,8 +798,8 @@ func _kneel_puff(at: Vector3, extents: Vector3, amount: int) -> void:
 
 
 # ---------------------------------------------------------------- 倒下
-## 一般敵人：跪下 → 向前撲倒（頭朝 forward()）→ 落地揚起灰粉、胸口的光熄掉 → 躺一會兒 → 沉進雪裡。
-## 不再「往後倒＋壓扁成一片」。送葬者覆寫成更長、更重的版本。
+## 一般敵人：跪下 → 向前撲倒（頭朝 forward()）→ 落地揚起灰粉、胸口的光熄掉 → 躺一會兒 → 沉進地面。
+## 不再「往後倒＋壓扁成一片」。魔像覆寫成自己的（倒下、核心滾出來）。
 ## FALL_FORWARD：繞 X 軸轉負角度是往前倒（頭在 -Z）；寫新的姿勢照這個常數，別再寫反。
 const FALL_FORWARD: float = -1.0
 const DIE_KNEEL_SEC: float = 0.22
@@ -808,7 +808,7 @@ const DIE_LIE_SEC: float = 1.3
 const DIE_SINK_SEC: float = 1.1
 ## 倒地那一刻（測試用）
 var has_fallen: bool = false
-## 截圖用：停在倒地那一刻，不沉進雪裡
+## 截圖用：停在倒地那一刻，不沉進地面
 var debug_hold_fallen: bool = false
 var _fall_tween: Tween
 
@@ -862,7 +862,7 @@ func _on_fall_impact() -> void:
 		_fall_tween.pause()
 
 
-## 倒地揚起的粉（雪或灰）：一次性的小粒子，節點名 FallPuff。
+## 倒地揚起的粉（土或灰）：一次性的小粒子，節點名 FallPuff。
 func _ground_puff(at: Vector3, extents: Vector3, amount: int, color: Color) -> CPUParticles3D:
 	var ps: CPUParticles3D = puff_build(extents, amount, color)
 	puff_start(ps, at)
@@ -872,7 +872,7 @@ func _ground_puff(at: Vector3, extents: Vector3, amount: int, color: Color) -> C
 ## 一團粉的粒子：建好但**還沒開始噴**、也還沒進場景樹。要改速度、大小、重力的先改，再 puff_start()。
 ## CPUParticles3D 預設 emitting＝true，一進場景樹就會在「當下的位置」先噴出第一批；
 ## 一次性、explosiveness 0.9 的粒子第一批就是全部——原本先 add_child 再擺位置，整團粉其實噴在敵人腳下的原點，
-## 不是指定的地方（倒地的粉偏 0.8 m 看不出來；燈柱砸藥桶那一下偏了 8 m，在鏡頭外，所以怎麼拍都拍不到）。
+## 不是指定的地方（倒地的粉偏 0.8 m 看不出來；遠一點的會整團噴在鏡頭外，怎麼拍都拍不到）。
 func puff_build(extents: Vector3, amount: int, color: Color) -> CPUParticles3D:
 	var ps := CPUParticles3D.new()
 	ps.name = "FallPuff"

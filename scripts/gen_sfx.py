@@ -372,7 +372,7 @@ def _step_env(n, attack, decay):
 
 
 def step_dirt(seed=75):
-    """踩在森林的土上：軟軟的低頻悶聲＋幾片乾葉子碎掉的細響（比雪稀、比較乾）。"""
+    """踩在森林的土上：軟軟的低頻悶聲＋幾片乾葉子碎掉的細響（比較乾）。"""
     rng = random.Random(seed)
     n = int(0.15 * RATE)
     leaves = [0.0] * n
