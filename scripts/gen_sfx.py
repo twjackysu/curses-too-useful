@@ -747,6 +747,208 @@ def crystal_alarm(seconds=2.4, seed=163):
     return out
 
 
+# ---- 森林（腐敗之森）的環境音 ----
+
+
+def _mix_at(out, at_sec, samples, gain=1.0):
+    """把一段聲音加進 out 的某個時間點（超出去的截掉）。"""
+    start = int(at_sec * RATE)
+    for j, v in enumerate(samples):
+        if start + j >= len(out):
+            break
+        if start + j >= 0:
+            out[start + j] += gain * v
+
+
+def _echo(xs, taps):
+    """幾道往後的回音（延遲秒數, 大小）；就地加在原本那份上，回傳同一份。"""
+    for delay, amount in taps:
+        d = int(delay * RATE)
+        for i in range(len(xs) - 1, d - 1, -1):
+            xs[i] += xs[i - d] * amount
+    return xs
+
+
+def _owl(seed):
+    """遠處的貓頭鷹：「嗚——、嗚嗚——」兩聲（360 Hz 往下滑一點，柔柔地起落），低通、帶兩道回音。"""
+    n = int(1.6 * RATE)
+    out = [0.0] * n
+    for at, dur, f0 in ((0.0, 0.34, 372.0), (0.55, 0.16, 360.0), (0.74, 0.46, 352.0)):
+        m = int(dur * RATE)
+        ph = 0.0
+        start = int(at * RATE)
+        for k in range(m):
+            x = k / m
+            f = f0 * (1.0 - 0.06 * x)
+            ph += 2 * math.pi * f / RATE
+            env = math.sin(math.pi * x) ** 1.5
+            out[start + k] += env * (math.sin(ph) + 0.12 * math.sin(2 * ph))
+    out = onepole_lp(out, 1400)
+    return _echo(out, ((0.23, 0.22), (0.51, 0.1)))
+
+
+def _creak(seed, seconds=0.8):
+    """樹幹被風推的一聲「吱——嘎」：一串越來越密又變疏的小摩擦（黏滑），經過木頭的兩個共鳴。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    pulses = [0.0] * n
+    t = 0.0
+    while t < seconds:
+        x = t / seconds
+        rate = 38.0 + 55.0 * math.sin(math.pi * x)
+        i = int(t * RATE)
+        if i < n:
+            pulses[i] = rng.uniform(0.6, 1.0) * math.sin(math.pi * x)
+        t += 1.0 / rate
+    a = svf_band(pulses, lambda i: 620.0, 0.06)
+    b = svf_band(pulses, lambda i: 1380.0, 0.09)
+    out = [a[i] + 0.5 * b[i] for i in range(n)]
+    peak = max(abs(v) for v in out) or 1.0
+    return [v / peak for v in out]
+
+
+def _crickets(total, rng, freq, period, amp, phrase_on, phrase_off):
+    """一隻蟲在叫：每 period 秒一聲「唧唧唧」（三下 18 ms 的高音脈衝），叫一陣停一陣。"""
+    out = [0.0] * total
+    t = rng.uniform(0.0, period)
+    on_until = t + phrase_on
+    while t < total / RATE:
+        if t > on_until:
+            t += phrase_off * rng.uniform(0.7, 1.3)
+            on_until = t + phrase_on * rng.uniform(0.7, 1.3)
+            continue
+        for p in range(3):
+            start = int((t + p * 0.032) * RATE)
+            m = int(0.018 * RATE)
+            for k in range(m):
+                if start + k >= total:
+                    break
+                env = math.sin(math.pi * k / m)
+                out[start + k] += amp * env * math.sin(2 * math.pi * freq * (start + k) / RATE)
+        t += period * rng.uniform(0.94, 1.06)
+    return out
+
+
+def forest_night(seconds=16.0, seed=211):
+    """夜晚的腐敗之森（可循環 16 秒；整片、不分位置）：樹葉間的風一陣一陣（兩個慢的起伏，週期整除 16 秒）
+    ＋風大的時候葉子的沙沙聲＋兩隻蟲（唧唧，叫一陣停一陣）＋遠遠一隻貓頭鷹（兩次）＋樹幹一聲吱嘎
+    ＋很低、很小的瘴氣嗡嗡聲（49／73.5 Hz 慢慢拍頻）。頭尾交叉淡化。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    fade = int(1.5 * RATE)
+    total = n + fade
+    wind = onepole_lp(onepole_lp(hp(noise(total, rng), 110), 650), 900)
+    leaves = onepole_lp(hp(noise(total, rng), 2300), 6500)
+    out = [0.0] * total
+    for i in range(total):
+        g = 0.55 + 0.3 * math.sin(2 * math.pi * 2 * i / n - 0.7) + 0.15 * math.sin(2 * math.pi * 5 * i / n + 1.3)
+        g = max(0.12, g)
+        t = i / RATE
+        drone = 0.018 * (math.sin(2 * math.pi * 49.0 * t) + 0.7 * math.sin(2 * math.pi * 73.5 * t)) * (0.7 + 0.3 * math.sin(2 * math.pi * 2 * i / n))
+        out[i] = wind[i] * 2.4 * g + leaves[i] * 0.16 * g * g + drone
+    for c in (_crickets(total, rng, 4350.0, 0.66, 0.05, 4.0, 2.5), _crickets(total, rng, 5150.0, 0.83, 0.035, 3.0, 3.5)):
+        for i in range(total):
+            out[i] += c[i]
+    owl = _owl(seed + 1)
+    _mix_at(out, 4.6, owl, 0.11)
+    _mix_at(out, 12.1, owl, 0.08)
+    _mix_at(out, 9.0, _creak(seed + 2), 0.07)
+    looped = _loop_crossfade(out, n, fade)
+    peak = max(abs(v) for v in looped) or 1.0
+    return [v / peak * 0.7 for v in looped]
+
+
+def swamp_bubble(seconds=8.0, seed=223):
+    """毒沼（可循環 8 秒；從毒沼中間發出來）：底下的泥慢慢翻（很低的雜訊起伏）＋一顆一顆冒上來破掉的泡泡
+    （往上滑的短正弦，每秒四五顆）＋偶爾一顆大的「咕嘟」（低、長一點、帶一點泥的濕聲）。頭尾交叉淡化。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    fade = int(0.8 * RATE)
+    total = n + fade
+    mud = onepole_lp(onepole_lp(noise(total, rng), 170), 210)
+    out = [mud[i] * 1.4 * (0.7 + 0.3 * math.sin(2 * math.pi * 3 * i / n)) for i in range(total)]
+    t = 0.05
+    while t < total / RATE - 0.3:
+        big = rng.random() < 0.13
+        f0 = rng.uniform(110.0, 170.0) if big else rng.uniform(230.0, 640.0)
+        dur = rng.uniform(0.14, 0.22) if big else rng.uniform(0.035, 0.075)
+        amp = rng.uniform(0.32, 0.45) if big else rng.uniform(0.07, 0.2)
+        start = int(t * RATE)
+        m = int(dur * RATE)
+        ph = 0.0
+        wet = onepole_lp(noise(m, rng), 600) if big else None
+        for k in range(m):
+            if start + k >= total:
+                break
+            x = k / m
+            ph += 2 * math.pi * f0 * (1.0 + 1.4 * x * x) / RATE
+            env = min(1.0, k / (0.002 * RATE)) * math.exp(-x * 4.5)
+            s = math.sin(ph)
+            if wet is not None:
+                s += 1.4 * wet[k]
+            out[start + k] += amp * env * s
+        t += rng.expovariate(4.6)
+    looped = _loop_crossfade(out, n, fade)
+    peak = max(abs(v) for v in looped) or 1.0
+    return [v / peak * 0.7 for v in looped]
+
+
+def campfire_crackle(seconds=6.0, seed=227):
+    """營火（可循環 6 秒；從營火發出來）：火焰低低的呼呼聲（低通雜訊，忽大忽小）＋木頭裂開的劈啪
+    （一下 1～6 ms 的高頻雜訊，大部分很小、少數幾下很響，偶爾連著三四下）。頭尾交叉淡化。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    fade = int(0.8 * RATE)
+    total = n + fade
+    roar = onepole_lp(onepole_lp(hp(noise(total, rng), 70), 380), 520)
+    flicker = onepole_lp(onepole_lp(noise(total, rng), 3.0), 3.0)
+    fpeak = max(abs(v) for v in flicker) or 1.0
+    out = [roar[i] * 1.6 * (0.75 + 0.35 * flicker[i] / fpeak) for i in range(total)]
+    t = 0.02
+    while t < total / RATE - 0.05:
+        cluster = 1 if rng.random() > 0.15 else rng.randint(3, 5)
+        for c in range(cluster):
+            amp = min(0.9, 0.28 * rng.paretovariate(1.6))
+            m = int(rng.uniform(0.001, 0.006) * RATE)
+            burst = hp(noise(m + 1, rng), rng.uniform(1600.0, 3800.0))
+            start = int((t + c * rng.uniform(0.006, 0.02)) * RATE)
+            for k in range(m):
+                if start + k >= total:
+                    break
+                out[start + k] += amp * burst[k] * math.exp(-k / m * 3.0)
+        t += rng.expovariate(13.0)
+    looped = _loop_crossfade(out, n, fade)
+    peak = max(abs(v) for v in looped) or 1.0
+    return [v / peak * 0.7 for v in looped]
+
+
+def vent_hiss(seconds=5.0, seed=229):
+    """毒氣噴發口（可循環 5 秒；從噴發口發出來）：一直往上冒的嘶聲（高通雜訊，微微一陣一陣）＋地底的低鳴
+    ＋偶爾一兩下冒泡。頭尾交叉淡化。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    fade = int(0.6 * RATE)
+    total = n + fade
+    hiss = onepole_lp(hp(noise(total, rng), 1700), 7500)
+    rumble = onepole_lp(onepole_lp(noise(total, rng), 110), 140)
+    out = []
+    for i in range(total):
+        g = 0.78 + 0.22 * math.sin(2 * math.pi * 2 * i / n)
+        out.append(hiss[i] * 0.55 * g + rumble[i] * 3.2)
+    for at in (rng.uniform(0.5, 2.0), rng.uniform(2.8, 4.2)):
+        m = int(0.07 * RATE)
+        f0 = rng.uniform(160.0, 260.0)
+        ph = 0.0
+        start = int(at * RATE)
+        for k in range(m):
+            x = k / m
+            ph += 2 * math.pi * f0 * (1.0 + x) / RATE
+            out[start + k] += 0.12 * math.exp(-x * 4.0) * math.sin(ph)
+    looped = _loop_crossfade(out, n, fade)
+    peak = max(abs(v) for v in looped) or 1.0
+    return [v / peak * 0.7 for v in looped]
+
+
 def main():
     made = [
         write("blunt", thump(0.3, 140, 55, seed=2)),
@@ -777,6 +979,10 @@ def main():
         write("vial_load", vial_load()),
         write("cut_hit", cut_hit()),
         write("cut_heavy", cut_heavy()),
+        write("forest_night", forest_night()),
+        write("swamp_bubble", swamp_bubble()),
+        write("campfire_crackle", campfire_crackle()),
+        write("vent_hiss", vent_hiss()),
     ]
     for p in made:
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

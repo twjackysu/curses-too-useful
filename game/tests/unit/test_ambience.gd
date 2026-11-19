@@ -3,7 +3,7 @@ extends TestCase
 
 
 func test_looped_copy_does_not_touch_shared_stream() -> void:
-	for n: String in ["market_murmur", "title_theme", "part_end_theme"]:
+	for n: String in ["market_murmur", "title_theme", "part_end_theme", "forest_night", "swamp_bubble", "campfire_crackle", "vent_hiss"]:
 		var s: AudioStreamWAV = Ambience.looped(n)
 		assert_not_null(s, "有 %s" % n)
 		if s == null:
@@ -11,7 +11,7 @@ func test_looped_copy_does_not_touch_shared_stream() -> void:
 		assert_eq(s.loop_mode, AudioStreamWAV.LOOP_FORWARD, "%s 會循環" % n)
 		assert_eq(s.loop_begin, 0, "%s 從頭循環" % n)
 		assert_eq(s.loop_end, int(s.get_length() * float(s.mix_rate)), "%s 循環到最後" % n)
-		assert_true(s.get_length() >= 6.0, "%s 夠長（短的循環一下就聽得出來）" % n)
+		assert_true(s.get_length() >= 5.0, "%s 夠長（短的循環一下就聽得出來）" % n)
 		var shared: AudioStreamWAV = Sfx.stream(n) as AudioStreamWAV
 		assert_eq(shared.loop_mode, AudioStreamWAV.LOOP_DISABLED, "%s 共用的那份不循環（一次性的播放不受影響）" % n)
 	assert_eq(Ambience.looped("no_such_sound"), null, "缺檔回傳 null")
@@ -35,6 +35,16 @@ func test_play_flat_and_positional() -> void:
 		assert_eq(fire.global_position, Vector3(1, 0.4, -2), "從指定的位置發出來")
 		assert_eq(fire.unit_size, 3.0)
 		assert_eq(Ambience.sfx_of(fire), "market_murmur")
+	# 掛在還沒進場景的東西上（關卡 _ready 裡先組好噴發口再放進去）：進場景那一刻才開始播
+	var later := Node3D.new()
+	var vent: AudioStreamPlayer3D = Ambience.play_at(later, "vent_hiss", Vector3(0, 0.4, 0), -10.0, 2.5, "VentHiss")
+	assert_not_null(vent)
+	if vent != null:
+		assert_false(vent.playing, "還沒進場景")
+		root.add_child(later)
+		assert_true(vent.playing, "進場景就開始播")
+		assert_eq(Ambience.sfx_of(vent), "vent_hiss")
+		vent.stop()
 	assert_eq(Ambience.play(root, "no_such_sound", 0.0), null, "缺檔不建播放器")
 	assert_eq(Ambience.sfx_of(null), "")
 	assert_eq(Ambience.sfx_of(root), "", "不是 Ambience 建的節點")

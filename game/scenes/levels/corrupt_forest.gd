@@ -38,6 +38,9 @@ const SERA_WAIT_POS: Vector3 = Vector3(-1.4, 0, 9.5)
 const SERA_MEET_DIST: float = 3.4
 ## 結伴之後讀檔：席菈站在諾恩的左前方（玩家的鏡頭一進場就看得到她），之後自己跟在後面
 const SERA_START_OFFSET: Vector3 = Vector3(-1.7, 0.0, -2.6)
+## 夜晚森林的環境音（風、蟲、遠處的貓頭鷹；整片、不分位置）
+const NIGHT_SFX: String = "forest_night"
+const NIGHT_DB: float = -15.0
 
 var slimes: Array[Slime] = []
 var miasma: PoisonMist
@@ -68,6 +71,7 @@ func _ready() -> void:
 	ForestScenery.build_landmarks(self)
 	_build_miasma()
 	_spores = ForestScenery.build_spores(self)
+	Ambience.play(self, NIGHT_SFX, NIGHT_DB, "ForestNight")
 	_mark("MiasmaEdge", MIASMA_POS + Vector3(0, 0, MIASMA_RADIUS))
 	_mark("SlimeGlade", GLADE_POS)
 	var spawn: Marker3D = $Spawn

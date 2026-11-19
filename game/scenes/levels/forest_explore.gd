@@ -47,6 +47,10 @@ const PACKS: Dictionary = {
 ## 講完解鎖連攜（旗標 sera.duo_unlocked）：向她要的煙霧彈換成多調一份麻痺的 DUO_SOURCE
 const CAMPFIRE_MODEL: String = "tripo/prop_campfire_v2"
 const CAMPFIRE_SCALE: float = 1.3
+## 從東西發出來的循環聲（Ambience.play_at）：營火的劈啪、噴發口的嘶聲、毒沼的咕嘟。[音檔, dB, unit_size（這麼近以內是原音量）]
+const FIRE_SOUND: Array = ["campfire_crackle", -4.0, 4.0]
+const VENT_SOUND: Array = ["vent_hiss", -10.0, 2.5]
+const SWAMP_SOUND: Array = ["swamp_bubble", -6.0, 6.0]
 const FIRE_ENERGY: float = 4.5
 const CAMP_DIALOGUE: String = "ch1_campfire"
 const FLAG_CAMP_TALK: String = "ch1.campfire_talked"
@@ -272,6 +276,10 @@ func _on_sera_fired(vial: SeraVial) -> void:
 
 # ---------------------------------------------------------------- 營火
 
+func _loop_sound(on: Node3D, sound: Array, at: Vector3, node_name: String) -> void:
+	Ambience.play_at(on, str(sound[0]), at, float(sound[1]), float(sound[2]), node_name)
+
+
 func _build_campfire() -> void:
 	campfire = Interactable.create("Campfire", ForestMap.at(ForestMap.CAMP), "HINT_CAMPFIRE", 3.0)
 	var look: Node3D = PropModels.instance(CAMPFIRE_MODEL)
@@ -291,6 +299,7 @@ func _build_campfire() -> void:
 	_fire_light.position = Vector3(0, 0.9, 0)
 	campfire.add_child(_fire_light)
 	campfire.add_child(_embers())
+	_loop_sound(campfire, FIRE_SOUND, Vector3(0, 0.5, 0), "FireSound")
 	campfire.used.connect(_on_campfire_used)
 	level.add_child(campfire)
 
@@ -393,6 +402,7 @@ func _build_swamp() -> void:
 	swamp_miasma.name = "SwampMiasma"
 	swamp_miasma.thickness = SWAMP_MIASMA_THICKNESS
 	swamp_miasma.position = ForestMap.at(ForestMap.SWAMP)
+	_loop_sound(swamp_miasma, SWAMP_SOUND, Vector3(0, 0.2, 0), "SwampBubble")
 	level.add_child(swamp_miasma)
 	chest = Interactable.create("CursedChest", CHEST_POS, "HINT_OPEN_CHEST", 2.4)
 	var look: Node3D = PropModels.instance(CHEST_MODEL)
@@ -527,6 +537,7 @@ func _spawn_traps() -> void:
 		base.rotation.y = float(i) * 1.3
 		vent.add_child(base)
 		vent.add_child(_gas_jet())
+		_loop_sound(vent, VENT_SOUND, Vector3(0, 0.4, 0), "VentHiss")
 		var glow := OmniLight3D.new()
 		glow.name = "Glow"
 		glow.light_color = Color(0.6, 1.0, 0.35)

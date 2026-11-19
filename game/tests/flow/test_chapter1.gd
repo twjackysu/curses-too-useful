@@ -1326,6 +1326,32 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 
 
 ## 探索開放之後的關卡（教學戰與戰後那段話都過了）：後面幾個測試從這裡開始
+## 森林有自己的聲音：整片的夜晚（風、蟲、貓頭鷹），營火、每個噴發口、毒沼各自發出循環的聲音（走近才聽得到）。
+func test_forest_has_night_ambience_and_fire_vents_and_bog_make_sound() -> void:
+	var level: CorruptForest = _load_exploring()
+	await tree.physics_frame
+	if Sfx.stream(CorruptForest.NIGHT_SFX) == null:
+		return
+	var night: AudioStreamPlayer = level.get_node_or_null("ForestNight") as AudioStreamPlayer
+	assert_not_null(night, "整片的夜晚森林")
+	if night != null:
+		assert_eq(Ambience.sfx_of(night), "forest_night")
+		assert_true(night.playing)
+		assert_eq(night.bus, &"SFX", "跟著「音效」音量")
+	var explore: ForestExplore = level.explore
+	var spots: Array = [[explore.campfire, "FireSound", "campfire_crackle"], [explore.swamp_miasma, "SwampBubble", "swamp_bubble"]]
+	for vent: PoisonMist in explore.vents:
+		spots.append([vent, "VentHiss", "vent_hiss"])
+	for spot: Array in spots:
+		var p: AudioStreamPlayer3D = (spot[0] as Node).get_node_or_null(str(spot[1])) as AudioStreamPlayer3D
+		assert_not_null(p, "%s 有 %s" % [(spot[0] as Node).name, spot[1]])
+		if p != null:
+			assert_eq(Ambience.sfx_of(p), str(spot[2]))
+			assert_true(p.playing, "%s 在播" % spot[1])
+			assert_true(p.global_position.distance_to((spot[0] as Node3D).global_position) < 1.0, "從那個東西發出來")
+			assert_eq((p.stream as AudioStreamWAV).loop_mode, AudioStreamWAV.LOOP_FORWARD, "會循環")
+
+
 func _load_exploring() -> CorruptForest:
 	_new_game_joined()
 	for flag: String in [CorruptForest.FLAG_REVERSAL, CorruptForest.FLAG_GATE_TALK, CorruptForest.FLAG_MISFIRE, CorruptForest.FLAG_SLIMES, CorruptForest.FLAG_AFTER_TALK]:

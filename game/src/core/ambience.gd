@@ -51,7 +51,8 @@ static func sfx_of(p: Node) -> String:
 	return str(p.get_meta(META, "")) if p != null else ""
 
 
-## 從某個東西發出來的環境音（壁爐）：走近變大聲、轉身聽得出方向。
+## 從某個東西發出來的環境音（營火、噴發口、毒沼）：走近變大聲、轉身聽得出方向。
+## 從循環裡隨機一個地方開始播（四個噴發口不會同一拍噴）；parent 還沒進場景的話，進場景那一刻才開始播。
 static func play_at(parent: Node3D, sfx_name: String, pos: Vector3, volume_db: float, unit_size: float, node_name: String) -> AudioStreamPlayer3D:
 	var s: AudioStreamWAV = looped(sfx_name)
 	if s == null or parent == null:
@@ -65,6 +66,11 @@ static func play_at(parent: Node3D, sfx_name: String, pos: Vector3, volume_db: f
 	p.max_distance = 30.0
 	p.position = pos
 	p.set_meta(META, sfx_name)
-	parent.add_child(p)
-	p.play()
+	var from: float = randf() * s.get_length()
+	if parent.is_inside_tree():
+		parent.add_child(p)
+		p.play(from)
+	else:
+		p.tree_entered.connect(func() -> void: p.play(from), CONNECT_ONE_SHOT)
+		parent.add_child(p)
 	return p
