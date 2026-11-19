@@ -73,7 +73,10 @@ const SERA_CORNER_FACING: float = 55.0
 const SERA_STOOL_LIFT: float = 0.11
 const SERA_STOOL_LIFT_PUPPET: float = 0.16
 ## 王都巡察官站在二樓欄杆後面
-const INSPECTOR_POS: Vector3 = Vector3(0.9, GuildScenery.LOFT_Y, GuildScenery.LOFT_EDGE_Z - 0.6)
+## 站在欄杆後面（x 避開天花板中間那根縱樑：過肩鏡頭在他左後方，不能撞進樑裡）
+const INSPECTOR_POS: Vector3 = Vector3(1.6, GuildScenery.LOFT_Y, GuildScenery.LOFT_EDGE_Z - 0.4)
+## 他講話時的過肩鏡頭（在他後面多遠、往旁邊多少、離他腳下多高）：貼近他、拉高往下看，欄杆的扶手落到畫面下面當前景，不橫過中間
+const INSPECTOR_SHOT: Vector3 = Vector3(0.75, 0.7, 2.65)
 ## 警報的時間軸（秒）：兩個冒險者先後笑出來、莉莉絲愣住、雷歐走過來；他走到了（或等太久）就開口
 const ALARM_LAUGH_A: float = 0.9
 const ALARM_LAUGH_B: float = 1.9
@@ -385,6 +388,7 @@ func _spawn_cast() -> void:
 			(party[key] as Npc).pose = "slump"
 		inspector = Npc.create("Inspector", "royal_inspector", INSPECTOR_POS, 180.0)
 		inspector.set_meta(TalkCamera.LOOK_META, _player)
+		inspector.set_meta(TalkCamera.LOOK_OFFSET_META, INSPECTOR_SHOT)
 		add_child(inspector)
 		aura = DarkAura.attach(_player)
 	# 席菈：開場縮在角落（問完就先回去拿面具）；結尾跟在諾恩後面

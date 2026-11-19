@@ -94,6 +94,20 @@ func test_over_shoulder_shot_looks_past_the_speaker_at_the_target() -> void:
 	assert_true(fwd.dot((speaker + Vector3.UP * 1.5 - t.origin).normalized()) > 0.5, "他在畫面前景")
 
 
+## 公會二樓的巡察官：照他的鏡位（貼近、拉高）往下看，欄杆的扶手落在畫面中間以下（不橫過中間），鏡頭在天花板與縱樑之外
+func test_inspector_shot_puts_the_loft_railing_below_the_middle() -> void:
+	var speaker: Vector3 = GuildHall.INSPECTOR_POS
+	var target := Vector3(0.2, 0.0, -2.2)
+	var t: Transform3D = TalkCamera.over_shoulder(speaker, target, GuildHall.INSPECTOR_SHOT)
+	assert_true(t.origin.y < GuildScenery.HEIGHT - 0.1, "在天花板下面（%.2f）" % t.origin.y)
+	assert_true(absf(t.origin.x) > 0.5, "不在中間那根縱樑裡（x %.2f）" % t.origin.x)
+	var rail := Vector3(t.origin.x, GuildScenery.LOFT_Y + 1.0, GuildScenery.LOFT_EDGE_Z)
+	var fwd: Vector3 = -t.basis.z
+	var to_rail: Vector3 = (rail - t.origin).normalized()
+	var below_deg: float = rad_to_deg(asin(clampf(-to_rail.y, -1.0, 1.0)) - asin(clampf(-fwd.y, -1.0, 1.0)))
+	assert_true(below_deg > 10.0, "扶手在畫面中間以下 %.1f°" % below_deg)
+
+
 ## 兩人同框：兩個人都在畫面裡、鏡頭在玩家那一側、往聽的人那邊偏（看得到講話的人的臉）
 func test_two_shot_frames_both_from_the_players_side() -> void:
 	var speaker := Vector3(0, 0, 0)

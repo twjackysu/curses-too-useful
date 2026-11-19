@@ -27,6 +27,9 @@ const DROP_META: String = "talk_drop"
 ## 講話的人身上有這個 meta（值＝他在看的那個角色）：這個人講話時鏡頭改成從他背後的肩膀上方看過去，
 ## 畫面前景是他的肩膀、遠處是他看的人（結尾二樓的巡察官往下看諾恩）
 const LOOK_META: String = "talk_look_at"
+## 過肩鏡位要換位置的人（值＝Vector3(在他後面多遠, 往右偏多少, 離他腳下多高)）：二樓的巡察官往下看，
+## 照一般的過肩鏡位，欄杆的扶手正好橫過畫面中間——鏡頭貼近他、拉高，扶手才會落到畫面下面
+const LOOK_OFFSET_META: String = "talk_look_offset"
 ## 過肩鏡位：在講話的人後面多遠、往右偏多少、離他腳下多高；看對方的哪個高度（胸口）
 const OVER_BACK: float = 1.35
 const OVER_SIDE: float = 0.8
@@ -67,11 +70,11 @@ static func shot(speaker: Vector3, listener: Vector3, home: Vector3, drop: float
 
 
 ## 從講話的人背後看過去（他看的人是 target）。speaker、target 是兩人腳下的位置
-static func over_shoulder(speaker: Vector3, target: Vector3) -> Transform3D:
+static func over_shoulder(speaker: Vector3, target: Vector3, offset: Vector3 = Vector3(OVER_BACK, OVER_SIDE, OVER_HEIGHT)) -> Transform3D:
 	var flat := Vector3(speaker.x - target.x, 0.0, speaker.z - target.z)
 	var back: Vector3 = flat.normalized() if flat.length() > 0.05 else Vector3.BACK
 	var right: Vector3 = Vector3.UP.cross(back).normalized()
-	var eye: Vector3 = speaker + back * OVER_BACK + right * OVER_SIDE + Vector3.UP * OVER_HEIGHT
+	var eye: Vector3 = speaker + back * offset.x + right * offset.y + Vector3.UP * offset.z
 	return Transform3D(Basis.looking_at(target + Vector3.UP * OVER_AIM - eye, Vector3.UP), eye)
 
 
@@ -247,7 +250,8 @@ func _clear_detour() -> Vector3:
 func _frame(who: Node3D, kind: String = "") -> Transform3D:
 	var looked: Node3D = who.get_meta(LOOK_META) as Node3D if who.has_meta(LOOK_META) else null
 	if looked != null and is_instance_valid(looked):
-		return over_shoulder(who.global_position, looked.global_position)
+		var off: Vector3 = who.get_meta(LOOK_OFFSET_META, Vector3(OVER_BACK, OVER_SIDE, OVER_HEIGHT)) as Vector3
+		return over_shoulder(who.global_position, looked.global_position, off)
 	var other: Node3D = _listener(who)
 	var home: Vector3 = _home.global_position
 	var from: Vector3 = who.global_position
