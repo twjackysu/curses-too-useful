@@ -538,12 +538,27 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_true(hud.bark_keys().has("BARK_SERA_CHAOS"))
 	assert_false(golem.phases.core_open, "禁藥還在路上")
 	assert_false(golem.is_core_marked())
-	# 她舉弩、射出禁藥、砸中
+	# 她舉弩、射出禁藥、砸中。禁藥飛的樣子跟平常的藥瓶不一樣（D-306）：圓底燒瓶、會變色、繞著轉的光點、拋得高、飛得慢
+	var brew_vial: SeraVial = null
+	var colors: Array[Color] = []
+	var peak: float = -99.0
 	for i: int in 180:
 		await tree.physics_frame
+		if brew_vial == null and is_instance_valid(sera.last_vial) and sera.last_vial.source == RuinedAltar.CHAOS_SOURCE:
+			brew_vial = sera.last_vial
+		if brew_vial != null and is_instance_valid(brew_vial) and not brew_vial.landed:
+			colors.append(brew_vial.current_color())
+			peak = maxf(peak, brew_vial.global_position.y - player.global_position.y)
 		if golem.phases.core_open:
 			break
 	assert_true(golem.phases.core_open, "禁藥砸中：核心可以粉碎了")
+	assert_not_null(brew_vial, "射出來的是禁藥")
+	if brew_vial != null and is_instance_valid(brew_vial):
+		assert_true(brew_vial.is_forbidden() and brew_vial.get_node_or_null("Flask") != null and brew_vial.get_node_or_null("Orbit0") != null, "圓底燒瓶、繞著轉的光點")
+		assert_true(brew_vial.flight > CombatTuning.num("sera.vial_flight") * 1.3, "飛得比平常慢（%.2f 秒）" % brew_vial.flight)
+		assert_not_null(brew_vial.get_node_or_null("BurstRing"), "砸中時一圈往外擴的光環")
+	assert_true(colors.size() > 20 and not colors[0].is_equal_approx(colors[colors.size() / 2]), "藥水的顏色一直在變")
+	assert_true(peak > SeraVial.ARC_HEIGHT + 1.2, "拋得比平常高（最高比諾恩的腳高 %.1f m）" % peak)
 	assert_true(hud.boss_bar.brew < 0.0 and not sera.is_brewing() and sera.puppet().pose != Sera.BREW_POSE, "射出去了：那一條收起來、她站起來")
 	assert_true(golem.is_core_marked(), "胸口的核心變成金色、一圈一圈往中心收：砍這裡")
 	assert_true(golem.heard.has(PlagueGolem.CORE_GLOW_SFX), "核心亮起來的聲音")
