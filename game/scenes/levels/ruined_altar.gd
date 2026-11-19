@@ -34,6 +34,8 @@ const PARTY: Array[Array] = [
 ]
 ## 倒在地上的人比站著矮這麼多（對話鏡頭照這個放低）
 const LYING_DROP: float = 0.95
+## 魔像舉著拳頭時最高到多高（抵達的那段話，鏡頭把牠與雷歐框在一起時照這個高度框）
+const GOLEM_TALK_HEIGHT: float = 4.8
 ## 走上石板（z 比這個小）雷歐就開口
 const ARRIVE_Z: float = 15.0
 ## 抵達的那段話講完隔多久魔像才轉過來；魔像倒下隔多久戰後那段話才開始（等牠趴下去）；讀檔回到戰後隔多久開始
@@ -323,7 +325,10 @@ func _spawn_golem() -> void:
 	golem.name = "Golem"
 	golem.position = GOLEM_START
 	golem.gaze_target = sera
+	# 抵達的那段話「大家一起看著牠」的那一句（look）：鏡頭照牠舉著拳頭的高度框
+	golem.set_meta(TalkCamera.HEIGHT_META, GOLEM_TALK_HEIGHT)
 	add_child(golem)
+	talk_camera.cast[PlagueGolem.NAME_KEY] = golem
 	# 面向倒在地上的雷歐
 	var to_leo: Vector3 = (party["Leo"] as Node3D).global_position - GOLEM_START
 	golem.set_facing(atan2(-to_leo.x, -to_leo.z))

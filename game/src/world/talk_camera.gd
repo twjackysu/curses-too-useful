@@ -7,6 +7,8 @@ extends Camera3D
 ## 只看 `Game.dialogue`，不接訊號：倒下重來、回標題把對話直接清掉的時候也會自己回去。
 ## 有 `talk_to(位置)` 的角色（諾恩）在對話開始時會被叫去面向對方——跟在後面的席菈開口時他才不會背對著她講話。
 ## 對話資料寫了 `"shot": "two"` 的那一句改成兩人同框（`two_shot`）；漫符、手勢、講話時頭會動在 `TalkActing`（這個鏡頭底下的子節點）。
+## 一句寫了 `"to": key`：講話的人轉過去面向那個人（鏡頭也照「講給他聽」擺），其他人轉過來看講話的人；
+## 寫了 `"look": key`：大家一起轉過去看那個東西，鏡頭把講話的人與它框在一起（`look_shot`：祭壇上舉著拳頭的魔像與倒在牠腳邊的雷歐）。
 
 ## 鏡頭離講話的人多遠（沿著「講話的人 → 聽的人」的方向）、往旁邊偏多少、多高
 const DIST: float = 2.2
@@ -43,6 +45,17 @@ const TWO_TOWARD_LISTENER: float = 0.3
 const TWO_AIM: float = 1.2
 ## 對準兩人之間偏講話的人一點（0.5＝正中間）：講話的人離畫面中間近一點
 const TWO_FAVOR: float = 0.44
+## 一起看著某個東西（look）：鏡頭的視角、多高、左右留多少、往講話的人那一邊偏多少；
+## 那個東西最高到多高寫在它身上的 meta（沒寫＝站著的人）
+const LOOK_FOV: float = 50.0
+const LOOK_EYE: float = 1.5
+const LOOK_MARGIN: float = 1.0
+## 腳下落在畫面下面往上多少（下面四分之一是對話框）、頭頂上面留多少（都是畫面高的幾成）
+const LOOK_FLOOR: float = 0.32
+const LOOK_HEADROOM: float = 0.06
+const LOOK_TOWARD_SPEAKER: float = 0.35
+const HEIGHT_META: String = "talk_height"
+const DEFAULT_HEIGHT: float = 1.8
 
 var cast: Dictionary[String, Node3D] = {}
 
@@ -52,6 +65,8 @@ var _speaker: String = ""
 var _framing: String = ""
 var acting: TalkActing
 var _shot: Transform3D
+## 這個鏡位的視角（一起看著某個東西的時候比較廣）
+var _shot_fov: float = TALK_FOV
 ## 滑過去／滑回來的路上往旁邊繞多少（弧的最高點；兩端是 0）
 var _detour: Vector3 = Vector3.ZERO
 ## 0＝玩家的鏡頭，1＝對話的鏡位
@@ -94,6 +109,28 @@ static func two_shot(speaker: Vector3, listener: Vector3, home: Vector3) -> Tran
 	var aim: Vector3 = speaker.lerp(listener, TWO_FAVOR) + Vector3.UP * TWO_AIM
 	var eye: Vector3 = mid + dir * dist + Vector3.UP * EYE_HEIGHT
 	return Transform3D(Basis.looking_at(aim - eye, Vector3.UP), eye)
+
+
+## 一起看著某個東西：講話的人與 target 同框，鏡頭在兩人連線上玩家鏡頭的那一側（不跨線）、往講話的人那一邊偏一點（他在前景）。
+## 遠到框得下兩個的寬度，而且地面到 top（target 最高到多高）塞得進畫面上面那幾成：腳下落在畫面下面往上 LOOK_FLOOR 的地方
+## （下面四分之一是對話框——第一版把倒在地上的雷歐整個蓋在框後面）。speaker、target 是兩個腳下的位置
+static func look_shot(speaker: Vector3, target: Vector3, home: Vector3, top: float) -> Transform3D:
+	var flat := Vector3(target.x - speaker.x, 0.0, target.z - speaker.z)
+	var along: Vector3 = flat.normalized() if flat.length() > 0.05 else Vector3.FORWARD
+	var mid: Vector3 = (speaker + target) * 0.5
+	var side: Vector3 = along.cross(Vector3.UP)
+	if (home - mid).dot(side) < 0.0:
+		side = -side
+	var half_w: float = tan(deg_to_rad(LOOK_FOV) * 0.5) * 16.0 / 9.0
+	var span: float = deg_to_rad(LOOK_FOV * (1.0 - LOOK_FLOOR - LOOK_HEADROOM))
+	var dist: float = maxf((flat.length() * 0.5 + LOOK_MARGIN) / half_w, TWO_MIN_DIST)
+	while dist < 40.0 and atan2(top - LOOK_EYE, dist) - atan2(-LOOK_EYE, dist) > span:
+		dist += 0.25
+	var dir: Vector3 = (side - along * LOOK_TOWARD_SPEAKER).normalized()
+	var eye: Vector3 = mid + dir * dist + Vector3.UP * LOOK_EYE
+	var pitch: float = atan2(-LOOK_EYE, dist) + deg_to_rad(LOOK_FOV * (0.5 - LOOK_FLOOR))
+	var ahead: Vector3 = -dir * cos(pitch) + Vector3.UP * sin(pitch)
+	return Transform3D(Basis.looking_at(ahead, Vector3.UP), eye)
 
 
 static func aim_point(speaker: Vector3, drop: float = 0.0) -> Vector3:
@@ -163,13 +200,18 @@ func _physics_process(delta: float) -> void:
 		_leave()
 		return
 	if running:
+		var line: Dictionary = r.current()
 		var who: Node3D = _member(key)
-		var kind: String = str(r.current().get("shot", ""))
-		var framing: String = key + "|" + kind
+		var kind: String = str(line.get("shot", ""))
+		var framing: String = "%s|%s|%s|%s" % [key, kind, str(line.get("to", "")), str(line.get("look", ""))]
 		if who != null and framing != _framing:
 			_speaker = key
 			_framing = framing
-			_shot = _frame(who, kind)
+			var to: Node3D = _member(str(line.get("to", "")))
+			var look: Node3D = _member(str(line.get("look", "")))
+			_turn_cast(who, to, look)
+			_shot_fov = LOOK_FOV if look != null else TALK_FOV
+			_shot = _frame(who, kind, to, look)
 			_detour = _clear_detour()
 		_blend = minf(_blend + delta / BLEND_SEC, 1.0)
 	else:
@@ -180,7 +222,7 @@ func _physics_process(delta: float) -> void:
 	var t: float = smoothstep(0.0, 1.0, _blend)
 	global_transform = _home.global_transform.interpolate_with(_shot, t)
 	global_position += _detour * sin(PI * t)
-	fov = lerpf(_home.fov, TALK_FOV, t)
+	fov = lerpf(_home.fov, _shot_fov, t)
 
 
 func _member(key: String) -> Node3D:
@@ -199,6 +241,7 @@ func _enter() -> void:
 	_speaker = ""
 	_framing = ""
 	_blend = 0.0
+	_shot_fov = TALK_FOV
 	global_transform = cam.global_transform
 	fov = cam.fov
 	current = true
@@ -220,7 +263,24 @@ func _leave() -> void:
 	_detour = Vector3.ZERO
 
 
-## 聽的人：登記的人裡第一個不是講話的那個
+## 這一句有寫 to／look：to＝講話的人轉過去面向那個人、其他人轉過來看講話的人；look＝大家一起轉過去看那個東西。
+## 只有會轉的人（有 talk_to）會轉；都沒寫就不動（維持對話一開始轉好的方向）
+func _turn_cast(who: Node3D, to: Node3D, look: Node3D) -> void:
+	if to == null and look == null:
+		return
+	for key: String in cast:
+		var n: Node3D = _member(key)
+		if n == null or n == look or not n.has_method("talk_to"):
+			continue
+		if look != null:
+			n.call("talk_to", look.global_position)
+		elif n == who:
+			n.call("talk_to", to.global_position)
+		else:
+			n.call("talk_to", who.global_position)
+
+
+## 聽的人：登記的人裡第一個不是講話的那個（只是被看的東西——例：魔像——登記在最後面，不會被當成聽的人）
 func _listener(who: Node3D) -> Node3D:
 	for key: String in cast:
 		var n: Node3D = _member(key)
@@ -247,18 +307,22 @@ func _clear_detour() -> Vector3:
 	return d
 
 
-func _frame(who: Node3D, kind: String = "") -> Transform3D:
+func _frame(who: Node3D, kind: String = "", to: Node3D = null, look: Node3D = null) -> Transform3D:
 	var looked: Node3D = who.get_meta(LOOK_META) as Node3D if who.has_meta(LOOK_META) else null
 	if looked != null and is_instance_valid(looked):
 		var off: Vector3 = who.get_meta(LOOK_OFFSET_META, Vector3(OVER_BACK, OVER_SIDE, OVER_HEIGHT)) as Vector3
 		return over_shoulder(who.global_position, looked.global_position, off)
-	var other: Node3D = _listener(who)
+	var other: Node3D = to if to != null else _listener(who)
 	var home: Vector3 = _home.global_position
 	var from: Vector3 = who.global_position
 	var drop: float = drop_of(who)
 	var s: Transform3D
 	var aim: Vector3
-	if kind == "two" and other != null and drop_of(other) <= 0.0 and drop <= 0.0:
+	if look != null:
+		var top: float = maxf(float(look.get_meta(HEIGHT_META, DEFAULT_HEIGHT)), DEFAULT_HEIGHT - drop)
+		s = look_shot(from, look.global_position, home, top)
+		aim = from.lerp(look.global_position, 0.5) + Vector3.UP * (top * 0.5)
+	elif kind == "two" and other != null and drop_of(other) <= 0.0 and drop <= 0.0:
 		s = two_shot(from, other.global_position, home)
 		aim = from.lerp(other.global_position, TWO_FAVOR) + Vector3.UP * TWO_AIM
 	else:

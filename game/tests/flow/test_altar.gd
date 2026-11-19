@@ -221,6 +221,55 @@ func test_arriving_finds_leos_party_down_then_the_golem_wakes_and_its_plague_fee
 
 
 ## 魔像的兩招：重拳（前方一塊）與震地（身邊一大圈）輪流出；核心被粉碎之前生命扣到底線就扣不下去。
+## 身體面向 point 嗎（水平；內積大於 limit）
+func _faces(body: Node3D, point: Vector3, limit: float = 0.8) -> bool:
+	var to: Vector3 = point - body.global_position
+	var fwd: Vector3 = -body.global_basis.z
+	return Vector2(fwd.x, fwd.z).normalized().dot(Vector2(to.x, to.z).normalized()) > limit
+
+
+## 抵達的那段話（D-306）：雷歐開口兩人轉過去看他；「那傢伙身邊那一圈」的那一句鏡頭把舉著拳頭的魔像與倒在牠腳邊的雷歐框在一起、
+## 大家一起看著牠；席菈喊出牠的名字時面向牠，諾恩嘀咕的那一句也是；她問「你為什麼在笑」時轉回來看他
+func test_arrival_talk_turns_everyone_to_the_speaker_and_frames_the_raised_golem() -> void:
+	var level: RuinedAltar = _load_altar()
+	await tree.physics_frame
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	var body: Node3D = player.get_node("Body") as Node3D
+	var sera: Sera = level.sera
+	var golem: PlagueGolem = level.golem
+	var leo: Node3D = level.party["Leo"] as Node3D
+	player.global_position = Vector3(0, 0.05, RuinedAltar.ARRIVE_Z - 0.5)
+	await _frames(50)
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_true(runner != null and runner.is_running(), "抵達的那段話開始了")
+	assert_true(_faces(body, leo.global_position) and _faces(sera, leo.global_position), "雷歐開口：諾恩與席菈都轉過去看他")
+	runner.advance()
+	await _frames(45)
+	var cam: TalkCamera = level.talk_camera
+	assert_true(absf(cam.fov - TalkCamera.LOOK_FOV) < 0.5, "看著魔像的那一句鏡頭比較廣（%.1f°）" % cam.fov)
+	for p: Vector3 in [leo.global_position, golem.global_position + Vector3.UP * 0.3, golem.global_position + Vector3.UP * 4.3]:
+		assert_true(cam.is_position_in_frustum(p), "雷歐、魔像的腳與舉著的拳頭都在畫面裡（%s）" % str(p))
+	var leo_y: float = cam.unproject_position(leo.global_position).y / cam.get_viewport().get_visible_rect().size.y
+	assert_true(leo_y < 0.74, "倒在地上的雷歐在對話框上面（畫面高的 %.2f）" % leo_y)
+	assert_true(_faces(body, golem.global_position) and _faces(sera, golem.global_position), "大家一起看著魔像")
+	runner.advance()
+	await _frames(40)
+	assert_eq(str(runner.current().get("speaker", "")), Sera.NAME_KEY)
+	assert_true(_faces(sera, golem.global_position), "席菈喊出牠的名字：面向魔像")
+	assert_true(_faces(body, sera.global_position), "諾恩轉過來看她")
+	assert_true(cam.is_position_in_frustum(sera.global_position + Vector3.UP * 1.4), "鏡頭拍她")
+	runner.advance()
+	await _frames(40)
+	assert_true(_faces(body, golem.global_position), "諾恩嘀咕的那一句看著魔像")
+	assert_true(_faces(sera, player.global_position), "席菈看著他")
+	runner.advance()
+	await _frames(40)
+	assert_true(_faces(sera, player.global_position) and _faces(body, sera.global_position), "「你為什麼在笑」：兩個人面對面")
+	_finish_dialogue(0)
+	await _frames(40)
+	assert_false(cam.is_talking(), "講完鏡頭還給玩家")
+
+
 func test_golem_punches_and_slams_and_cannot_die_while_its_core_holds() -> void:
 	var level: RuinedAltar = await _load_fight()
 	var player: PlayerController = level.get_node("Player") as PlayerController

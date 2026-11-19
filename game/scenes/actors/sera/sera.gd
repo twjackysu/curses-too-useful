@@ -103,6 +103,8 @@ var stoned_left: float = 0.0
 ## 關卡指定要射的那一瓶（shoot）：還要舉弩瞄幾秒（< 0＝沒有）
 var _special_in: float = -1.0
 var _special_source: String = ""
+## 對話中要面向的地方（TalkCamera 照那一句的 to／look 叫 talk_to；沒有在對話就清掉、照平常面向諾恩）
+var _talk_point: Vector3 = Vector3.INF
 var _stone_mat: StandardMaterial3D
 var target: PlayerController
 var vials_fired: int = 0
@@ -184,8 +186,14 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_puppet.set_move_speed(speed)
 	# 平常離他 0.3 m 以內就不轉（貼在旁邊時不要一直打轉）；對話中再近也轉過去面向他（戰後那段話她跑到他肩膀旁邊）
-	var facing_dist: float = 0.05 if Game.is_in_dialogue() else 0.3
-	if dist > facing_dist and (joined or dist < NOTICE_DIST):
+	var talking: bool = Game.is_in_dialogue()
+	if not talking:
+		_talk_point = Vector3.INF
+	var facing_dist: float = 0.05 if talking else 0.3
+	var to_talk: Vector3 = _talk_point - global_position if _talk_point.is_finite() else Vector3.ZERO
+	if Vector2(to_talk.x, to_talk.z).length() > 0.05:
+		rotation.y = lerp_angle(rotation.y, atan2(-to_talk.x, -to_talk.z), minf(delta * TURN_SPEED, 1.0))
+	elif dist > facing_dist and (joined or dist < NOTICE_DIST):
 		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(delta * TURN_SPEED, 1.0))
 	if locked:
 		return
@@ -205,6 +213,11 @@ func _physics_process(delta: float) -> void:
 	if was_loading and brain.ask_left <= 0.0:
 		Sfx.play_at(self, "vial_load", global_position + Vector3.UP * 1.1, -6.0, 0.04)
 		reloaded.emit()
+
+
+## 對話中轉過去面向 point（TalkCamera 叫：對話開始時面向聽她講話的人，之後照每一句的 to／look）
+func talk_to(point: Vector3) -> void:
+	_talk_point = point
 
 
 ## 關卡叫她站到 hold_at：跑過去、到了就面向諾恩站著。不跟、不射平常的藥；關卡指定的那一瓶（shoot）照樣舉弩射。

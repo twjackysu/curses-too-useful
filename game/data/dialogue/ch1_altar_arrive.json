@@ -6,12 +6,14 @@
       "speaker": "SPK_LEO",
       "text": "DLG_CH1_ALTAR_001",
       "emote": "shock",
+      "to": "SPK_NOEN",
       "next": "l01"
     },
     "l01": {
       "speaker": "SPK_LEO",
       "text": "DLG_CH1_ALTAR_002",
       "emote": "gloom",
+      "look": "BOSS_PLAGUE_GOLEM",
       "next": "l02"
     },
     "l02": {
@@ -19,17 +21,20 @@
       "text": "DLG_CH1_ALTAR_003",
       "emote": "shock",
       "act": "point",
+      "to": "BOSS_PLAGUE_GOLEM",
       "next": "l03"
     },
     "l03": {
       "speaker": "SPK_NOEN",
       "text": "DLG_CH1_ALTAR_004",
+      "to": "BOSS_PLAGUE_GOLEM",
       "next": "l04"
     },
     "l04": {
       "speaker": "SPK_SHEILA",
       "text": "DLG_CH1_ALTAR_005",
       "emote": "question",
+      "to": "SPK_NOEN",
       "next": "l05"
     },
     "l05": {

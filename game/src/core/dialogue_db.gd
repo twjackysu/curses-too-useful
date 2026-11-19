@@ -11,9 +11,10 @@ extends RefCounted
 ##     "bye":   {"speaker": "SPK_...", "text": "DLG_..."}          ← 沒有 next／choices＝結束
 ##     "dead":  {"speaker": "SPK_...", "text": "DLG_預設", "text_if": [{"if": {...條件}, "text": "DLG_..."}]}
 ##              ← 依狀態換台詞（第一個成立的），流程不變
-##     "x":     {..., "emote": "sweat", "act": "bow", "shot": "two", "head": "down"}
+##     "x":     {..., "emote": "sweat", "act": "bow", "shot": "two", "head": "down", "to": "SPK_...", "look": "BOSS_..."}
 ##              ← 演出（都可以不寫）：講話的人頭上冒的漫符（EMOTES）、這一句開頭做的手勢（ACTS）、鏡位（SHOTS：two＝兩人同框）、
-##                講這一句時頭低著還是抬著（HEADS）
+##                講這一句時頭低著還是抬著（HEADS）；to＝這一句講給誰聽（講話的人轉過去面向他、其他人轉過來看講話的人）、
+##                look＝這一句大家一起看著什麼（鏡頭把講話的人與那個東西框在一起）——兩個都是關卡登記在 TalkCamera.cast 的 key
 ##   }
 ## }
 ## next 與 choices 不能同時存在；所有 next 都要指向存在的節點；每個節點都要能從 start 走到。
@@ -133,6 +134,11 @@ static func validate_dialogue(d: Dictionary) -> PackedStringArray:
 			var field: String = str(pair[0])
 			if n.has(field) and not (pair[1] as PackedStringArray).has(str(n[field])):
 				out.append("節點 %s 的 %s 不認得：%s" % [nid, field, str(n[field])])
+		for field: String in ["to", "look"]:
+			if n.has(field) and (not n[field] is String or str(n[field]) == ""):
+				out.append("節點 %s 的 %s 要寫一個說話者的 key" % [nid, field])
+		if n.has("to") and n.has("look"):
+			out.append("節點 %s 不能同時有 to 與 look" % nid)
 		if n.has("next") and n.has("choices"):
 			out.append("節點 %s 不能同時有 next 與 choices" % nid)
 		if n.has("next") and not nodes.has(str(n["next"])):
