@@ -101,6 +101,15 @@ var _bark_root: Control
 var _bark_back: StyleBoxFlat
 ## Boss 的生命條（畫面上方中間；場上有醒著的 Boss 才出現）
 var boss_bar: BossBar
+## 過場的鏡頭切走的那幾秒（粉碎核心的那一刀，FinisherCamera）：整個 HUD 收起來（生命條、狀態列、Boss 的生命條、目標、頭上的字）
+var cinematic: bool = false:
+	set(v):
+		if v == cinematic:
+			return
+		cinematic = v
+		if not _nohud:
+			visible = not v
+var _nohud: bool = false
 var _barks: Array[Dictionary] = []
 
 
@@ -119,6 +128,7 @@ func _ready() -> void:
 	Settings.changed.connect(_refresh_hint)
 	# 截圖用：`--nohud` 整個 HUD 不顯示（Steam 膠囊圖替代版的背景、宣傳截圖）
 	if App.parse_user_args(OS.get_cmdline_user_args()).has("nohud"):
+		_nohud = true
 		visible = false
 
 

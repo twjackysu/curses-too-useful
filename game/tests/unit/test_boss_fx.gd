@@ -40,6 +40,109 @@ func test_finisher_camera_takes_over_then_hands_the_view_back() -> void:
 	await tree.process_frame
 
 
+func test_finisher_camera_moves_to_the_other_side_when_a_pillar_blocks_and_is_a_cutscene_while_holding() -> void:
+	var root := Node3D.new()
+	tree.root.add_child(root)
+	var home := Camera3D.new()
+	home.position = Vector3(0.8, 2.0, 5.0)
+	root.add_child(home)
+	home.current = true
+	# 玩家那一側（右邊）的鏡位上立一根柱子
+	var right: Transform3D = FinisherCamera.shot(Vector3(0, 0, 2), Vector3.ZERO, home.position, 6.0, 1.3, 2.0)
+	var pillar := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(1.4, 6.0, 1.4)
+	shape.shape = box
+	pillar.add_child(shape)
+	pillar.position = Vector3(right.origin.x * 0.6, 1.0, right.origin.z * 0.6 + 0.4)
+	root.add_child(pillar)
+	await tree.physics_frame
+	await tree.physics_frame
+	var cam: FinisherCamera = FinisherCamera.play(root, Vector3(0, 0, 2), Vector3.ZERO, 0.15, 6.0, 1.3, 2.0)
+	assert_not_null(cam)
+	if cam != null:
+		assert_true(cam.flipped and cam.global_position.x < -4.0, "右邊被柱子擋住：換到左邊、照樣離 6 m（x=%.1f）" % cam.global_position.x)
+		assert_true(Game.in_cutscene(), "停著的那幾秒是過場：玩家不能動")
+		await tree.process_frame
+		await tree.process_frame
+		assert_true(absf(cam.h_offset) + absf(cam.v_offset) > 0.0, "切過去的那一下鏡頭晃一下")
+		await tree.create_timer(0.3, true, false, true).timeout
+		assert_false(cam.is_holding())
+		assert_false(Game.in_cutscene(), "開始滑回去：玩家可以動了")
+	root.queue_free()
+	await tree.process_frame
+
+
+func test_slow_mo_sound_muffles_and_slows_the_effects_then_restores_them() -> void:
+	assert_true(is_equal_approx(SlowMoSound.depth_at(0.0, 1.0), 0.0) and is_equal_approx(SlowMoSound.depth_at(0.5, 1.0), 1.0), "一下子悶到底")
+	assert_true(SlowMoSound.depth_at(SlowMoSound.DIP_SEC + 1.0 + SlowMoSound.BACK_SEC * 0.5, 1.0) < 0.6, "慢慢回來")
+	var bus: int = AudioServer.get_bus_index(SlowMoSound.BUS)
+	assert_true(bus >= 0, "有音效的匯流排")
+	var before: int = AudioServer.get_bus_effect_count(bus)
+	var root := Node.new()
+	tree.root.add_child(root)
+	var s: SlowMoSound = SlowMoSound.play(root, 0.2)
+	await tree.create_timer(0.2, true, false, true).timeout
+	assert_eq(AudioServer.get_bus_effect_count(bus), before + 1, "音效匯流排上多一個低通")
+	assert_true(s.filter.cutoff_hz < 2000.0, "悶下去了（%.0f Hz）" % s.filter.cutoff_hz)
+	assert_true(AudioServer.playback_speed_scale < 0.8, "聲音放慢")
+	root.queue_free()
+	await tree.process_frame
+	assert_eq(AudioServer.get_bus_effect_count(bus), before, "收掉：低通拿掉")
+	assert_true(is_equal_approx(AudioServer.playback_speed_scale, 1.0), "速度還原")
+
+
+func test_the_dropped_core_rolls_onto_open_floor_away_from_pillars_and_leos_party() -> void:
+	var clear := func(p: Vector3) -> bool: return RuinedAltar.core_spot_clear(p)
+	assert_false(bool(clear.call((RuinedAltar.PARTY[0][2] as Vector3) + Vector3(0.5, 0.0, 0.3))), "壓到躺著的雷歐：不行")
+	assert_false(bool(clear.call(Vector3(cos(deg_to_rad(22.0)), 0.0, sin(deg_to_rad(22.0))) * AltarScenery.PILLAR_RING)), "斷柱上：不行")
+	assert_false(bool(clear.call(Vector3(15.6, 0.0, 0.0))), "石板邊上：不行")
+	assert_true(bool(clear.call(Vector3(2.0, 0.0, 4.0))), "空著的石板：可以")
+	var moved: int = 0
+	var bad: PackedStringArray = []
+	var cases: int = 0
+	for x: int in range(-12, 13, 2):
+		for z: int in range(-7, 14, 2):
+			var at := Vector3(float(x), 0.0, float(z))
+			# 魔像站得到的地方（不在柱子、躺著的人身上）
+			if not AltarScenery.open_floor(at, 1.2) or not bool(clear.call(at)):
+				continue
+			for k: int in 8:
+				var fwd := Vector3(sin(TAU * float(k) / 8.0), 0.0, cos(TAU * float(k) / 8.0))
+				cases += 1
+				var first: Vector3 = PlagueGolem.core_rest_spot(at, fwd)
+				var rest: Vector3 = PlagueGolem.core_rest_spot(at, fwd, clear)
+				if not bool(clear.call(first)):
+					moved += 1
+				if not bool(clear.call(rest)):
+					bad.append("%s→%s" % [at, rest])
+				var d: float = Vector2(rest.x - at.x, rest.z - at.z).length()
+				if d < 1.5 or d > 3.4:
+					bad.append("%s 滾了 %.1f m" % [at, d])
+	print("    核心停的地方：%d 種倒法，%d 種的第一個位置會壓到東西、換了位置" % [cases, moved])
+	assert_true(cases > 300 and moved > 10, "有會壓到東西的倒法（%d／%d）" % [moved, cases])
+	assert_eq(bad, PackedStringArray(), "每一種倒法都停在空著的石板上、在牠旁邊")
+	# 同樣的輸入同樣的答案（讀檔回來擺在同一個地方）
+	var a := PlagueGolem.core_rest_spot(Vector3(-6.5, 0, 0.5), Vector3.LEFT, clear)
+	assert_eq(a, PlagueGolem.core_rest_spot(Vector3(-6.5, 0, 0.5), Vector3.LEFT, clear))
+
+
+func test_lying_party_member_sits_up_around_the_hips() -> void:
+	var lie: Transform3D = RuinedAltar.sitting_up(0.0)
+	assert_true(lie.origin.is_equal_approx(Vector3(0.0, RuinedAltar.LIE_Y, RuinedAltar.LIE_FEET_Z)), "一開始跟躺著的時候一模一樣")
+	assert_true(lie.basis.is_equal_approx(Basis(Vector3.RIGHT, PI * 0.5)), "整個人放倒（頭往 +Z）")
+	var sat: Transform3D = RuinedAltar.sitting_up(1.0)
+	assert_true(sat.basis.is_equal_approx(Basis.IDENTITY) and absf(sat.origin.y) < 0.001, "坐好：直立、腳底在地上")
+	var pivots: Array[float] = []
+	for k: float in [0.0, 0.25, 0.5, 0.75, 1.0]:
+		var t: Transform3D = RuinedAltar.sitting_up(k)
+		var hip: Vector3 = t.origin + t.basis * Vector3(0.0, lerpf(RuinedAltar.SIT_PIVOT, RuinedAltar.SIT_HIP, k), 0.0)
+		pivots.append(hip.z)
+		assert_true(hip.y > 0.1 and hip.y < 0.2, "骨盆一直貼著地（k=%.2f：%.2f m）" % [k, hip.y])
+	assert_true(absf(pivots.max() - pivots.min()) < 0.001, "轉的支點在骨盆：骨盆不會前後滑")
+
+
 func test_rock_debris_bursts_once_at_the_given_spot_and_cleans_up() -> void:
 	var root := Node3D.new()
 	tree.root.add_child(root)

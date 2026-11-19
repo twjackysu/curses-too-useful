@@ -1218,14 +1218,41 @@ func weapon() -> Node3D:
 
 
 ## 霸體無敵（石化被反轉）的時候整個人蓋一層金光：看得出「現在打不動他」。劍有自己的那一層，不蓋。
+## 演出的鏡頭（粉碎核心那一刀的側面）裡收成細細的一圈輪廓（calm_body_glow）：整個人金成一座雕像，衣服、臉、劍都看不出來
 const BODY_GLOW_FILL: float = 0.1
 const BODY_GLOW_RIM: float = 2.4
+const BODY_GLOW_CALM_RIM: float = 0.7
+const BODY_GLOW_CALM_POWER: float = 3.2
 var _body_glow_mat: ShaderMaterial
 var _body_glow_on: bool = false
 
 
 func is_body_glowing() -> bool:
 	return _body_glow_on
+
+
+## 金光收成細的輪廓（on＝true）或照平常（false）。還沒蓋過金光也可以先設（之後蓋上去就是這個樣子）
+func calm_body_glow(on: bool) -> void:
+	_ensure_body_glow_mat()
+	_body_glow_mat.set_shader_parameter("fill", 0.0 if on else BODY_GLOW_FILL)
+	_body_glow_mat.set_shader_parameter("rim", BODY_GLOW_CALM_RIM if on else BODY_GLOW_RIM)
+	_body_glow_mat.set_shader_parameter("rim_power", BODY_GLOW_CALM_POWER if on else 1.8)
+
+
+## 金光現在多厚（fill＋rim；測試用）
+func body_glow_weight() -> float:
+	_ensure_body_glow_mat()
+	return float(_body_glow_mat.get_shader_parameter("fill")) + float(_body_glow_mat.get_shader_parameter("rim"))
+
+
+func _ensure_body_glow_mat() -> void:
+	if _body_glow_mat != null:
+		return
+	_body_glow_mat = ShaderMaterial.new()
+	_body_glow_mat.shader = SWORD_GLOW_SHADER
+	_body_glow_mat.set_shader_parameter("glow_color", REVERSAL_GOLD)
+	_body_glow_mat.set_shader_parameter("fill", BODY_GLOW_FILL)
+	_body_glow_mat.set_shader_parameter("rim", BODY_GLOW_RIM)
 
 
 func _update_body_glow() -> void:
@@ -1241,12 +1268,7 @@ func _set_body_glow(on: bool) -> void:
 	if on == _body_glow_on:
 		return
 	_body_glow_on = on
-	if _body_glow_mat == null:
-		_body_glow_mat = ShaderMaterial.new()
-		_body_glow_mat.shader = SWORD_GLOW_SHADER
-		_body_glow_mat.set_shader_parameter("glow_color", REVERSAL_GOLD)
-		_body_glow_mat.set_shader_parameter("fill", BODY_GLOW_FILL)
-		_body_glow_mat.set_shader_parameter("rim", BODY_GLOW_RIM)
+	_ensure_body_glow_mat()
 	for n: Node in _puppet.find_children("*", "GeometryInstance3D", true, false):
 		if _weapon == null or not _weapon.is_ancestor_of(n):
 			(n as GeometryInstance3D).material_overlay = _body_glow_mat if on else null

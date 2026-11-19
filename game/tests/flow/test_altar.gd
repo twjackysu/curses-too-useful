@@ -561,6 +561,9 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_true(peak > SeraVial.ARC_HEIGHT + 1.2, "拋得比平常高（最高比諾恩的腳高 %.1f m）" % peak)
 	assert_true(hud.boss_bar.brew < 0.0 and not sera.is_brewing() and sera.puppet().pose != Sera.BREW_POSE, "射出去了：那一條收起來、她站起來")
 	assert_true(golem.is_core_marked(), "胸口的核心變成金色、一圈一圈往中心收：砍這裡")
+	await tree.process_frame
+	await tree.process_frame
+	assert_true(player.is_body_glowing() and player.body_glow_weight() < 1.0, "等著砍核心的時候諾恩的金光收成細的輪廓：不會跟金色的核心糊成一片")
 	assert_true(golem.heard.has(PlagueGolem.CORE_GLOW_SFX), "核心亮起來的聲音")
 	assert_true(golem.heard.has(PlagueGolem.GAZE_CHARGE_SFX) and golem.heard.has(PlagueGolem.GAZE_BEAM_SFX), "凝視：前兆的嗡鳴、打出去的那一下")
 	hud.boss_bar.refresh(golem)
@@ -596,6 +599,10 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 		assert_true(level.finisher.current and level.finisher.is_holding(), "側面的鏡頭正在用")
 		var side: Vector3 = level.finisher.global_position - player.global_position
 		assert_true(side.length() > 3.0 and level.finisher.global_position.y < 2.0, "在旁邊、放低往上看")
+		assert_true(hud.cinematic and not hud.visible, "側面的鏡頭停著的時候 HUD 收起來")
+		assert_true(player.is_body_glowing() and player.body_glow_weight() < 1.0, "霸體的金光收成細的輪廓：看得出諾恩的樣子（%.1f）" % player.body_glow_weight())
+		assert_true(bool(_game().call("in_cutscene")), "那幾秒是過場：鏡頭不在他背後，不能動")
+	assert_not_null(level.get_node_or_null("SlowMoSound"), "音效悶下去、放慢")
 	assert_true(_named(level, "RockDebris") >= 3, "核心炸成碎片（%d 把）" % _named(level, "RockDebris"))
 	assert_true(level.core == null, "核心還在牠身上（倒地才滾出來）")
 	assert_eq(s.state.get_flag(RuinedAltar.FLAG_GOLEM_DOWN), true)
@@ -614,6 +621,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_not_null(level.core, "核心滾出來了")
 	await _frames(100)
 	assert_true(absf(level.core.global_position.y - GolemCore.RADIUS - golem.global_position.y) < 0.05, "停在地上")
+	assert_true(RuinedAltar.core_spot_clear(level.core.global_position), "停在空著的石板上（不在柱子、躺著的人身上）")
 	assert_true(golem.heard.has(PlagueGolem.CORE_LAND_SFX), "核心落地的那一聲")
 	assert_true(music == null or not is_instance_valid(music) or music.volume_db < RuinedAltar.BOSS_MUSIC_DB - 20.0,
 		"魔像倒下時配樂已經快收完了（%.0f dB；收完就拿掉）" % (music.volume_db if is_instance_valid(music) else -99.0))
@@ -627,6 +635,20 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 		if bool(_game().call("is_in_dialogue")):
 			break
 	assert_true(bool(_game().call("is_in_dialogue")), "戰後那段話開始了")
+	# 雷歐與法師在魔像垮下去的那幾秒撐起上身、坐在地上（面向魔像與諾恩）；坦克昏過去，還趴著
+	for spec: Array in RuinedAltar.PARTY:
+		var who: Node3D = level.party[str(spec[0])] as Node3D
+		var lying: Puppet = who.get_node("Puppet") as Puppet
+		if bool(spec[5]):
+			assert_true(bool(who.get_meta(RuinedAltar.SAT_META, false)) and lying.pose == RuinedAltar.SIT_POSE, "%s 坐起來了" % spec[0])
+			assert_true(lying.transform.basis.is_equal_approx(Basis.IDENTITY) and absf(lying.position.y) < 0.01, "%s 整個人轉回直立、坐在地上" % spec[0])
+			var facing: Vector3 = -(lying.global_basis.z)
+			var to_center: Vector3 = (golem.global_position - who.global_position)
+			assert_true(Vector2(facing.x, facing.z).normalized().dot(Vector2(to_center.x, to_center.z).normalized()) > 0.3,
+				"%s 坐起來面向魔像倒下的地方（不是背對大家）" % spec[0])
+			assert_eq(float(who.get_meta(TalkCamera.DROP_META)), RuinedAltar.SITTING_DROP, "對話鏡頭照坐著的高度")
+		else:
+			assert_eq(lying.pose, "down_front", "坦克還趴著")
 	var affinity: int = int(s.state.get_flag("sera.affinity", 0))
 	_finish_dialogue(1)
 	assert_eq(int(s.state.get_flag("sera.affinity", 0)), affinity + 10, "回答加好感度")
@@ -647,6 +669,12 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	# 隔一下出「當天傍晚——奧爾德冒險者公會」的卡，播完換到大廳
 	assert_true(level.card == null, "先讓「獲得魔像核心」出來")
 	assert_true(bool(_game().call("is_player_locked")), "等卡出來的那幾秒是過場：不能在石板上走")
+	assert_true(level.outro_camera != null and level.outro_camera.current, "等卡的那幾秒鏡頭切到兩人的側面")
+	if level.outro_camera != null:
+		assert_eq(level.outro_camera.shake, 0.0, "不晃")
+		var mid: Vector3 = player.global_position.lerp(sera.global_position, 0.5)
+		assert_true(level.outro_camera.global_position.distance_to(mid) > 3.0 and level.outro_camera.global_position.distance_to(mid) < 6.0, "在兩人旁邊幾公尺")
+	assert_true(hud.visible and not hud.cinematic, "HUD 照樣在：「獲得魔像核心」那一行看得到")
 	await _frames(int(RuinedAltar.RETURN_DELAY * 60.0) + 20)
 	assert_not_null(level.card, "換關卡的那張卡")
 	assert_eq(level.card.title_text(), tr("CARD_RETURN_TITLE"))
@@ -664,7 +692,11 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	if player.puppet().uses_model():
 		assert_true(player.puppet().carry, "換成扛東西的動作（左手扶著）")
 	assert_false(is_instance_valid(level.finisher), "側面的鏡頭收掉了")
-	assert_true((player.get_node("CameraRig/Pitch/SpringArm3D/Camera3D") as Camera3D).current, "鏡頭還給玩家")
+	assert_true(not hud.cinematic and hud.visible, "HUD 回來了")
+	assert_true(player.body_glow_weight() > 2.0, "金光照平常（%.1f）" % player.body_glow_weight())
+	assert_true(level.get_node_or_null("SlowMoSound") == null and is_equal_approx(AudioServer.playback_speed_scale, 1.0), "聲音還原")
+	assert_true(level.outro_camera != null and is_instance_valid(level.outro_camera) and level.outro_camera.current,
+		"等卡的那個鏡頭一直停到換關卡（粉碎那一刀的側面鏡頭早就還給玩家了）")
 	assert_true(level.plague_level() < 0.05, "石板的縫不亮了")
 	assert_false(sera.masked, "席菈把面具拿下來")
 	assert_true(sera.global_position.distance_to(player.global_position) < 9.0, "她跟在諾恩旁邊")
@@ -712,10 +744,12 @@ func test_retry_restarts_the_fight_and_a_save_after_the_golem_fell_resumes_the_t
 	var down: Vector3 = RuinedAltar.golem_down_spot()
 	var fwd: Vector3 = RuinedAltar.golem_down_facing()
 	assert_true(Vector2(down.x - fell_at.x, down.z - fell_at.z).length() < 0.01 and fwd.dot(fell_fwd) > 0.999, "存了牠倒在哪裡、面向哪裡")
-	assert_true(level.core != null and level.core.position.distance_to(PlagueGolem.core_rest_spot(down, fwd)) < 0.01, "牠的核心躺在牠倒下的旁邊")
+	assert_true(level.core != null and level.core.position.distance_to(PlagueGolem.core_rest_spot(down, fwd, level.core_spot_clear)) < 0.01, "牠的核心躺在牠倒下的旁邊")
 	var pile: RubblePile = level.get_node_or_null("Rubble") as RubblePile
 	assert_true(pile != null and pile.position.distance_to(down - fwd * PlagueGolem.RUBBLE_BACK) < 0.01, "那一堆碎石在牠倒下的地方")
 	assert_not_null(level.party.get("Leo"), "雷歐小隊還在")
+	assert_true(bool((level.party["Leo"] as Node3D).get_meta(RuinedAltar.SAT_META, false)), "讀檔回來雷歐已經坐起來了")
+	assert_true(((level.party["Leo"] as Node3D).get_node("Puppet") as Node3D).transform.is_equal_approx(RuinedAltar.sitting_up(1.0)), "直接坐好（不再演一次）")
 	for i: int in int(RuinedAltar.AFTER_TALK_RELOAD * 60.0) + 30:
 		await tree.physics_frame
 		if bool(_game().call("is_in_dialogue")):

@@ -30,14 +30,30 @@ const LEO_KEY: String = "SPK_LEO"
 const SERA_START_OFFSET: Vector3 = Vector3(-1.5, 0.0, 2.4)
 ## 魔像一開始站在這裡，舉著拳頭對著倒在地上的雷歐
 const GOLEM_START: Vector3 = Vector3(-4.2, 0.0, -1.5)
-## 雷歐小隊倒在石板的西邊：節點名、角色 id、位置、頭朝哪（度）、臉朝上還是朝下
+## 雷歐小隊倒在石板的西邊：節點名、角色 id、位置、頭朝哪（度）、臉朝上還是朝下、魔像倒了之後會不會撐起上身坐好。
+## 仰躺的兩個是被打飛往後倒的：頭朝外、腳朝著魔像——坐起來的時候正好面向魔像與諾恩（以前頭朝著魔像，坐起來會背對大家）。
+## 趴著的坦克昏過去了，打完還是趴著
 const PARTY: Array[Array] = [
-	["Leo", "leo", Vector3(-8.2, 0.0, -0.6), 100.0, true],
-	["LeoMage", "leo_mage", Vector3(-10.4, 0.0, 2.8), 215.0, true],
-	["LeoTank", "leo_tank", Vector3(-8.8, 0.0, -4.4), 20.0, false],
+	["Leo", "leo", Vector3(-8.2, 0.0, -0.6), 283.0, true, true],
+	["LeoMage", "leo_mage", Vector3(-10.4, 0.0, 2.8), 294.0, true, true],
+	["LeoTank", "leo_tank", Vector3(-8.8, 0.0, -4.4), 20.0, false, false],
 ]
-## 倒在地上的人比站著矮這麼多（對話鏡頭照這個放低）
+## 倒在地上的人比站著矮這麼多（對話鏡頭照這個放低）；坐起來之後
 const LYING_DROP: float = 0.95
+const SITTING_DROP: float = 0.7
+## 仰躺的人：身體（Puppet，原點在腳底）離地多高、腳底在節點的哪裡（頭往 +Z）
+const LIE_Y: float = 0.16
+const LIE_FEET_Z: float = -1.25
+## 撐起上身：轉的支點是骨盆（站著時離腳底 SIT_PIVOT），坐好之後骨盆離地 SIT_HIP（common.py 的 sit_ground 坐在地上）
+const SIT_PIVOT: float = 0.9
+const SIT_HIP: float = 0.14
+const SIT_POSE: String = "sit_ground"
+## 魔像倒下之後隔多久雷歐撐起來（牠跪下、往前垮的那幾秒）、要多久、法師比他晚多久
+const SIT_UP_DELAY: float = 2.4
+const SIT_UP_SEC: float = 1.2
+const SIT_UP_STAGGER: float = 0.7
+## 坐起來了（節點上的 meta；測試看這個）
+const SAT_META: String = "sat_up"
 ## 魔像舉著拳頭時最高到多高（抵達的那段話，鏡頭把牠與雷歐框在一起時照這個高度框）
 const GOLEM_TALK_HEIGHT: float = 4.8
 ## 走上石板（z 比這個小）雷歐就開口
@@ -59,6 +75,13 @@ const FINISH_HOLD_SEC: float = 3.5
 const FINISH_CAM_DIST: float = 5.4
 const FINISH_CAM_HEIGHT: float = 1.3
 const FINISH_AIM_HEIGHT: float = 1.8
+## 戰後那段話講完、等卡出來的那幾秒：鏡頭切到兩人的側面（席菈 → 諾恩的連線旁邊），看核心飛到他肩上
+const OUTRO_DIST: float = 4.2
+const OUTRO_HEIGHT: float = 1.45
+const OUTRO_AIM: float = 1.3
+const PLAYER_CAMERA: NodePath = ^"CameraRig/Pitch/SpringArm3D/Camera3D"
+## 滾出來的核心離躺在地上的人至少多遠（節點在胸口附近）
+const CORE_PARTY_GAP: float = 1.6
 ## 戰後那段話講完，核心飛到諾恩肩上要多久
 const CORE_TAKE_SEC: float = 0.7
 ## 第一次走進光環的那兩行說明出來之後，隔多久席菈才喊面具的那一句（開打的頭幾秒字太多：說明、雷歐的一句、魔像的第一拳都擠在這時候）
@@ -87,6 +110,8 @@ var card: ChapterCard
 ## 魔像倒地之後滾出來的核心（還沒倒是 null）；粉碎那一刀的側面鏡頭（演完自己收掉）
 var core: GolemCore
 var finisher: FinisherCamera
+## 戰後那段話講完、等卡出來的那幾秒的鏡頭（還沒到那一拍是 null）
+var outro_camera: FinisherCamera
 ## 雷歐小隊：節點名 → 那個人
 var party: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
@@ -94,6 +119,9 @@ var _spores: CPUParticles3D
 var _wake_in: float = -1.0
 var _after_talk_in: float = -1.0
 var _return_in: float = -1.0
+var _party_sit_in: float = -1.0
+## 諾恩的霸體金光現在收成細的輪廓嗎（_process）
+var _glow_calmed: bool = false
 ## 飛在半路上的那一瓶禁藥（砸中才開核心）
 var _chaos_vial: SeraVial
 var _plague_level: float = 0.0
@@ -170,7 +198,7 @@ func _ready() -> void:
 	if bool(st.get_flag(FLAG_GOLEM_DOWN, false)) and stage() == STAGE_AFTER:
 		_after_talk_in = AFTER_TALK_RELOAD  # 魔像倒了、話還沒講就離開的存檔：讀回來接著講
 		core = GolemCore.create()
-		core.position = PlagueGolem.core_rest_spot(golem_down_spot(), golem_down_facing())
+		core.position = PlagueGolem.core_rest_spot(golem_down_spot(), golem_down_facing(), core_spot_clear)
 		add_child(core)
 	Game.dialogue_ended.connect(_on_dialogue_ended)
 	# 連拍用（scripts/burst.sh）：`--burst-on=hit|enrage|gaze|fire|chaos|shatter|down` 那一刻開始拍（hit＝魔像第一次被砍中、down＝魔像倒下）；`--demo=block` 凝視一開始就把諾恩放到那道光上、
@@ -201,6 +229,17 @@ static func golem_down_facing() -> Vector3:
 	return Vector3(-sin(yaw), 0.0, -cos(yaw))
 
 
+## 滾出來的核心可以停在這裡嗎：空著的石板（不在斷柱、倒著的那兩截、祭壇的台階上，不在石板邊上），不壓到躺著的雷歐小隊
+static func core_spot_clear(p: Vector3) -> bool:
+	if not AltarScenery.open_floor(p, GolemCore.RADIUS):
+		return false
+	for spec: Array in PARTY:
+		# 倒在地上的人：節點在胸口附近，從頭到腳約 1.8 m
+		if Vector2(p.x, p.z).distance_to(Vector2((spec[2] as Vector3).x, (spec[2] as Vector3).z)) < CORE_PARTY_GAP:
+			return false
+	return true
+
+
 func footstep_surface(p: Vector3) -> String:
 	# 石板上是石頭的腳步聲；外圍跟森林一樣是土
 	return "stone" if Vector2(p.x, p.z).length() < AltarScenery.PLAZA_RADIUS else "dirt"
@@ -215,6 +254,18 @@ func plague_level() -> float:
 	return _plague_level
 
 
+func _process(_delta: float) -> void:
+	# 粉碎那一刀的側面鏡頭停著的那幾秒：HUD 收起來（只看得到兩個人與炸開的核心）
+	var holding: bool = finisher != null and is_instance_valid(finisher) and finisher.is_holding()
+	_hud.cinematic = holding
+	# 諾恩的霸體金光收成細的輪廓（看得出他的樣子）：核心變成金色、等著被砍的時候（他站在金色的核心前面，兩個都金的會糊成一片）
+	# 與那一刀的側面鏡頭裡
+	var calm: bool = holding or (golem != null and is_instance_valid(golem) and golem.is_core_marked())
+	if calm != _glow_calmed:
+		_glow_calmed = calm
+		_player.calm_body_glow(calm)
+
+
 func _physics_process(delta: float) -> void:
 	if not Game.session.in_story():
 		return
@@ -227,6 +278,10 @@ func _physics_process(delta: float) -> void:
 	_plague_level = move_toward(_plague_level, 1.0 if plagued else 0.0, delta * 0.8)
 	scenery.set_plague(_plague_level, 0.5 + 0.5 * sin(_pulse_t * 2.6))
 	sera.force_mask = plagued and aura.contains(sera.global_position)
+	if _party_sit_in >= 0.0:
+		_party_sit_in -= delta
+		if _party_sit_in < 0.0:
+			_sit_up_party()
 	if _return_in >= 0.0:
 		_return_in -= delta
 		if _return_in < 0.0:
@@ -331,11 +386,54 @@ func _spawn_party() -> void:
 		body.rotation.x = PI * 0.5 if face_up else -PI * 0.5
 		# 倒在地上的樣子（兩手攤開、膝蓋立起來／一手往前伸、臉側貼地），不是站著的人整個放倒
 		body.pose = "down_back" if face_up else "down_front"
-		body.position = Vector3(0.0, 0.16, -1.25 if face_up else 1.25)
+		body.position = Vector3(0.0, LIE_Y, LIE_FEET_Z if face_up else -LIE_FEET_Z)
 		who.add_child(body)
 		add_child(who)
 		ContactShadow.attach(who, 1.6, 0.4)
 		party[str(spec[0])] = who
+		# 魔像倒了之後讀檔回來：已經坐起來了
+		if bool(spec[5]) and bool(Game.session.state.get_flag(FLAG_GOLEM_DOWN, false)):
+			sit_up(who, 0.0)
+
+
+## 倒在地上的人撐起上身坐好：整個人從躺平（繞 X 轉 90°）轉回直立、同時換成坐在地上的動作，轉的支點在骨盆（骨盆留在原地、腳一直在地上）。
+## sec＝要多久（0＝直接坐好：讀檔回來）
+func sit_up(who: Node3D, sec: float) -> void:
+	var body: Puppet = who.get_node("Puppet") as Puppet
+	who.set_meta(TalkCamera.DROP_META, SITTING_DROP)
+	who.set_meta(SAT_META, true)
+	body.set_pose(SIT_POSE, sec)
+	if sec <= 0.0:
+		body.transform = sitting_up(1.0)
+		return
+	var t: Tween = body.create_tween()
+	t.tween_method(func(k: float) -> void: body.transform = sitting_up(k), 0.0, 1.0, sec)
+
+
+## 撐起上身到 k（0＝躺平、1＝坐好）的那一刻，身體在節點裡擺在哪（純函式，測試用）：
+## 轉的角度與骨盆離腳底的高度（坐著的動作把骨盆往下拉）照 k 一起變，骨盆一直在同一點
+static func sitting_up(k: float) -> Transform3D:
+	var angle: float = PI * 0.5 * (1.0 - k)
+	var pivot := Vector3(0.0, lerpf(LIE_Y, SIT_HIP, k), LIE_FEET_Z + SIT_PIVOT)
+	var hip: float = lerpf(SIT_PIVOT, SIT_HIP, k)
+	var b := Basis(Vector3.RIGHT, angle)
+	return Transform3D(b, pivot - b * Vector3(0.0, hip, 0.0))
+
+
+## 魔像倒了：會坐起來的那幾個一個接一個撐起來
+func _sit_up_party() -> void:
+	var delay: float = 0.0
+	for spec: Array in PARTY:
+		if not bool(spec[5]):
+			continue
+		var who: Node3D = party[str(spec[0])] as Node3D
+		if delay <= 0.0:
+			sit_up(who, SIT_UP_SEC)
+		else:
+			get_tree().create_timer(delay).timeout.connect(func() -> void:
+				if is_instance_valid(who):
+					sit_up(who, SIT_UP_SEC))
+		delay += SIT_UP_STAGGER
 
 
 func _spawn_golem() -> void:
@@ -343,6 +441,7 @@ func _spawn_golem() -> void:
 	golem.name = "Golem"
 	golem.position = GOLEM_START
 	golem.gaze_target = sera
+	golem.core_clear = core_spot_clear
 	# 抵達的那段話「大家一起看著牠」的那一句（look）：鏡頭照牠舉著拳頭的高度框
 	golem.set_meta(TalkCamera.HEIGHT_META, GOLEM_TALK_HEIGHT)
 	add_child(golem)
@@ -436,14 +535,17 @@ func _on_sera_freed() -> void:
 		_hud.show_bark(sera, "BARK_SERA_FREED", 2.8, Sera.NAME_KEY)
 
 
-## 核心被粉碎的那一刀：定格 → 碎片用慢動作飛出來；鏡頭切到兩人的側面（過肩鏡頭裡這一刻只看得到魔像的肚子），看牠跪下、往後倒，再還給玩家
+## 核心被粉碎的那一刀：定格 → 碎片用慢動作飛出來；鏡頭切到兩人的側面（過肩鏡頭裡這一刻只看得到魔像的肚子），看牠跪下、往前垮，再還給玩家。
+## 那幾秒 HUD 收起來、玩家不能動（FinisherCamera 是過場）、音效悶下去放慢（SlowMoSound）
 func _on_core_shattered() -> void:
 	_fade_out_music()
 	Game.hit_stop(FINISH_STOP_SEC, FINISH_SLOW_SEC, FINISH_SLOW_SCALE)
+	SlowMoSound.play(self, FINISH_STOP_SEC + FINISH_SLOW_SEC)
 	_player.shake(0.8)
 	_hud.hide_center_lines()
 	finisher = FinisherCamera.play(self, _player.global_position, golem.global_position, FINISH_HOLD_SEC,
 		FINISH_CAM_DIST, FINISH_CAM_HEIGHT, FINISH_AIM_HEIGHT, [_player.get_rid(), golem.get_rid()])
+	_hud.cinematic = finisher != null
 
 
 ## 粉碎核心之後配樂慢慢收掉（不跟著慢動作變慢：照真的時間收）
@@ -475,6 +577,7 @@ func _on_golem_down() -> void:
 	sera.hands_full = false
 	chatter.hint_paused = false
 	_after_talk_in = AFTER_TALK_DELAY
+	_party_sit_in = SIT_UP_DELAY
 
 
 ## 戰後那段話講完：拿到核心，隔一下「當天傍晚——奧爾德冒險者公會」，換到大廳演結尾
@@ -487,6 +590,12 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 		# 地上的核心飛到諾恩的左肩旁邊（結尾他就是這樣扛回公會的）
 		if core != null and is_instance_valid(core):
 			core.carry_on(_player.get_node("Body") as Node3D, CORE_TAKE_SEC, _player.puppet())
+		# 鏡頭切到兩人的側面停著，一直到換關卡的卡把畫面蓋掉（不晃；HUD 照樣在：「獲得魔像核心」那一行要看得到）
+		outro_camera = FinisherCamera.play(self, sera.global_position, _player.global_position, 60.0,
+			OUTRO_DIST, OUTRO_HEIGHT, OUTRO_AIM, [_player.get_rid(), sera.get_rid()], _player.get_node(PLAYER_CAMERA) as Camera3D)
+		if outro_camera != null:
+			outro_camera.name = "OutroCamera"
+			outro_camera.shake = 0.0
 
 
 func _mark(node_name: String, at: Vector3) -> void:

@@ -77,6 +77,27 @@ static func keep_inside(p: Vector3) -> Vector3:
 	return Vector3(back.x, p.y, back.y)
 
 
+## p 是空著的石板嗎（不在斷柱、柱腳的方石、倒著的那兩截、祭壇的台階上，離石板邊 1 m 以上）：
+## margin＝東西本身多大（滾出來的核心停在哪裡，RuinedAltar.core_spot_clear）
+static func open_floor(p: Vector3, margin: float) -> bool:
+	var flat := Vector2(p.x, p.z)
+	if flat.length() > PLAZA_RADIUS - 1.0 - margin:
+		return false
+	if flat.distance_to(Vector2(ALTAR_POS.x, ALTAR_POS.z)) < DAIS_STEPS[0].x + margin:
+		return false
+	for spec: Vector2 in PILLARS:
+		var at := Vector2(cos(deg_to_rad(spec.x)), sin(deg_to_rad(spec.x))) * PILLAR_RING
+		# 柱腳的方石 1.9 m 見方：對角線的一半
+		if flat.distance_to(at) < 1.35 + margin:
+			return false
+	for spec: Vector3 in FALLEN:
+		# 倒著的兩截在它自己的座標裡是一個長 2.5 m、寬 1.44 m 的方塊
+		var local: Vector2 = (flat - Vector2(spec.x, spec.y)).rotated(deg_to_rad(spec.z))
+		if absf(local.x) < DRUM_HEIGHT + 0.1 + margin and absf(local.y) < DRUM_RADIUS + margin:
+			return false
+	return true
+
+
 static func _open_ground(p: Vector2) -> bool:
 	return p.length() < PLAZA_RADIUS + 3.0 or (p.y > 0.0 and absf(p.x) < PATH_WALK_HALF + 1.5)
 

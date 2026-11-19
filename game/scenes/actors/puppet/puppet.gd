@@ -50,7 +50,7 @@ const TALK_EASE: float = 5.0
 const HEAD_TILT: Dictionary = {"": 0.0, "down": -0.38, "up": 0.16}
 const TILT_SPEED: float = 1.6
 ## 站著不動的時候可以換成的樣子（模型的循環動作；程式人偶只會坐）
-const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump", "down_back", "down_front", "brew"]
+const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump", "down_back", "down_front", "sit_ground", "brew"]
 ## 「釋放」的姿勢播多久。它不是 action：疊在站姿／走路／出手上面，不佔出手與閃避（放完同一幀照樣能出手）
 const RELEASE_POSE_TIME: float = 0.36
 ## 模型的手骨頭在手腕：手上的掛點往指尖移這麼多（掌心）
@@ -71,6 +71,8 @@ const SIT_HIP_HEIGHT: float = 0.5
 @export var character_id: String = ""
 ## 沒在走、沒在做一次性動作的時候的樣子（POSES）：""＝平常站著。模型沒有那段動作就照平常站
 var pose: String = ""
+## 下一次因為換 pose 而換動作時，用這麼久交叉淡化（秒；負數＝照平常）。用一次就清掉（set_pose）
+var _pose_blend: float = -1.0
 ## 扛著東西（魔像核心）：站、走、跑都換成左手舉到左肩上扶著的版本；模型沒有就照平常
 var carry: bool = false
 ## 直接指定模型場景（測試、工具）；優先於 character_id
@@ -378,6 +380,14 @@ func _emit_footfalls() -> void:
 			footfall.emit()
 
 
+## 換成另一個樣子（POSES），動作用 blend 秒慢慢換過去（倒在地上的人撐起上身）
+func set_pose(new_pose: String, blend: float) -> void:
+	if new_pose == pose:
+		return
+	pose = new_pose
+	_pose_blend = blend
+
+
 ## 模型：依狀態換動作；缺的動作退回（閃避＝整個人前滾，其他＝idle）。
 func _animate_model() -> void:
 	var state: String = current_state()
@@ -408,7 +418,11 @@ func _animate_model() -> void:
 		return
 	if model_animation != name_found:
 		model_animation = name_found
-		anim.play(name_found, blend_for(state))
+		var blend: float = blend_for(state)
+		if _pose_blend >= 0.0 and state == "idle":
+			blend = _pose_blend
+		_pose_blend = -1.0
+		anim.play(name_found, blend)
 	elif _restart and state == action:
 		# 同一段動作再播一次（連著被砍兩下）：從頭開始
 		anim.seek(0.0, true)

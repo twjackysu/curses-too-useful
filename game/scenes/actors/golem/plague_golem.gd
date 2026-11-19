@@ -92,6 +92,8 @@ var awake: bool = false
 var gaze_target: Node3D
 ## 光環（關卡生出來掛在牠身上）
 var aura: PlagueAura
+## 滾出來的核心可以停在哪裡（關卡給：func(p: Vector3) -> bool；不在柱子上、不在石板外、不壓到躺著的人）。沒給＝哪裡都可以
+var core_clear: Callable = Callable()
 var _puppet: Puppet
 var _swung: bool = false
 ## 上一次演被砍的動作之後過了幾秒
@@ -485,26 +487,53 @@ func fall_direction() -> Vector3:
 	return _fall_fwd
 
 
-## 核心滾出來停在哪裡（牠倒在 at、面向 fwd）：牠左手邊前面＝站在牠面前的諾恩的右手邊。讀檔回來也放這裡
-static func core_rest_spot(at: Vector3, fwd: Vector3) -> Vector3:
+## 核心滾出來可以停的地方（牠的座標：x＝往牠的左手邊、y＝往前，公尺）。依序試、clear 說可以的第一個：
+## 先試牠左手邊前面＝站在牠面前的諾恩的右手邊（過肩鏡頭在諾恩右後方，畫面右邊是空的；左邊是狀態列），再試右手邊、正前方偏一點、近一點的
+const CORE_SPOTS: Array[Vector2] = [Vector2(2.9, 1.5), Vector2(-2.9, 1.5), Vector2(2.0, 2.7), Vector2(-2.0, 2.7),
+	Vector2(2.4, 0.2), Vector2(-2.4, 0.2), Vector2(1.6, 1.2), Vector2(-1.6, 1.2)]
+## 落地的那一點在停下來的那一點的這個比例（從牠腳下算）：落地之後再滾剩下的那一段
+const CORE_LAND_AT: float = 0.6
+
+
+## 核心滾出來停在哪裡（牠倒在 at、面向 fwd）。clear＝那裡可不可以停（關卡給）：停的地方、落地的地方、兩者中間都要可以；
+## 都不行就照第一個（沒有關卡的測試也是第一個）。讀檔回來也照這個算（同樣的輸入、同樣的答案）
+static func core_rest_spot(at: Vector3, fwd: Vector3, clear: Callable = Callable()) -> Vector3:
+	var first := Vector3.INF
+	for o: Vector2 in CORE_SPOTS:
+		var rest: Vector3 = _core_spot(at, fwd, o)
+		if not first.is_finite():
+			first = rest
+		if not clear.is_valid():
+			return rest
+		var land: Vector3 = core_land_spot(at, rest)
+		if bool(clear.call(rest)) and bool(clear.call(land)) and bool(clear.call(land.lerp(rest, 0.5))):
+			return rest
+	return first
+
+
+static func _core_spot(at: Vector3, fwd: Vector3, o: Vector2) -> Vector3:
 	var side: Vector3 = -fwd.cross(Vector3.UP)
-	var rest: Vector3 = at + fwd * 1.5 + side * 2.9
+	var rest: Vector3 = at + fwd * o.y + side * o.x
 	rest.y = at.y + GolemCore.RADIUS
 	return rest
 
 
-## 垮到底的那一下，核心從胸口彈出來：拋到牠腳邊的左前方、滾一小段停住（掛在關卡上——魔像沉下去之後它還在；關卡接 core_dropped）。
+## 從胸口彈出來落在哪裡（停下來的那一點的 CORE_LAND_AT）
+static func core_land_spot(at: Vector3, rest: Vector3) -> Vector3:
+	var land: Vector3 = at + (rest - at) * CORE_LAND_AT
+	land.y = rest.y
+	return land
+
+
+## 垮到底的那一下，核心從胸口彈出來：拋到牠腳邊、滾一小段停住（停在哪裡照 core_rest_spot：避開柱子、石板邊、躺著的人）。
+## 掛在關卡上（魔像沉下去之後它還在；關卡接 core_dropped）。
 func _drop_core() -> void:
 	var core: GolemCore = GolemCore.create()
 	var level: Node = get_parent()
 	level.add_child(core)
-	# 往牠的左手邊滾＝站在牠面前的諾恩的右手邊：過肩鏡頭在諾恩右後方，畫面右邊是空的（左邊是狀態列）
-	var side: Vector3 = -_fall_fwd.cross(Vector3.UP)
-	var floor_y: float = global_position.y + GolemCore.RADIUS
 	var from: Vector3 = global_position + _fall_fwd * 0.9 + Vector3.UP * 1.3
-	var land: Vector3 = global_position + _fall_fwd * 0.9 + side * 1.7
-	land.y = floor_y
-	var rest: Vector3 = core_rest_spot(global_position, _fall_fwd)
+	var rest: Vector3 = core_rest_spot(global_position, _fall_fwd, core_clear)
+	var land: Vector3 = core_land_spot(global_position, rest)
 	core.global_position = from
 	var t: Tween = core.create_tween()
 	t.tween_method(func(k: float) -> void:

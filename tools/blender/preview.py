@@ -2,6 +2,7 @@
 
   python3 -I tools/blender/preview.py build/art/characters/sheila/sheila.glb <輸出.png>
   … --pose=run --frame=6 ／ --pose=light_attack_01 --frame=8      # 換動作看衣服會不會穿出來
+  … --aim=0.45 --dist=3.0 --angles=20,90,160,270                  # 坐在地上的動作看低一點；魔像 --aim=1.7 --dist=9
   輸出 <輸出>_0.png～_3.png（600×1000）。人物的材質是不受光的，預覽看到的是貼圖本來的顏色，不是遊戲裡受光之後的樣子。
 """
 import math
@@ -14,6 +15,9 @@ args = [a for a in sys.argv[1:] if not a.startswith("-")]
 src, out = args[-2], args[-1]
 POSE = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--pose=")), "idle")
 FRAME = int(next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--frame=")), "1"))
+AIM = float(next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--aim=")), "0.86"))
+DIST = float(next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--dist=")), "3.55"))
+ANGLES = [float(v) for v in next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--angles=")), "20,160,200,340").split(",")]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=src)
@@ -47,14 +51,14 @@ scene.cycles.samples = 12
 scene.cycles.use_denoising = False
 scene.view_settings.view_transform = "Standard"
 scene.render.resolution_x, scene.render.resolution_y = 600, 1000
-target = Vector((0, 0, 0.86))
-for i, ang in enumerate((20, 160, 200, 340)):
+target = Vector((0, 0, AIM))
+for i, ang in enumerate(ANGLES):
     cd = bpy.data.cameras.new(f"c{i}")
     cam = bpy.data.objects.new(f"c{i}", cd)
     scene.collection.objects.link(cam)
     cd.lens = 70
     a = math.radians(ang)
-    cam.location = Vector((math.sin(a) * 3.55, math.cos(a) * 3.55 * FRONT, 1.05))
+    cam.location = Vector((math.sin(a) * DIST, math.cos(a) * DIST * FRONT, AIM + 0.19 * DIST / 3.55))
     cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
     scene.camera = cam
     scene.render.filepath = out.replace(".png", f"_{i}.png")

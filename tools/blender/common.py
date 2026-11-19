@@ -647,7 +647,7 @@ def release_action(a, frames=9):
     a.action("release", frames, fn, step=1)
 
 def social_actions(a):
-    """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、倒在地上（down_back 仰躺、down_front 趴著）、
+    """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、倒在地上（down_back 仰躺、down_front 趴著）、坐在地上（sit_ground：撐起上身）、
     伸手摸（reach）、遞東西（give），
     對話的手勢（nod 點頭、bow 鞠躬、point 指、chest 左手按胸口、shrug 攤手、fist 握拳、wave 左手揮手）、慌張地找面具（fumble）、
     跪著裝填禁藥（brew），
@@ -861,6 +861,25 @@ def social_actions(a):
         a.rot("LeftLowerLeg", f, (X, -55))
         a.leg_pose("Right", f, thigh=-4, knee=6, foot=-10)
 
+    # 坐在地上（祭壇戰後的雷歐小隊：魔像倒了，從躺著撐起上身；ruined_altar.gd 一邊把整個人轉回直立、一邊換成這個動作）：
+    # 屁股坐地（骨盆離地 SIT_GROUND_HIP）、兩腿往前伸、一邊膝蓋微微立起，上身往後靠、兩手在身後撐著地，頭往前看。慢慢喘
+    # 骨盆往下掉約一條腿長（大腿＋小腿；腳踝離地那一點與坐著時骨盆離地的高度差不多抵掉）。
+    # 不用 Hips 的 head_local.z：骨架的原點不一定在腳底
+    shin_len = (bones["LeftFoot"].head_local - bones["LeftLowerLeg"].head_local).length
+    ground_drop = (thigh + shin_len) * 0.9
+
+    def sit_ground(f, t):
+        b = math.sin(t * math.tau)
+        a.move("Hips", f, (0, 0, -ground_drop + 0.004 * b))
+        a.rot("Hips", f, (X, -8))
+        a.rot("Spine", f, (X, 20 + 1.2 * b))
+        a.rot("Chest", f, (X, 8 + 2.0 * b))
+        a.rot("Head", f, (X, -22 - 1.0 * b), (Z, -4))
+        a.arm_pose("Left", f, hang=20, swing=-52, elbow=8, twist=-8)
+        a.arm_pose("Right", f, hang=18, swing=-50, elbow=12, twist=8)
+        a.leg_pose("Left", f, thigh=96, knee=58, foot=-8)
+        a.leg_pose("Right", f, thigh=86, knee=12, foot=-24)
+
     def brew(f, t):
         # 席菈裝填禁藥（Boss 戰狂暴之後，她退到石板邊上；D-306）：右膝跪地、左腳踩在前面，低著頭看手上；右手把手弩橫在胸前、
         # 左手在弩上一下一下地往下壓（往裡面塞藥瓶、扳緊弓弦）。一秒壓兩下，循環
@@ -903,6 +922,7 @@ def social_actions(a):
     a.action("brew", 48, brew, step=2)
     a.action("down_back", 96, down_back, step=8)
     a.action("down_front", 96, down_front, step=8)
+    a.action("sit_ground", 96, sit_ground, step=8)
     a.action("idle_carry", 72, carried(idle), step=6)
     a.action("walk_carry", 30, carried(walk), step=2)
     a.action("run_carry", 18, carried(run), step=1)
