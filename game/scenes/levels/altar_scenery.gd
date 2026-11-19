@@ -34,6 +34,11 @@ const TREE_COUNT: int = 48
 const GRASS_PATCHES: int = 170
 ## 符文平常多亮、魔像醒著的時候多亮
 const RUNE_GLOW: float = 0.55
+## 斷柱一圈幾道凹槽（ruin_stone.gdshader 的 flutes）、圓柱繞一圈幾個面（太少看得出一面一面的）
+const FLUTES: float = 16.0
+const DRUM_SEGMENTS: int = 32
+## 斷掉的那一節：斷口最深往下缺多少（公尺）
+const BREAK_DEPTH: float = 0.42
 
 ## 關卡要調的東西：地面的材質（石板縫的光）、每一塊會亮符文的石頭的材質、祭壇上面那盞紅燈
 var ground: ShaderMaterial
@@ -128,14 +133,16 @@ func _build_ground(level: Node3D, trees: PackedVector3Array) -> void:
 
 
 ## 一塊會亮符文的石頭的材質（位置、高度、半徑照那一塊算）
-func _stone(base: Vector3, height: float, radius: float, top_ring: bool) -> ShaderMaterial:
-	var mat: ShaderMaterial = stone_material(base, height, radius, top_ring)
+func _stone(base: Vector3, height: float, radius: float, top_ring: bool, flutes: float = 0.0) -> ShaderMaterial:
+	var mat: ShaderMaterial = stone_material(base, height, radius, top_ring, RUNE_GLOW, flutes)
 	stones.append(mat)
 	return mat
 
 
 ## 祭壇的石頭（ruin_stone.gdshader）：base＝這塊石頭底部中心的世界座標，符文的那一圈照高度與半徑擺。森林的祭壇路口也用。
-static func stone_material(base: Vector3, height: float, radius: float, top_ring: bool, glow: float = RUNE_GLOW) -> ShaderMaterial:
+## flutes＞0＝斷柱（側面一圈凹槽、一節 course 公尺一節的深淺與接縫）
+static func stone_material(base: Vector3, height: float, radius: float, top_ring: bool, glow: float = RUNE_GLOW,
+		flutes: float = 0.0, course: float = DRUM_HEIGHT) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = STONE_SHADER
 	mat.set_shader_parameter("base_pos", base)
@@ -143,6 +150,8 @@ static func stone_material(base: Vector3, height: float, radius: float, top_ring
 	mat.set_shader_parameter("radius", radius)
 	mat.set_shader_parameter("top_ring", 1.0 if top_ring else 0.0)
 	mat.set_shader_parameter("glow", glow)
+	mat.set_shader_parameter("flutes", flutes)
+	mat.set_shader_parameter("course", course)
 	return mat
 
 
@@ -152,9 +161,51 @@ static func _drum(radius: float, height: float, mat: Material) -> MeshInstance3D
 	cyl.top_radius = radius
 	cyl.bottom_radius = radius * 1.04
 	cyl.height = height
-	cyl.radial_segments = 18
+	cyl.radial_segments = DRUM_SEGMENTS
 	cyl.material = mat
 	mi.mesh = cyl
+	return mi
+
+
+## 斷掉的那一節：上緣參差不齊（一圈往下缺、深淺不一）、斷口是一面一面的碎面往中間凹。原點在這一節的中心（跟 _drum 一樣）
+static func broken_drum(radius: float, height: float, mat: Material, seed_value: int) -> MeshInstance3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var n: int = DRUM_SEGMENTS
+	var half: float = height * 0.5
+	# 每個角度往下缺多少：兩個不同頻率的波加一點亂數（缺口是一塊一塊的，不是鋸齒）
+	var phase := Vector2(rng.randf() * TAU, rng.randf() * TAU)
+	var drops := PackedFloat32Array()
+	for i: int in n:
+		var a: float = TAU * float(i) / float(n)
+		var w: float = 0.5 + 0.3 * sin(a * 2.0 + phase.x) + 0.2 * sin(a * 5.0 + phase.y)
+		drops.append(clampf(w + rng.randf_range(-0.12, 0.12), 0.0, 1.0) * BREAK_DEPTH)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i: int in n:
+		var j: int = (i + 1) % n
+		var a0: float = TAU * float(i) / float(n)
+		var a1: float = TAU * float(j) / float(n)
+		var d0 := Vector3(cos(a0), 0.0, sin(a0))
+		var d1 := Vector3(cos(a1), 0.0, sin(a1))
+		var b0: Vector3 = d0 * radius * 1.04 + Vector3.DOWN * half
+		var b1: Vector3 = d1 * radius * 1.04 + Vector3.DOWN * half
+		var t0: Vector3 = d0 * radius + Vector3.UP * (half - drops[i])
+		var t1: Vector3 = d1 * radius + Vector3.UP * (half - drops[j])
+		for v: Array in [[b0, d0], [t1, d1], [t0, d0], [b0, d0], [b1, d1], [t1, d1]]:
+			st.set_normal(v[1] as Vector3)
+			st.add_vertex(v[0] as Vector3)
+		# 斷口：往中間凹下去的一圈碎面（每一面自己的法線）
+		var c: Vector3 = Vector3.UP * (half - BREAK_DEPTH * 0.75)
+		var face: Vector3 = (t0 - c).cross(t1 - c).normalized()
+		if face.y < 0.0:
+			face = -face
+		for v2: Vector3 in [c, t0, t1]:
+			st.set_normal(face)
+			st.add_vertex(v2)
+	st.set_material(mat)
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
 	return mi
 
 
@@ -169,7 +220,7 @@ func _build_pillars(level: Node3D, rng: RandomNumberGenerator) -> void:
 		pillar.name = "Pillar%d" % int(spec.x)
 		pillar.position = at
 		var tall: float = DRUM_HEIGHT * float(drums)
-		var mat: ShaderMaterial = _stone(at, maxf(tall, DRUM_HEIGHT * 2.0), DRUM_RADIUS, false)
+		var mat: ShaderMaterial = _stone(at, maxf(tall, DRUM_HEIGHT * 2.0), DRUM_RADIUS, false, FLUTES)
 		# 柱腳的方石
 		var plinth := MeshInstance3D.new()
 		var slab := BoxMesh.new()
@@ -180,7 +231,9 @@ func _build_pillars(level: Node3D, rng: RandomNumberGenerator) -> void:
 		plinth.rotation.y = rng.randf_range(-0.2, 0.2)
 		pillar.add_child(plinth)
 		for k: int in drums:
-			var drum: MeshInstance3D = _drum(DRUM_RADIUS - 0.02 * float(k), DRUM_HEIGHT, mat)
+			# 斷掉的柱子（四節以下）最上面那一節的上緣是參差的斷口
+			var top: bool = k == drums - 1 and drums < 4
+			var drum: MeshInstance3D = broken_drum(DRUM_RADIUS - 0.02 * float(k), DRUM_HEIGHT, mat, int(spec.x)) if top else _drum(DRUM_RADIUS - 0.02 * float(k), DRUM_HEIGHT, mat)
 			drum.position = Vector3(rng.randf_range(-0.03, 0.03), 0.26 + DRUM_HEIGHT * (float(k) + 0.5), rng.randf_range(-0.03, 0.03))
 			drum.rotation.y = rng.randf_range(0.0, TAU)
 			# 斷掉的那一節歪一點

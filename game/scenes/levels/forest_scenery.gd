@@ -392,7 +392,8 @@ static func altar_gate_ruins() -> Node3D:
 		pillar.name = "GatePillar%d" % (root.get_child_count() + 1)
 		pillar.position = at
 		var tall: float = GATE_DRUM_HEIGHT * float(drums)
-		var mat: ShaderMaterial = AltarScenery.stone_material(center + at, maxf(tall, 2.2), GATE_DRUM_RADIUS, false, GATE_RUNE_GLOW)
+		var mat: ShaderMaterial = AltarScenery.stone_material(center + at, maxf(tall, 2.2), GATE_DRUM_RADIUS, false, GATE_RUNE_GLOW,
+			AltarScenery.FLUTES, GATE_DRUM_HEIGHT)
 		var plinth := MeshInstance3D.new()
 		var slab := BoxMesh.new()
 		slab.size = Vector3(1.5, 0.3, 1.5)
@@ -402,7 +403,9 @@ static func altar_gate_ruins() -> Node3D:
 		plinth.rotation.y = 0.12 * spec.x
 		pillar.add_child(plinth)
 		for k: int in drums:
-			var drum: MeshInstance3D = AltarScenery._drum(GATE_DRUM_RADIUS - 0.02 * float(k), GATE_DRUM_HEIGHT, mat)
+			var broken: bool = drums < 3 and k == drums - 1
+			var drum: MeshInstance3D = AltarScenery.broken_drum(GATE_DRUM_RADIUS - 0.02 * float(k), GATE_DRUM_HEIGHT, mat, k + 11) if broken \
+				else AltarScenery._drum(GATE_DRUM_RADIUS - 0.02 * float(k), GATE_DRUM_HEIGHT, mat)
 			drum.position = Vector3(0.0, 0.3 + GATE_DRUM_HEIGHT * (float(k) + 0.5), 0.0)
 			drum.rotation.y = float(k) * 1.9
 			if drums < 3 and k == drums - 1:
