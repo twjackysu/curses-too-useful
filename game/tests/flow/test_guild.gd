@@ -436,6 +436,7 @@ func test_epilogue_returns_to_the_guild_at_dusk_and_ends_the_chapter() -> void:
 			assert_true(level.talk_camera.global_position.y > GuildScenery.LOFT_Y, "鏡頭升到二樓的高度")
 			assert_true(level.talk_camera.global_position.z < level.inspector.global_position.z, "從他背後往下看諾恩")
 			assert_true(level.aura.emitting, "諾恩身上冒出黑氣")
+			assert_true(level.aura.wisps.visible and level.aura.wisp_fade > 0.2, "黑氣纏著他繞（%.2f）" % level.aura.wisp_fade)
 		elif level.aura != null:
 			assert_false(level.aura.emitting, "其他句沒有黑氣")
 		if not runner.visible_choices.is_empty():

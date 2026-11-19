@@ -145,7 +145,7 @@ var crowd: Dictionary = {}
 ## 坐著的客人：節點名 → 那個人
 var patrons: Dictionary = {}
 ## 諾恩身上的黑氣（只有二樓的巡察官講話的那一句看得到）
-var aura: CPUParticles3D
+var aura: DarkAura
 var crystal_use: Interactable
 var lilith_use: Interactable
 var board_use: Interactable
