@@ -23,7 +23,6 @@ const DOOR_POS: Vector3 = Vector3(0, 0, HALF_L)
 const DOOR_SIZE: Vector2 = Vector2(2.6, 3.3)
 ## 門開到底轉幾度（往屋裡開）
 const DOOR_SWING_DEG: float = 78.0
-const LEAF_THICK: float = 0.08
 ## 門外那條街：街對面的房子離南牆多遠、石板路多寬（沿著街）
 const STREET_DEPTH: float = 7.0
 const STREET_HALF_W: float = 14.0
@@ -301,13 +300,10 @@ func _build_shell() -> void:
 		hinge.position = DOOR_POS + Vector3(side * half, 0, -0.07)
 		door.add_child(hinge)
 		door_hinges.append(hinge)
-		# 門板有厚度（開著的時候從側面看得到；以前是一片面，轉開之後背面是空的）
-		var leaf: MeshInstance3D = _box(hinge, Vector3(half, DOOR_SIZE.y, LEAF_THICK), Vector3(-side * half * 0.5, DOOR_SIZE.y * 0.5, 0), leaf_mat)
-		leaf.name = "DoorLeaf"
-		var face: float = -LEAF_THICK * 0.5 - 0.006
+		_quad("DoorLeaf", Vector2(half, DOOR_SIZE.y), Vector3(-side * half * 0.5, DOOR_SIZE.y * 0.5, 0), Vector3(0, 180, 0), leaf_mat).reparent(hinge, false)
 		for y: float in [0.55, 2.6]:
-			_quad("DoorBand", Vector2(half, 0.14), Vector3(-side * half * 0.5, y, face), Vector3(0, 180, 0), iron).reparent(hinge, false)
-		_quad("DoorEdge", Vector2(0.05, DOOR_SIZE.y), Vector3(-side * (half - 0.025), DOOR_SIZE.y * 0.5, face), Vector3(0, 180, 0), iron).reparent(hinge, false)
+			_quad("DoorBand", Vector2(half, 0.14), Vector3(-side * half * 0.5, y, -0.02), Vector3(0, 180, 0), iron).reparent(hinge, false)
+		_quad("DoorEdge", Vector2(0.05, DOOR_SIZE.y), Vector3(-side * (half - 0.025), DOOR_SIZE.y * 0.5, -0.02), Vector3(0, 180, 0), iron).reparent(hinge, false)
 	# 窗：受光的那一側亮（早上東邊、傍晚西邊），另一側是背光的天色
 	for side: float in [-1.0, 1.0]:
 		var lit: bool = (side > 0.0) != evening

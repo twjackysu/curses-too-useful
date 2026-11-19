@@ -2,8 +2,9 @@ class_name WindowLight
 extends Node3D
 ## 太陽從一扇窗照進來（公會大廳）：①看得到的光柱——從窗口沿著太陽的方向一路掃到地上的薄面片（light_shaft.gdshader），
 ## 直的一組（窗的高度上一格一格）、橫的一組（窗的寬度上一格一格），從哪個方向看都有東西；
-## ②真的照到東西的光——一盞放在窗外很遠的聚光燈，帶一張「窗的形狀」的投影貼圖（玻璃亮、窗框與窗櫺暗），
-## 地上、桌上、走過去的人身上都是一格一格的窗影。貼圖是照這扇窗與太陽的方向算出來的（每一個貼圖點往窗上打一條線）。
+## ②地上一格一格的窗影——窗落在地上的那個平行四邊形，貼在地板上的一片加法面（window_patch.gdshader）。
+##   試過聚光燈＋投影貼圖（走過去的人也會被照亮），但雲端的軟體算圖底下有投影貼圖的燈整盞不亮、沒辦法驗收，先用面片；
+## ③光柱裡飄的灰塵（dust_mote.gdshader，一個 MultiMesh）。
 ## 窗與光的形狀都只看參數：窗在哪（中心、朝屋裡的方向）、多大、太陽往哪裡照。
 
 const SHAFT_SHADER: Shader = preload("res://src/world/light_shaft.gdshader")
@@ -14,13 +15,18 @@ const COLS: int = 3
 const ROWS: int = 4
 ## 一格玻璃裡直的、橫的面片各幾片
 const SHEETS_PER_CELL: int = 3
-## 聚光燈放在窗外多遠（越遠越接近平行光）
 ## 地上的窗影離地板多高（蓋在地板上面）
 const PATCH_LIFT: float = 0.012
 const PATCH_SHADER: Shader = preload("res://src/world/window_patch.gdshader")
+const DUST_SHADER: Shader = preload("res://src/world/dust_mote.gdshader")
+## 一道光柱裡幾顆灰塵、一顆多大；灰塵只擺在光柱從窗口算起的這一段（後面淡掉了）
+const DUST_COUNT: int = 36
+const DUST_SIZE: float = 0.03
+const DUST_REACH: float = 0.55
 
 var shafts: MeshInstance3D
 var patch: MeshInstance3D
+var dust: MultiMeshInstance3D
 ## 光柱掃到地上的範圍（世界座標的 x、z；測試與擺東西用）
 var floor_patch: Rect2
 
@@ -96,6 +102,33 @@ func _build(center: Vector3, inward: Vector3, size: Vector2, dir: Vector3, color
 	patch.material_override = pm
 	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(patch)
+	_build_dust(top_left, across, size, dir, color)
+
+
+## 灰塵：在窗上隨便挑一點、沿著光走一段（窗口到地上那一段的前 DUST_REACH），每次建出來的位置一樣（固定的亂數種子）
+func _build_dust(top_left: Vector3, across: Vector3, size: Vector2, dir: Vector3, color: Color) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(top_left)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var q := QuadMesh.new()
+	q.size = Vector2.ONE * DUST_SIZE
+	var m := ShaderMaterial.new()
+	m.shader = DUST_SHADER
+	m.set_shader_parameter("color", color)
+	q.material = m
+	mm.mesh = q
+	mm.instance_count = DUST_COUNT
+	for i: int in DUST_COUNT:
+		var on_glass: Vector3 = top_left + across * size.x * rng.randf_range(0.1, 0.9) - Vector3.UP * size.y * rng.randf_range(0.1, 0.9)
+		var reach: float = on_glass.y / -dir.y
+		var at: Vector3 = on_glass + dir * reach * rng.randf_range(0.08, DUST_REACH)
+		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * rng.randf_range(0.6, 1.4)), at))
+	dust = MultiMeshInstance3D.new()
+	dust.name = "Dust"
+	dust.multimesh = mm
+	dust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(dust)
 
 
 ## p 沿著 dir 走到地上（y＝0）的那一點
