@@ -2,13 +2,13 @@ class_name CameraFade
 extends RefCounted
 ## 靠近鏡頭就淡掉：把一棵節點樹裡所有 StandardMaterial3D 設成依離鏡頭的距離抖動淡出
 ## （DISTANCE_FADE_PIXEL_DITHER：離鏡頭 near 以內看不到、到 far 才完全不透明）。
-## 給會走到鏡頭和諾恩之間的東西用——例如車隊的推車與傷者：過肩鏡頭在諾恩身後約 3.5 m，
-## 推車從後面追上來時整台擋在畫面下半（第三輪盤點第 9 項）。抖動是不透明的畫法，不會有半透明排序問題。
-## 已經自己設好淡出的材質（例如提燈燈罩）不動。回傳這次設定的材質數（同一個材質只算一次）。
-## ShaderMaterial 只有自己的 shader 宣告了 `fade_near`／`fade_far` 才會設定（例如送葬者的鐵架），其他不動。
+## 給會跑到鏡頭前面的東西用——走到鏡頭和諾恩之間的敵人、祭壇戰後魔像崩成的那一堆碎石（對話的鏡頭常常擺在它旁邊，
+## 石頭擋掉畫面的一角）。抖動是不透明的畫法，不會有半透明排序問題。MultiMesh 的網格也算。
+## 已經自己設好淡出的材質不動。回傳這次設定的材質數（同一個材質只算一次）。
+## ShaderMaterial 只有自己的 shader 宣告了 `fade_near`／`fade_far` 才會設定，其他不動。
 
 ## 角色（席菈、敵人）擋在鏡頭與諾恩之間時（SpringArm 不撞角色，鏡頭會在他們身體裡）：
-## 離鏡頭 1 m 以內開始淡、0.4 m 以內看不到（第四輪盤點第 6 項）
+## 離鏡頭 1 m 以內開始淡、0.4 m 以內看不到
 const CHARACTER_NEAR: float = 0.4
 const CHARACTER_FAR: float = 1.0
 
@@ -32,6 +32,11 @@ static func _walk(node: Node, near: float, far: float, seen: Dictionary) -> void
 			for s: int in mi.mesh.get_surface_count():
 				_fade(mi.mesh.surface_get_material(s), near, far, seen)
 				_fade(mi.get_surface_override_material(s), near, far, seen)
+	if node is MultiMeshInstance3D:
+		var mm: MultiMesh = (node as MultiMeshInstance3D).multimesh
+		if mm != null and mm.mesh != null:
+			for s: int in mm.mesh.get_surface_count():
+				_fade(mm.mesh.surface_get_material(s), near, far, seen)
 	for child: Node in node.get_children():
 		_walk(child, near, far, seen)
 

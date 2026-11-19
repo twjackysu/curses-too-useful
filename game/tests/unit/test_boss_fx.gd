@@ -192,6 +192,9 @@ func test_rubble_pile_is_a_long_heap_that_grows_out_of_the_ground() -> void:
 	assert_not_null(pile.get_node_or_null("Block"), "擋路")
 	# 石塊有稜角（D-306）：一面一面的切面——同一顆石頭上看得到很多不一樣的法線、而且不是圓的（頂點離中心的距離差很多）
 	var rock: ArrayMesh = (pile.get_node("Heap/Rocks0") as MultiMeshInstance3D).multimesh.mesh as ArrayMesh
+	var rock_mat := rock.surface_get_material(0) as BaseMaterial3D
+	assert_true(rock_mat != null and rock_mat.distance_fade_mode == BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		and is_equal_approx(rock_mat.distance_fade_max_distance, RubblePile.CAMERA_FADE.y), "鏡頭擺在石堆旁邊時最近的石頭淡掉（不擋掉畫面的一角）")
 	var arr: Array = rock.surface_get_arrays(0)
 	var normals: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
 	var facets: Dictionary = {}

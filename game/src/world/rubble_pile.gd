@@ -28,10 +28,16 @@ var shades: PackedColorArray = []
 
 
 ## 建好一堆（還沒進場景樹）：沿著 +Z 從原點鋪到 LENGTH。seed 一樣就長一樣（讀檔回來那一堆跟倒下時差不多）。
+## 離鏡頭 CAMERA_FADE.x 以內看不到、到 .y 才完全不透明：鏡頭貼著石堆（玩家的鏡頭被石堆推近、對話的鏡頭從石堆旁邊滑過去）時，
+## 最靠近的幾顆石頭不會蓋掉半個畫面（平常的過肩鏡頭在諾恩後面 3.5 m，走到石堆旁邊也不會淡）
+const CAMERA_FADE: Vector2 = Vector2(0.9, 2.2)
+
+
 static func create(seed_value: int = 7) -> RubblePile:
 	var pile := RubblePile.new()
 	pile.name = "Rubble"
 	pile._build(seed_value)
+	CameraFade.apply(pile, CAMERA_FADE.x, CAMERA_FADE.y)
 	return pile
 
 
