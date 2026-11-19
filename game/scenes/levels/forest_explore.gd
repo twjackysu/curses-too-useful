@@ -51,6 +51,12 @@ const CAMPFIRE_SCALE: float = 1.3
 const FIRE_SOUND: Array = ["campfire_crackle", -4.0, 4.0]
 const VENT_SOUND: Array = ["vent_hiss", -10.0, 2.5]
 const SWAMP_SOUND: Array = ["swamp_bubble", -6.0, 6.0]
+## 採毒蕈、吃野果、開寶箱的聲音；採滿五朵時祭壇那邊傳來的慘叫（遠，不分位置）
+const PICK_SFX: String = "mushroom_pick"
+const FRUIT_SFX: String = "fruit_bite"
+const CHEST_SFX: String = "chest_open"
+const SCREAM_SFX: String = "distant_scream"
+const SCREAM_DB: float = -5.0
 const FIRE_ENERGY: float = 4.5
 const CAMP_DIALOGUE: String = "ch1_campfire"
 const FLAG_CAMP_TALK: String = "ch1.campfire_talked"
@@ -250,7 +256,7 @@ func _on_mushroom_used(_by: PlayerController, i: int) -> void:
 	Game.session.add_flag(FLAG_MUSHROOMS, 1)
 	var have: int = int(Game.session.state.get_flag(FLAG_MUSHROOMS, 0))
 	hud.show_banner(tr("CH1_MUSHROOM_PICKED").format({"have": mini(have, MUSHROOM_NEED), "need": MUSHROOM_NEED}), 2.0)
-	Sfx.play_at(level, "glass_clink", m.global_position + Vector3.UP * 0.5, -6.0)
+	Sfx.play_at(level, PICK_SFX, m.global_position + Vector3.UP * 0.5, -4.0, 0.05)
 	Game.session.autosave()
 	var t: Tween = m.create_tween()
 	t.tween_property(m, "scale", Vector3.ONE * 0.05, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
@@ -442,7 +448,7 @@ func _on_chest_opened(by: PlayerController) -> void:
 	hud.show_center_lines("CH1_CHEST_LINE1", "CH1_CHEST_LINE2", 8.0)
 	if sera.joined:
 		hud.show_bark(sera, "BARK_SERA_CHEST", 3.4, Sera.NAME_KEY)
-	Sfx.play_at(level, "curse_sting", chest.global_position + Vector3.UP * 0.5, -4.0)
+	Sfx.play_at(level, CHEST_SFX, chest.global_position + Vector3.UP * 0.5, -2.0, 0.02)
 	Game.session.autosave()
 
 
@@ -589,7 +595,7 @@ func _on_fruit_eaten(by: PlayerController, i: int) -> void:
 		return
 	_regrow[i] = FRUIT_REGROW_SEC
 	by.status_effects.apply_source(FRUIT_SOURCE)
-	Sfx.play_at(level, "poison_hiss", bushes[i].global_position + Vector3.UP, -8.0)
+	Sfx.play_at(level, FRUIT_SFX, by.global_position + Vector3.UP * 1.5, -6.0)
 	if Game.session.state.grant_once("ch1.fruit_bark") and sera.joined:
 		hud.show_bark(sera, "BARK_SERA_FRUIT", 3.2, Sera.NAME_KEY)
 
@@ -643,4 +649,5 @@ func _on_stage_changed(quest_id: String, _from: String, to: String) -> void:
 	elif to == STAGE_ALTAR:
 		# 採完準備回去的時候，祭壇那邊傳來慘叫（劇本節點 3 的開頭）
 		hud.show_center_lines("CH1_SCREAM_LINE1", "CH1_SCREAM_LINE2", 6.0)
+		Sfx.play_flat(level, SCREAM_SFX, SCREAM_DB)
 		hud.show_bark(sera, "BARK_SERA_SCREAM", 3.4, Sera.NAME_KEY)

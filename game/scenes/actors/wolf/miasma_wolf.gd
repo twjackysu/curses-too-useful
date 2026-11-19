@@ -7,6 +7,8 @@ extends EnemyActor
 
 const MODEL: String = "tripo/enemy_miasma_wolf"
 const BITE_SOURCE: String = "wolf_bite"
+## 撲出去咬：短短的低吼＋牙齒合起來的「喀」
+const BITE_SFX: String = "wolf_bite"
 const BODY_RADIUS: float = 0.45
 ## 走路那一段原地踏步，播一倍速大約等於每秒走這麼遠（公尺）：跑的時候照速度播快
 const WALK_CLIP_SPEED: float = 1.5
@@ -65,7 +67,7 @@ func is_trotting() -> bool:
 ## 撲出去的那一刻：記下往哪撲、判定前方的人；咬到就流血。
 func _on_strike() -> void:
 	_lunge_dir = forward()
-	Sfx.play_at(self, "claw", global_position + Vector3.UP * 0.6, -6.0)
+	Sfx.play_at(self, BITE_SFX, global_position + Vector3.UP * 0.6, -4.0)
 	var origin: Vector3 = global_position
 	var fwd: Vector3 = _lunge_dir
 	var reach: float = brain.attack_range + 0.6

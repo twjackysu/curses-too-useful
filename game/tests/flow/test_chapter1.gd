@@ -1103,6 +1103,7 @@ func test_gathering_five_mushrooms_brings_the_scream_and_the_road_to_the_altar()
 	Input.action_release(Interactable.ACTION)
 	await tree.physics_frame
 	assert_eq(int(s.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), 1, "按互動採了一朵")
+	assert_true(_playing(level, ForestExplore.PICK_SFX), "採下來是蕈柄折斷＋叮鈴的聲音（不再借藥瓶的玻璃聲）")
 	assert_true(hud.checklist_lines()[0].begins_with("[1/5]"), "清單跟著加：%s" % hud.checklist_lines()[0])
 	assert_true(hud.banner_text().contains("1/5"), "上方閃一行：%s" % hud.banner_text())
 	assert_false(first.enabled, "採過的不能再採")
@@ -1123,6 +1124,7 @@ func test_gathering_five_mushrooms_brings_the_scream_and_the_road_to_the_altar()
 	assert_eq(int(s.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), 5, "同一朵按兩次只算一次")
 	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "採滿五朵")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_SCREAM_LINE1", "CH1_SCREAM_LINE2"]), "慘叫聲")
+	assert_true(_playing(level, ForestExplore.SCREAM_SFX), "真的聽得到慘叫（遠遠的，不分位置）")
 	assert_true(hud.bark_keys().has("BARK_SERA_SCREAM"))
 	await tree.physics_frame
 	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_SCREAM")
@@ -1206,6 +1208,7 @@ func test_traps_are_supplies_vent_web_and_rotten_fruit() -> void:
 	for i: int in 30:
 		await tree.physics_frame
 	assert_eq(web.snares, 1, "碰到網黏一次，站著不會一直疊")
+	assert_true(_playing(web, WebTrap.SNARE_SFX), "黏住是絲被扯開的聲音")
 	assert_true(player.status_effects.has("paralysis") and player.status_effects.has("slow"), "麻痺＋緩速")
 	assert_false(player.status_effects.blocks_attack(), "諾恩不會被定住")
 	assert_true(player.status_effects.attack_speed() > 1.4 and player.status_effects.move_speed_scale() > 1.1,
@@ -1228,6 +1231,7 @@ func test_traps_are_supplies_vent_web_and_rotten_fruit() -> void:
 	assert_true(player.status_effects.has("weakness"), "吃了衰弱")
 	assert_true(player.status_effects.damage_dealt_scale() > 1.1, "對諾恩是砍得更重（×%.2f）" % player.status_effects.damage_dealt_scale())
 	assert_true(hud.bark_keys().has("BARK_SERA_FRUIT"))
+	assert_true(_playing(level, ForestExplore.FRUIT_SFX), "吃下去是咬一口的聲音（不再借噴毒的嘶聲）")
 	await tree.physics_frame
 	assert_false(bush.enabled, "剛吃過，要等它再長")
 	assert_false((bush.get_node("PickupRing") as Node3D).visible, "吃過的那一叢腳下的光圈收起來")
@@ -1292,6 +1296,7 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 		if player.status_effects.has("bleed"):
 			break
 	assert_eq(player.status_effects.source_of("bleed"), "wolf_bite", "被狼咬到：流血")
+	assert_true(_playing(wolf, MiasmaWolf.BITE_SFX), "撲上來是低吼＋咬合的聲音（不再借爪擊）")
 	assert_true(player.status_effects.attack_speed() > 1.0, "對諾恩是出手加速")
 	wolf.health.apply_damage(9999.0, {"source": player})
 	# 孢子樹人：前兆很長、打不斷，砸到緩速＋致盲
@@ -1496,6 +1501,7 @@ func test_cursed_chest_in_the_bog_curses_norn_and_hands_him_the_split_blade() ->
 	assert_eq(s.state.get_flag(ForestExplore.FLAG_CHEST), true)
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_CHEST_LINE1", "CH1_CHEST_LINE2"]))
 	assert_true(hud.bark_keys().has("BARK_SERA_CHEST"))
+	assert_true(_playing(level, ForestExplore.CHEST_SFX), "掀開箱蓋的聲音")
 	await tree.physics_frame
 	assert_true(hud.checklist_lines()[2].begins_with(tr("HUD_LIST_DONE").get_slice(" ", 0)), "清單上「異常波動」完成：%s" % hud.checklist_lines()[2])
 	assert_false(explore.chest.enabled, "開過了")
@@ -1736,10 +1742,12 @@ func _finish_dialogue(pick: int) -> void:
 
 
 ## node 底下（一層）有沒有正在播 sfx_name 的聲音
+## node 底下有沒有正在播這個音效的播放器（3D 的或不分位置的）。音檔沒有產生（缺檔安靜跳過）的時候當成有。
 func _playing(node: Node, sfx_name: String) -> bool:
 	var want: AudioStream = Sfx.stream(sfx_name)
+	if want == null:
+		return true
 	for c: Node in node.get_children():
-		var p := c as AudioStreamPlayer3D
-		if p != null and p.stream == want:
+		if (c is AudioStreamPlayer3D or c is AudioStreamPlayer) and c.get("stream") == want:
 			return true
 	return false

@@ -949,6 +949,215 @@ def vent_hiss(seconds=5.0, seed=229):
     return [v / peak * 0.7 for v in looped]
 
 
+# ---- 森林裡的事件（採集、陷阱、敵人） ----
+
+
+def _ping(seconds, f, decay, attack=0.004, partials=((1.0, 1.0), (2.0, 0.3), (3.01, 0.1))):
+    """一聲柔柔的「叮」（整數倍附近的幾個泛音、指數衰減）。"""
+    n = int(seconds * RATE)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        env = min(1.0, t / attack) * math.exp(-t * decay)
+        out.append(env * sum(a * math.sin(2 * math.pi * f * r * t) for r, a in partials))
+    return out
+
+
+def mushroom_pick(seconds=0.75, seed=233):
+    """採一朵夜光毒蕈：蕈柄被折斷的濕濕一聲「啵」（往下掉的短音＋一點濕的雜訊）
+    ＋拿到手的一小串亮亮的「叮鈴」（E6、B6，微微顫，像蕈傘的光）。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    ph = 0.0
+    wet = onepole_lp(noise(int(0.08 * RATE), rng), 1300)
+    for i in range(int(0.08 * RATE)):
+        t = i / RATE
+        ph += 2 * math.pi * (300.0 + 650.0 * math.exp(-t * 70)) / RATE
+        out[i] += math.exp(-t * 45) * (0.8 * math.sin(ph) + 1.6 * wet[i])
+    snap = hp(noise(int(0.006 * RATE), rng), 2500)
+    for i, v in enumerate(snap):
+        out[i] += 0.5 * v * math.exp(-i / RATE * 600)
+    for at, f, g in ((0.07, 1318.5, 0.32), (0.13, 1975.5, 0.26)):
+        p = _ping(seconds - at, f, 7.0, 0.006)
+        start = int(at * RATE)
+        for j, v in enumerate(p):
+            t = j / RATE
+            out[start + j] += g * v * (0.85 + 0.15 * math.sin(2 * math.pi * 9.0 * t))
+    return out
+
+
+def fruit_bite(seconds=0.6, seed=239):
+    """咬一口腐敗野果：兩下脆脆的「喀嚓」（帶顆粒的中高頻雜訊）＋爛掉的果肉擠出汁的濕聲（低通雜訊、慢慢收）
+    ＋吞下去的一聲低低的「咕」。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    for at, g in ((0.0, 1.0), (0.07, 0.6)):
+        m = int(0.05 * RATE)
+        band = onepole_lp(hp(noise(m, rng), 1100), 5200)
+        start = int(at * RATE)
+        for k in range(m):
+            grain = 1.0 if rng.random() < 0.25 else 0.35
+            out[start + k] += g * band[k] * grain * math.exp(-k / m * 5.0)
+    m = int(0.32 * RATE)
+    squish = onepole_lp(hp(noise(m, rng), 180), 900)
+    start = int(0.05 * RATE)
+    for k in range(m):
+        x = k / m
+        out[start + k] += 1.5 * squish[k] * min(1.0, x * 6.0) * math.exp(-x * 4.0) * (0.7 + 0.3 * math.sin(2 * math.pi * 23.0 * k / RATE))
+    ph = 0.0
+    start = int(0.42 * RATE)
+    for k in range(n - start):
+        t = k / RATE
+        ph += 2 * math.pi * (190.0 - 70.0 * min(1.0, t / 0.1)) / RATE
+        out[start + k] += 0.1 * math.sin(math.pi * min(1.0, t / 0.12)) * math.sin(ph)
+    return out
+
+
+def web_stick(seconds=0.55, seed=241):
+    """撞進麻痺蜘蛛網：黏黏的絲被扯開的細碎「嘶啦」（很密的小顆粒，像撕開魔鬼氈，越來越疏）
+    ＋網被拉長又彈回來的一聲低低的「嗡——」（往上滑再往下、帶一點顫）。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    grains = [0.0] * n
+    for i in range(int(0.4 * RATE)):
+        x = i / (0.4 * RATE)
+        if rng.random() < 0.06 * (1.0 - x) ** 1.5:
+            grains[i] = rng.uniform(-1.0, 1.0)
+    crackle = svf_band(grains, lambda i: 3200.0, 0.5)
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        x = i / n
+        f = 150.0 + 90.0 * math.sin(math.pi * min(1.0, x * 1.6))
+        ph += 2 * math.pi * f * (1.0 + 0.02 * math.sin(2 * math.pi * 14.0 * t)) / RATE
+        env = min(1.0, t / 0.02) * math.exp(-t * 6.0)
+        out[i] = 1.4 * crackle[i] + 0.3 * env * (math.sin(ph) + 0.35 * math.sin(2 * ph))
+    return out
+
+
+def wolf_bite(seconds=0.5, seed=251):
+    """瘴氣狼撲上來咬：一聲短短的低吼（粗糙的鋸齒波 105 Hz、帶噪音、經過一個喉嚨的共振）
+    → 牙齒合起來的「喀」（很硬、很短的高頻共鳴）＋一點撕扯的雜訊。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    m = int(0.22 * RATE)
+    src = []
+    ph = 0.0
+    for i in range(m):
+        t = i / RATE
+        f = 105.0 * (1.0 + 0.25 * t / 0.22) * (1.0 + 0.06 * rng.uniform(-1.0, 1.0))
+        ph = (ph + f / RATE) % 1.0
+        src.append((2.0 * ph - 1.0) + 0.6 * rng.uniform(-1.0, 1.0))
+    growl = svf_band(src, lambda i: 520.0 + 300.0 * i / m, 0.35)
+    out = [0.0] * n
+    for i in range(m):
+        t = i / RATE
+        out[i] += 0.9 * growl[i] * min(1.0, t / 0.03) * (0.6 + 0.4 * math.sin(2 * math.pi * 28.0 * t))
+    snap_at = int(0.2 * RATE)
+    click = [0.0] * (n - snap_at)
+    click[0] = 1.0
+    click[1] = -0.7
+    teeth = svf_band(click, lambda i: 2300.0, 0.08)
+    tear = onepole_lp(hp(noise(n - snap_at, rng), 1200), 6000)
+    for k in range(n - snap_at):
+        t = k / RATE
+        out[snap_at + k] += 6.0 * teeth[k] + 0.45 * tear[k] * math.exp(-t * 22.0)
+    return out
+
+
+def treant_step(seed=257):
+    """孢子樹人的一步（約 0.6 秒）：很重的木頭「咚」（85 → 48 Hz 往下掉、加一個高八度讓小喇叭也聽得到）
+    ＋樹幹被壓的一聲短吱嘎＋落地時葉子、孢子沙沙地抖。"""
+    rng = random.Random(seed)
+    n = int(0.6 * RATE)
+    out = [0.0] * n
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        f = 48.0 + 37.0 * math.exp(-t * 18)
+        ph += 2 * math.pi * f / RATE
+        out[i] += math.exp(-t * 9.0) * (math.sin(ph) + 0.35 * math.sin(2 * ph)) * min(1.0, t / 0.004)
+    dull = onepole_lp(noise(int(0.12 * RATE), rng), 500)
+    for i, v in enumerate(dull):
+        out[i] += 0.9 * v * math.exp(-i / RATE * 30)
+    _mix_at(out, 0.03, _creak(seed + 1, 0.28), 0.1)
+    knock = [0.0] * int(0.25 * RATE)
+    knock[0] = 1.0
+    hollow = svf_band(knock, lambda i: 210.0, 0.05)
+    hollow2 = svf_band(knock, lambda i: 470.0, 0.07)
+    kpeak = max(abs(v) for v in hollow) or 1.0
+    for i in range(len(knock)):
+        out[i] += 0.45 * (hollow[i] + 0.5 * hollow2[i]) / kpeak
+    rustle = onepole_lp(hp(noise(int(0.35 * RATE), rng), 2600), 7000)
+    for i, v in enumerate(rustle):
+        x = i / len(rustle)
+        out[int(0.04 * RATE) + i] += 0.18 * v * math.sin(math.pi * x) * (0.5 + 0.5 * (rng.random() < 0.3))
+    return out
+
+
+def chest_open(seconds=1.5, seed=263):
+    """打開毒沼裡的詛咒寶箱：鎖扣彈開的「喀噠」→ 沉重的箱蓋慢慢掀開的「嘰——」（低的木頭吱嘎）
+    → 一口不祥的低音和弦吐出來（三個走音的低音慢慢漲起來，D2、Ab2、D3＝三全音，接著就是詛咒上身）。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    latch = thump(0.12, 900, 350, crack=0.9, seed=seed + 1)
+    _mix_at(out, 0.0, latch, 0.55)
+    _mix_at(out, 0.09, latch, 0.35)
+    creak = _creak(seed + 2, 0.7)
+    creak = onepole_lp(creak, 1800)
+    _mix_at(out, 0.18, creak, 0.6)
+    table = _wavetable([(1, 1.0), (2, 0.5), (3, 0.3), (4, 0.15), (5, 0.08)])
+    size = len(table)
+    chord = [0.0] * n
+    start = int(0.55 * RATE)
+    for f, a in ((73.4, 0.5), (73.9, 0.4), (103.8, 0.35), (104.4, 0.3), (146.8, 0.2)):
+        ph = rng.random() * size
+        for i in range(start, n):
+            chord[i] += a * table[int(ph) % size]
+            ph += f * size / RATE
+    chord = onepole_lp(onepole_lp(chord, 700), 900)
+    for i in range(start, n):
+        x = (i - start) / (n - start)
+        out[i] += 0.25 * chord[i] * math.sin(math.pi * min(1.0, x * 1.3)) ** 2
+    return out
+
+
+def distant_scream(seconds=2.6, seed=269):
+    """祭壇那邊傳來的慘叫（遠、隔著樹林）：一個人拉長的「啊——」（鋸齒波的聲帶 300 → 560 → 280 Hz，越喊越抖，
+    經過「啊」的三個共振峰），低通（遠）＋好幾道越來越悶的回音（樹林）。不是近的、尖的那種。"""
+    rng = random.Random(seed)
+    m = int(1.25 * RATE)
+    src = []
+    ph = 0.0
+    for i in range(m):
+        x = i / m
+        f = 300.0 + 260.0 * math.sin(math.pi * min(1.0, x * 1.6)) - 40.0 * x
+        f *= 1.0 + (0.01 + 0.04 * x) * math.sin(2 * math.pi * 6.5 * i / RATE) + 0.01 * rng.uniform(-1.0, 1.0)
+        ph = (ph + f / RATE) % 1.0
+        env = min(1.0, x / 0.06) * (1.0 - max(0.0, (x - 0.7) / 0.3)) ** 1.5
+        src.append(env * ((2.0 * ph - 1.0) + 0.15 * rng.uniform(-1.0, 1.0)))
+    voice = [0.0] * m
+    for fc, d, g in ((850.0, 0.12, 1.0), (1250.0, 0.12, 0.7), (2700.0, 0.15, 0.35)):
+        b = svf_band(src, lambda i, fc=fc: fc, d)
+        for i in range(m):
+            voice[i] += g * b[i]
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    _mix_at(out, 0.0, onepole_lp(onepole_lp(voice, 2200), 3000), 1.0)
+    taps = ((0.19, 0.35), (0.37, 0.24), (0.61, 0.15), (0.9, 0.09))
+    wet = list(out)
+    for delay, amount in taps:
+        d = int(delay * RATE)
+        damp = onepole_lp(wet, 1500 - delay * 800)
+        for i in range(d, n):
+            out[i] += damp[i - d] * amount
+    return out
+
+
 def main():
     made = [
         write("blunt", thump(0.3, 140, 55, seed=2)),
@@ -983,6 +1192,13 @@ def main():
         write("swamp_bubble", swamp_bubble()),
         write("campfire_crackle", campfire_crackle()),
         write("vent_hiss", vent_hiss()),
+        write("mushroom_pick", mushroom_pick()),
+        write("fruit_bite", fruit_bite()),
+        write("web_stick", web_stick()),
+        write("wolf_bite", wolf_bite()),
+        write("treant_step", treant_step()),
+        write("chest_open", chest_open()),
+        write("distant_scream", distant_scream()),
     ]
     for p in made:
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

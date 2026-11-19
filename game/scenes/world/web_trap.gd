@@ -11,6 +11,8 @@ const MODEL: String = "tripo/prop_paralysis_web_v2"
 const HALF_SPAN: float = 1.15
 const TOUCH: float = 0.5
 const REARM: float = 1.6
+## 撞進網裡：黏黏的絲被扯開＋網被拉長又彈回來
+const SNARE_SFX: String = "web_stick"
 
 var source_id: String = "web_snare"
 ## 黏到過幾次（測試用）
@@ -45,7 +47,7 @@ func _physics_process(_delta: float) -> void:
 		_armed = false
 		snares += 1
 		p.status_effects.apply_source(source_id)
-		Sfx.play_at(self, "interrupt", global_position + Vector3.UP, -5.0)
+		Sfx.play_at(self, SNARE_SFX, p.global_position + Vector3.UP, -4.0)
 		# 網被扯了一下
 		var t: Tween = create_tween()
 		t.tween_property(_look, "scale", Vector3(1.0, 0.94, 1.12), 0.07)

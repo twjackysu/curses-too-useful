@@ -4,7 +4,7 @@ extends RefCounted
 ## 檔案不存在時安靜跳過，不影響遊戲。全部走 SFX 匯流排（設定裡的「音效」音量）。
 
 const DIR: String = "res://assets/generated/sfx/"
-const NAMES: PackedStringArray = ["blunt", "blunt_weak", "claw", "slash", "whoosh", "rubble_scrape", "iron_clang", "ui_tick", "market_murmur", "title_theme", "step_dirt", "step_stone", "step_wood", "step_heavy", "part_end_theme", "poison_hiss", "glass_clink", "interrupt", "brace_warn", "poison_burst", "curse_sting", "reversal_shatter", "crystal_alarm", "vial_shot", "vial_shatter", "vial_load", "cut_hit", "cut_heavy", "forest_night", "swamp_bubble", "campfire_crackle", "vent_hiss"]
+const NAMES: PackedStringArray = ["blunt", "blunt_weak", "claw", "slash", "whoosh", "rubble_scrape", "iron_clang", "ui_tick", "market_murmur", "title_theme", "step_dirt", "step_stone", "step_wood", "step_heavy", "part_end_theme", "poison_hiss", "glass_clink", "interrupt", "brace_warn", "poison_burst", "curse_sting", "reversal_shatter", "crystal_alarm", "vial_shot", "vial_shatter", "vial_load", "cut_hit", "cut_heavy", "forest_night", "swamp_bubble", "campfire_crackle", "vent_hiss", "mushroom_pick", "fruit_bite", "web_stick", "wolf_bite", "treant_step", "chest_open", "distant_scream"]
 
 static var _cache: Dictionary = {}
 
