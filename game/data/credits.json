@@ -1,0 +1,19 @@
+{
+  "_comment": "「第一章　完」之後的製作名單（EndCredits）。role 是翻譯 key；names 是翻譯 key 或專有名詞（照原樣）。來源與授權在 docs/CREDITS.md，加素材時兩邊一起改。最後接 Godot 的授權全文（Engine.get_license_text）。",
+  "sections": [
+    {"role": "CREDITS_ROLE_STORY", "names": ["Jacky"]},
+    {"role": "CREDITS_ROLE_DEV", "names": ["CREDITS_NAME_CLAUDE"]},
+    {"role": "CREDITS_ROLE_MODELS", "names": ["CREDITS_NAME_TRIPO"]},
+    {"role": "CREDITS_ROLE_PROPS", "names": ["Quaternius — Fantasy Props MegaKit (CC0)"]},
+    {"role": "CREDITS_ROLE_SWORD", "names": ["Kay Lousberg — KayKit Adventurers (CC0)"]},
+    {"role": "CREDITS_ROLE_FONTS", "names": ["Noto Serif CJK TC / Noto Sans CJK TC", "SIL Open Font License 1.1"]},
+    {"role": "CREDITS_ROLE_AUDIO", "names": ["CREDITS_NAME_SYNTH"]},
+    {"role": "CREDITS_ROLE_ENGINE", "names": ["Godot Engine (MIT License)"]}
+  ],
+  "preview": {
+    "small": "PREVIEW_SMALL",
+    "title": "PREVIEW_TITLE",
+    "lines": ["PREVIEW_LINE1", "PREVIEW_LINE2"],
+    "foot": "PREVIEW_SOON"
+  }
+}

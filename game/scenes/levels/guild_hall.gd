@@ -155,6 +155,8 @@ var board_note: PaperNote
 var _board_t: float = 0.0
 var core: GolemCore
 var card: ChapterCard
+## 「第一章　完」之後的製作名單與下一章的預告（播完回標題；測試叫 credits.finish()）
+var credits: EndCredits
 ## 警報響了幾秒（< 0＝沒有在響）
 var _alarm_t: float = -1.0
 var _alarm_step: int = 0
@@ -235,7 +237,7 @@ func _ready() -> void:
 	# 截圖用：`--registered --demo=leo` 進場就摸水晶、雷歐直接站到旁邊開口（不等警報的那幾秒；配 `--talk-skip`）；
 	# `--registered --demo=alarm` 進場就摸水晶、照平常的時間軸（伸手、大家笑、雷歐走過來）；
 	# `--after-leo --demo=quest` 進場就跟莉莉絲說話（她兩手遞出委託單）；
-	# `--quest-taken --demo=sera` 席菈一開始就站在幾步外（不等她從角落走過來）；`--return --demo=end` 直接停在「第一章　完」；
+	# `--quest-taken --demo=sera` 席菈一開始就站在幾步外（不等她從角落走過來）；`--return --demo=end` 直接停在「第一章　完」（`--demo=credits` 製作名單、`--demo=preview` 下一章的預告）；
 	# `--demo=board` 站到佈告欄前面、攤開上面的委託
 	_burst_on = str(args.get("burst-on", ""))
 	_demo = str(args.get("demo", ""))
@@ -254,6 +256,10 @@ func _ready() -> void:
 	elif _demo == "end":
 		_play_end_card()
 		card.hold_still.call_deferred()
+	elif _demo == "credits" or _demo == "preview":
+		# 截圖用：製作名單捲到第 12 秒／下一章的預告
+		_play_credits()
+		credits.hold_at.call_deferred(EndCredits.Part.ROLL if _demo == "credits" else EndCredits.Part.PREVIEW, 12.0)
 	elif _demo == "board":
 		_player.global_position = board_use.global_position + Vector3(0.5, 0, 0.2)
 		_player.yaw = deg_to_rad(-90.0)
@@ -713,13 +719,18 @@ func _music_to(volume_db: float, sec: float) -> void:
 	_music_tween.tween_property(hall_music, "volume_db", volume_db, sec)
 
 
-## 「第一章　完」：整個畫面淡成黑、出章名，播完回標題
+## 「第一章　完」：整個畫面淡成黑、出章名，接著製作名單與下一章的預告，播完回標題
 func _play_end_card() -> void:
 	if card != null:
 		return
 	_music_to(Ambience.MUTED_DB, 1.0)
 	Ambience.music(self, END_MUSIC, END_MUSIC_DB, 1.2, "EndTheme")
-	card = ChapterCard.play(self, "CARD_END_SMALL", "CARD_END_TITLE", Game.back_to_title, 1.0, false)
+	card = ChapterCard.play(self, "CARD_END_SMALL", "CARD_END_TITLE", _play_credits, 1.0, false)
+
+
+func _play_credits() -> void:
+	if credits == null:
+		credits = EndCredits.play(self, Game.back_to_title)
 
 
 ## 魔像核心：扛在諾恩的左肩上、左手扶著（GolemCore：祭壇那一關從魔像胸口滾出來的那一顆）

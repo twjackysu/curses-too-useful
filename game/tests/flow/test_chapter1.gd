@@ -1797,6 +1797,8 @@ func test_walkthrough_from_new_game_to_the_end_of_chapter_one() -> void:
 			break
 	assert_not_null(hall.card, "章節卡")
 	hall.card.finish()
+	assert_not_null(hall.credits, "製作名單")
+	hall.credits.finish()
 	assert_eq(str(_game().get("last_level_request")), "title")
 	# 標題的「繼續」讀得回來
 	var again := GameSession.new(QuestDB.load_default(), _dir)

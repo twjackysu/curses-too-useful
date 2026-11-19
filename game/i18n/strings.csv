@@ -306,6 +306,24 @@ CARD_RETURN_SMALL,That evening,當天傍晚
 CARD_RETURN_TITLE,Alder Adventurers' Guild,奧爾德冒險者公會
 CARD_END_SMALL,Chapter 1: The Tumor and the Junk,第一章　毒瘤與破爛的共鳴
 CARD_END_TITLE,End of Chapter 1,第一章　完
+CREDITS_ROLE_STORY,Original story & design,原作・企劃・劇本
+CREDITS_ROLE_DEV,"Programming, levels, staging & sound",程式・關卡・演出・音效
+CREDITS_NAME_CLAUDE,Claude (an AI by Anthropic),Claude（Anthropic 的 AI）
+CREDITS_ROLE_MODELS,3D models,3D 模型
+CREDITS_NAME_TRIPO,Tripo (AI-generated),Tripo（AI 生成）
+CREDITS_ROLE_PROPS,Furniture & props,家具與擺設
+CREDITS_ROLE_SWORD,Stand-in sword,替身的劍
+CREDITS_ROLE_FONTS,Fonts,字型
+CREDITS_ROLE_AUDIO,Sound effects & music,音效與配樂
+CREDITS_NAME_SYNTH,Synthesized in code,程式合成
+CREDITS_ROLE_ENGINE,Engine,引擎
+CREDITS_THANKS,Thank you for playing,感謝遊玩
+CREDITS_SKIP,Hold {key} to skip,長按 {key} 跳過
+PREVIEW_SMALL,Next chapter,下一章
+PREVIEW_TITLE,Chapter 2: Someone Didn't Clock Out Tonight,第二章　今晚有個人沒下班
+PREVIEW_LINE1,The golem core on the guild table knocks three times.,公會桌上的魔像核心，敲了三下。
+PREVIEW_LINE2,"And from somewhere far away, someone knocks back.",很遠的地方，有人敲了回來。
+PREVIEW_SOON,Coming soon,製作中
 BARK_LEO_RETURN,"...That golem was a nightmare. Those two duds are done for, no question.",……那隻魔像根本是怪物。那兩個廢物，肯定回不來了。
 DLG_CH1_RETURN_001,"...So don't bother waiting for them. Against a monster like that, a 'no aptitude' and a gas bomb couldn't possibly—",……所以那兩個人不用等了。在那種怪物面前，「無適性」跟毒氣彈怎麼可能——
 DLG_CH1_RETURN_002,"H-hey, the door...! That thing on his shoulder — that's the golem's core, isn't it!?",喂、喂，門口……！他肩上扛的那個，是魔像的核心吧！？
