@@ -11,7 +11,7 @@
   mushroom_pick、fruit_bite、web_stick、wolf_bite、chest_open、distant_scream
 - 祭壇：altar_air（整片）、boss_theme（Boss 戰配樂）、golem_roar、gaze_charge／gaze_beam、golem_slam、
   core_glow、stone_deflect、core_shatter、core_land、stone_peel（席菈的石殼剝落）
-- 公會：hall_murmur（人聲）、crystal_alarm、crowd_laugh、door_creak／door_shut、chapter_end_theme（「第一章　完」）
+- 公會：hall_murmur（人聲）、guild_theme（大廳的配樂）、crystal_alarm、crowd_laugh、door_creak／door_shut、chapter_end_theme（「第一章　完」）
 - 介面與漫符：ui_tick、title_theme（標題配樂）、manga_shock／manga_sparkle／manga_drop／manga_question
 - 循環的（環境音、配樂）頭尾交叉淡化，Ambience 設成整段循環；bell() 只給配樂裡的鐘聲用。
 授權：程序生成，無外部素材（docs/CREDITS.md）。
@@ -1583,6 +1583,79 @@ def door_shut(seconds=0.55, seed=379):
     return out
 
 
+def _pluck(seconds, f, rng, damp=0.996, bright=0.5):
+    """撥一下弦（Karplus-Strong：一小段雜訊在延遲線裡來回、每圈平均一次就越來越圓、越來越小）。"""
+    period = max(2, int(RATE / f))
+    buf = [rng.uniform(-1.0, 1.0) for _ in range(period)]
+    buf = onepole_lp(buf, 1500.0 + 6000.0 * bright)
+    n = int(seconds * RATE)
+    out = []
+    idx = 0
+    prev = 0.0
+    for i in range(n):
+        cur = buf[idx]
+        buf[idx] = damp * 0.5 * (cur + prev)
+        prev = cur
+        out.append(cur)
+        idx = (idx + 1) % period
+    tail = int(0.03 * RATE)
+    for i in range(max(0, n - tail), n):
+        out[i] *= (n - i) / tail
+    return out
+
+
+def guild_theme(seed=383):
+    """公會大廳的配樂（可循環 12 秒＝三拍子、120 BPM、8 小節；走 Music 匯流排，小小聲墊在人聲底下）：
+    角落有人在彈魯特琴——每小節第一拍撥低音、第二三拍撥和弦音（D、G、A、D、Bm、G、A、D），上面一支軟軟的直笛旋律
+    （正弦＋一點泛音與氣音、輕輕抖），手鼓在第一拍「咚」、二三拍「嗒」。有點舊、有點暖，不是英雄的那種。
+    循環的頭尾是同一拍，尾巴的殘響加回開頭。"""
+    rng = random.Random(seed)
+    beat = 0.5
+    bar = 3 * beat
+    n = int(8 * bar * RATE)
+    out = [0.0] * (n + int(2.0 * RATE))
+    D3, G2, A2, B2 = 146.83, 98.0, 110.0, 123.47
+    chords = [(D3, (185.0, 220.0, 293.66)), (G2, (246.94, 293.66, 392.0)), (A2, (277.18, 329.63, 440.0)), (D3, (185.0, 220.0, 293.66)),
+              (B2, (293.66, 369.99, 493.88)), (G2, (246.94, 293.66, 392.0)), (A2, (277.18, 329.63, 440.0)), (D3, (220.0, 293.66, 369.99))]
+    for b, (root, tones) in enumerate(chords):
+        t0 = b * bar
+        _mix_at(out, t0, _pluck(1.4, root, rng, 0.997, 0.3), 0.5)
+        for k in range(4):
+            f = tones[(k + (b % 2)) % 3]
+            _mix_at(out, t0 + beat + k * beat / 2, _pluck(0.8, f, rng, 0.994, 0.55), 0.26 if k % 2 == 0 else 0.2)
+    melody = [[(440.0, 1), (369.99, 1), (440.0, 1)], [(493.88, 2), (440.0, 1)], [(554.37, 1), (493.88, 1), (440.0, 1)], [(369.99, 3)],
+              [(587.33, 1), (554.37, 1), (493.88, 1)], [(493.88, 1), (392.0, 1), (493.88, 1)], [(440.0, 1), (392.0, 1), (329.63, 1)], [(293.66, 3)]]
+    for b, notes in enumerate(melody):
+        t = b * bar
+        for f, beats in notes:
+            dur = beats * beat
+            m = int(dur * RATE)
+            breath = onepole_lp(hp(noise(m, rng), 1800), 6000)
+            note = []
+            ph = 0.0
+            for i in range(m):
+                tt = i / RATE
+                vib = 1.0 + 0.006 * math.sin(2 * math.pi * 5.2 * tt) * min(1.0, tt / 0.3)
+                ph += 2 * math.pi * f * vib / RATE
+                env = min(1.0, tt / 0.04) * min(1.0, (dur - tt) / 0.08) * (1.0 - 0.15 * tt / dur)
+                note.append(env * (math.sin(ph) + 0.18 * math.sin(2 * ph) + 0.06 * math.sin(3 * ph) + 0.08 * breath[i]))
+            _mix_at(out, t, note, 0.13)
+            t += dur
+    low = _drum(0.35, 140.0, 80.0, 12.0, 0.6, seed + 1)
+    high = _drum(0.12, 420.0, 300.0, 35.0, 1.4, seed + 2)
+    for b in range(8):
+        _mix_at(out, b * bar, low, 0.25)
+        _mix_at(out, b * bar + beat, high, 0.08)
+        _mix_at(out, b * bar + 2 * beat, high, 0.1)
+    out = onepole_lp(out, 5000)
+    _echo(out, ((0.07, 0.18), (0.13, 0.1)))
+    looped = out[:n]
+    for i, v in enumerate(out[n:]):
+        looped[i] += v
+    peak = max(abs(v) for v in looped) or 1.0
+    return [v / peak * 0.7 for v in looped]
+
+
 def main():
     made = [
         write("blunt", thump(0.3, 140, 55, seed=2)),
@@ -1635,6 +1708,7 @@ def main():
         write("crowd_laugh", crowd_laugh()),
         write("door_creak", door_creak()),
         write("door_shut", door_shut()),
+        write("guild_theme", guild_theme()),
         write("manga_shock", manga_shock()),
         write("manga_sparkle", manga_sparkle()),
         write("manga_drop", manga_drop()),

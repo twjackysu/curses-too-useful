@@ -95,6 +95,12 @@ const LAUGH_DB: float = -4.0
 const DOOR_SFX: String = "door_creak"
 const DOOR_SHUT_SFX: String = "door_shut"
 const DOOR_DB: float = -6.0
+## 大廳的配樂（角落的魯特琴＋直笛，小小聲墊在人聲底下）：水晶警報一響就停掉（全場安靜下來看他），雷歐走掉之後慢慢回來；「第一章　完」之前收掉
+const HALL_MUSIC: String = "guild_theme"
+const HALL_MUSIC_DB: float = -15.0
+const HALL_MUSIC_FADE_IN: float = 2.0
+const MUSIC_CUT_SEC: float = 0.25
+const MUSIC_BACK_SEC: float = 3.0
 ## 結尾席菈跟在諾恩左後方半步（玩家的鏡頭裡看得到她整個人）
 const SERA_FOLLOW_OFFSET: Vector3 = Vector3(-1.3, 0.0, 0.7)
 ## 有人走到離大門這麼近就開門（走出去的雷歐小隊、席菈、諾恩）；開關的速度（每秒幾成）
@@ -107,6 +113,9 @@ const SLIP_IN_HANDS: Vector3 = Vector3(-0.15, 0.03, -0.05)
 const LEAVING_GROUP: String = "guild_leaving"
 
 ## 大門從關著被推開幾次（每次吱嘎一聲）、關上幾次（碰一聲）；測試用
+## 大廳的配樂（_music_to 調音量）
+var hall_music: AudioStreamPlayer
+var _music_tween: Tween
 var door_creaks: int = 0
 var door_shuts: int = 0
 var scenery: GuildScenery
@@ -190,6 +199,9 @@ func _ready() -> void:
 	_build_interactables()
 	Game.dialogue_ended.connect(_on_dialogue_ended)
 	Ambience.play(self, MURMUR_SFX, MURMUR_DB, "HallMurmur")
+	# 淡入也走 _music_to（同一個 tween）：一進來馬上摸水晶，停掉的那一下不會被還沒淡完的淡入蓋回去
+	hall_music = Ambience.music(self, HALL_MUSIC, Ambience.MUTED_DB, 0.0, "HallMusic")
+	_music_to(HALL_MUSIC_DB, HALL_MUSIC_FADE_IN)
 	if is_epilogue() and stage() == STAGE_REPORT:
 		_attach_core()
 	elif stage() == STAGE_REGISTER:
@@ -415,6 +427,7 @@ func touch_crystal() -> void:
 	# 「把手放到水晶上」做了：雷歐講完、走掉之前左上不寫下一步
 	_hud.objective_held = true
 	Sfx.play_flat(self, "crystal_alarm", -3.0)
+	_music_to(Ambience.MUTED_DB, MUSIC_CUT_SEC)
 	_player.shake(0.35)
 	_hud.show_center_lines("CH1_CRYSTAL_LINE1", "CH1_CRYSTAL_LINE2", 7.0)
 	if _demo == "leo":
@@ -577,6 +590,7 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 		LEO_DIALOGUE:
 			_party_leaves()
 			_alarm_t = -1.0
+			_music_to(HALL_MUSIC_DB, MUSIC_BACK_SEC)
 			_hud.objective_held = false
 			_sera_look = sera.global_position + Vector3(-1.0, 0, -1.4) if sera != null else Vector3.INF
 			get_tree().create_timer(1.6).timeout.connect(func() -> void:
@@ -604,10 +618,22 @@ func _party_leaves() -> void:
 	party.clear()
 
 
+## 大廳的配樂慢慢轉到這個音量（停掉＝MUTED_DB；播放器留著，之後還能回來）
+func _music_to(volume_db: float, sec: float) -> void:
+	if hall_music == null or not is_instance_valid(hall_music):
+		return
+	if _music_tween != null:
+		_music_tween.kill()
+	_music_tween = hall_music.create_tween()
+	_music_tween.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	_music_tween.tween_property(hall_music, "volume_db", volume_db, sec)
+
+
 ## 「第一章　完」：整個畫面淡成黑、出章名，播完回標題
 func _play_end_card() -> void:
 	if card != null:
 		return
+	_music_to(Ambience.MUTED_DB, 1.0)
 	Ambience.music(self, END_MUSIC, END_MUSIC_DB, 1.2, "EndTheme")
 	card = ChapterCard.play(self, "CARD_END_SMALL", "CARD_END_TITLE", Game.back_to_title)
 

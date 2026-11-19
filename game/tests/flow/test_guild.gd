@@ -151,6 +151,8 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	assert_false(hud.guide.shown, "中間的字還在，指引的菱形先不畫（不疊在字上）")
 	assert_false(level.scenery.slip.visible, "綠色委託單還沒拿出來")
 	assert_true(level.get_node_or_null("HallMurmur") != null or Sfx.stream(GuildHall.MURMUR_SFX) == null, "大廳的人聲")
+	if Sfx.stream(GuildHall.HALL_MUSIC) != null:
+		assert_true(level.hall_music != null and level.hall_music.playing and level.hall_music.bus == &"Music", "大廳有配樂，走「音樂」音量")
 
 
 func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> void:
@@ -194,6 +196,8 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	var leo_start: Vector3 = leo.global_position
 	await _frames(int(GuildHall.ALARM_LEO_WALKS * 60.0) + 10)
 	assert_true(hud.bark_keys().has("BARK_ADV_LAUGH_A") or hud.bark_keys().has("BARK_ADV_LAUGH_B"), "冒險者笑出來")
+	if level.hall_music != null:
+		assert_true(level.hall_music.volume_db < -40.0, "警報一響配樂就停（%.0f dB）" % level.hall_music.volume_db)
 	var laugh: AudioStream = Sfx.stream(GuildHall.LAUGH_SFX)
 	var laughing: int = 0
 	for c: Node in level.get_children():
@@ -238,6 +242,8 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	await _frames(int(60.0 / GuildHall.DOOR_SPEED) + 30)
 	assert_true(level.scenery.door_open < 0.05, "人走了，門關上")
 	assert_true(level.door_shuts >= 1, "關上的時候碰一聲")
+	if level.hall_music != null:
+		assert_true(absf(level.hall_music.volume_db - GuildHall.HALL_MUSIC_DB) < 0.5, "雷歐走了，配樂回來（%.0f dB）" % level.hall_music.volume_db)
 	assert_true(level.lilith_use.enabled, "可以跟莉莉絲說話")
 
 
