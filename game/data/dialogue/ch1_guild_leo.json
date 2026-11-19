@@ -13,6 +13,7 @@
       "speaker": "SPK_LEO",
       "text": "DLG_CH1_LEO_002",
       "act": "point",
+      "look": "SPK_SHEILA",
       "next": "l02"
     },
     "l02": {
@@ -20,6 +21,7 @@
       "text": "DLG_CH1_LEO_003",
       "emote": "sweat",
       "act": "bow",
+      "head": "down",
       "next": "l03"
     },
     "l03": {

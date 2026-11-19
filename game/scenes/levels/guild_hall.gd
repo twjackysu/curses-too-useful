@@ -131,6 +131,8 @@ const SLIP_SHOW_SEC: float = 1.72
 const LEAVING_GROUP: String = "guild_leaving"
 ## 莉莉絲拿出綠色委託單的那一句、蓋章的那一句：畫面右邊拿出那張紙（PaperNote）、蓋上「受理」
 const SLIP_SHOW_LINE: String = "DLG_CH1_QUEST_002"
+## 雷歐點到席菈的那一句
+const LEO_CALLS_SERA_LINE: String = "DLG_CH1_LEO_002"
 const SLIP_STAMP_LINE: String = "DLG_CH1_QUEST_006"
 const SLIP_PAPER: Color = Color(0.62, 0.78, 0.55)
 const SLIP_INK: Color = Color(0.1, 0.2, 0.1)
@@ -239,7 +241,9 @@ func _ready() -> void:
 	Game.dialogue_ended.connect(_on_dialogue_ended)
 	Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
 		if r.dialogue_id == QUEST_DIALOGUE:
-			r.line_shown.connect(_on_quest_line))
+			r.line_shown.connect(_on_quest_line)
+		elif r.dialogue_id == LEO_DIALOGUE:
+			r.line_shown.connect(_on_leo_line))
 	Ambience.play(self, MURMUR_SFX, MURMUR_DB, "HallMurmur")
 	# 淡入也走 _music_to（同一個 tween）：一進來馬上摸水晶，停掉的那一下不會被還沒淡完的淡入蓋回去
 	hall_music = Ambience.music(self, HALL_MUSIC, Ambience.MUTED_DB, 0.0, "HallMusic")
@@ -700,6 +704,15 @@ func _on_quest_line(_speaker: String, text_key: String) -> void:
 		_hud.add_child(slip_note)
 	elif text_key == SLIP_STAMP_LINE and slip_note != null and is_instance_valid(slip_note):
 		slip_note.stamp("SLIP_STAMP")
+
+
+## 雷歐那段話：點到「縮在角落的那個鍊金術師」，縮成一團的席菈嚇得抬起頭、轉過來看他（她自己那一句道歉低下頭，對話資料寫的）
+func _on_leo_line(_speaker: String, text_key: String) -> void:
+	if text_key == LEO_CALLS_SERA_LINE and sera != null and is_instance_valid(sera):
+		sera.puppet().head = "lift"
+		var leo: Npc = party.get("Leo") as Npc
+		if leo != null:
+			_sera_look = leo.global_position
 
 
 ## 讀佈告欄：再按一次收起來

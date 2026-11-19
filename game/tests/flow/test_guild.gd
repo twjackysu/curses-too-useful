@@ -236,8 +236,12 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	runner = _game().get("dialogue") as DialogueRunner
 	assert_eq(str(runner.current().get("speaker", "")), "SPK_LEO")
 	runner.advance()
+	assert_eq(runner.current_text(), GuildHall.LEO_CALLS_SERA_LINE)
+	assert_eq(level.sera.puppet().head, "lift", "被點名：縮成一團的席菈嚇得抬起頭")
 	runner.advance()
 	assert_eq(str(runner.current().get("speaker", "")), Sera.NAME_KEY, "角落的席菈道歉")
+	await _frames(2)
+	assert_eq(level.sera.puppet().head, "down", "道歉的時候又低下頭")
 	await _frames(3)
 	assert_eq(level.talk_camera.speaker(), level.sera as Node3D, "鏡頭帶到角落的她")
 	_finish_dialogue(0)

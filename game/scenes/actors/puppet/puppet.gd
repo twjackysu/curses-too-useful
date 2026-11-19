@@ -47,7 +47,8 @@ const GESTURES: PackedStringArray = ["nod", "bow", "point", "chest", "shrug", "f
 const NOD_AMP: Vector3 = Vector3(0.075, 0.05, 0.04)
 const TALK_EASE: float = 5.0
 ## 低頭／抬頭多少（弧度）與轉過去多快（每秒）
-const HEAD_TILT: Dictionary = {"": 0.0, "down": -0.38, "up": 0.16}
+## lift＝縮成一團低著頭的人嚇得抬起頭（公會角落的席菈被雷歐點名）
+const HEAD_TILT: Dictionary = {"": 0.0, "down": -0.38, "up": 0.16, "lift": 0.42}
 const TILT_SPEED: float = 1.6
 ## 頭轉過去看旁邊（坐著的人身體不能轉：Npc.face 改轉頭）最多幾弧度、轉多快（每秒）
 const LOOK_YAW_MAX: float = 1.05
