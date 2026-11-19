@@ -30,6 +30,8 @@ var reduce_camera_shake: bool = false
 var objective_marker: bool = true
 ## 自動攻擊（Jacky 2026-11-16：「一直點滑鼠感覺會點壞」）：身邊有敵人諾恩就自己出手，玩家只要移動、閃避。關掉＝自己按（按住也會接著砍）。
 var auto_attack: bool = true
+## 手把震動（砍中、反轉碎裂、挨打、毒爆；`Rumble`）
+var pad_rumble: bool = true
 ## 目前的按鍵綁定（格式見 InputSetup）；存檔時只寫跟預設不同的動作到 [input]
 var input_bindings: Dictionary = InputSetup.defaults()
 
@@ -131,6 +133,8 @@ func set_option(option: String, value: bool) -> void:
 			objective_marker = value
 		"auto_attack":
 			auto_attack = value
+		"pad_rumble":
+			pad_rumble = value
 		_:
 			push_error("Settings: 沒有選項 %s" % option)
 			return
@@ -152,6 +156,8 @@ func get_option(option: String) -> bool:
 			return objective_marker
 		"auto_attack":
 			return auto_attack
+		"pad_rumble":
+			return pad_rumble
 	return false
 
 
@@ -228,6 +234,7 @@ func load_settings(path: String = _config_path) -> void:
 	reduce_camera_shake = bool(cfg.get_value("general", "reduce_camera_shake", false))
 	objective_marker = bool(cfg.get_value("general", "objective_marker", true))
 	auto_attack = bool(cfg.get_value("gameplay", "auto_attack", true))
+	pad_rumble = bool(cfg.get_value("gameplay", "pad_rumble", true))
 	for bus_name: String in VOLUME_BUSES:
 		var key: String = bus_name.to_lower() + "_volume"
 		volumes[bus_name] = clampf(float(cfg.get_value("audio", key, volumes.get(bus_name, 1.0))), 0.0, 1.0)
@@ -249,6 +256,7 @@ func save_settings(path: String = _config_path) -> Error:
 	cfg.set_value("general", "reduce_camera_shake", reduce_camera_shake)
 	cfg.set_value("general", "objective_marker", objective_marker)
 	cfg.set_value("gameplay", "auto_attack", auto_attack)
+	cfg.set_value("gameplay", "pad_rumble", pad_rumble)
 	for bus_name: String in VOLUME_BUSES:
 		cfg.set_value("audio", bus_name.to_lower() + "_volume", volume(bus_name))
 	cfg.set_value("video", "quality", int(quality))

@@ -22,6 +22,7 @@ SET_QUALITY,Graphics Quality,畫質
 SET_FULLSCREEN,Fullscreen,全螢幕
 SET_VSYNC,V-Sync,垂直同步
 SET_REDUCE_SHAKE,Reduce Camera Shake,減少鏡頭晃動
+SET_PAD_RUMBLE,Controller Vibration,手把震動
 SET_OBJECTIVE_MARKER,Objective Marker,目標指引
 SET_AUTO_ATTACK,Auto-Attack Nearby Enemies,自動攻擊（靠近敵人自己砍）
 SET_GROUP_GAME,Game,遊戲

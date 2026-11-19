@@ -118,6 +118,7 @@ func _build() -> void:
 		func(i: int) -> void: Settings.set_locale(Settings.SUPPORTED_LOCALES[i]),
 		func(i: int) -> String: return str(LOCALE_KEYS[Settings.SUPPORTED_LOCALES[i]]))
 	_add_toggle("SET_AUTO_ATTACK", "AutoAttack", "auto_attack")
+	_add_toggle("SET_PAD_RUMBLE", "PadRumble", "pad_rumble")
 	_add_toggle("SET_SUBTITLES", "Subtitles", "subtitles")
 	_add_toggle("SET_OBJECTIVE_MARKER", "ObjectiveMarker", "objective_marker")
 

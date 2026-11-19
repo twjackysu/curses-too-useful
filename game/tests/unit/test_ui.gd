@@ -107,6 +107,7 @@ func test_settings_menu_groups_arrows_pips() -> void:
 	assert_eq(menu.group_of("VolumeMusic"), "Audio")
 	assert_eq(menu.group_of("Quality"), "Display")
 	assert_eq(menu.group_of("ReduceShake"), "Display")
+	assert_eq(menu.group_of("PadRumble"), "Game", "手把震動跟自動攻擊放在一起")
 	assert_eq(menu.group_of("Controls"), "Input")
 
 	var quality_before: int = int(settings.get("quality"))

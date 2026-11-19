@@ -120,6 +120,8 @@ const TRAIL_STARTS: Array[float] = [0.17, 0.25, 0.17]
 const HIT_SFX: String = "cut_hit"
 const HIT_SFX_HEAVY: String = "cut_heavy"
 var last_hit_sfx: String = ""
+## 最後一刀停了多久（秒；測試用）
+var last_hit_stop: float = 0.0
 ## 生命（數值在 data/combat/tuning.json 的 noen）；閃避無敵期間不扣血
 var health: Health
 ## 身上的持續狀態。【逆理之器】：落在諾恩身上的全部反轉成增益（StatusEffects.reverses）
@@ -482,6 +484,7 @@ func _on_hurt(_amount: float, info: Dictionary) -> void:
 		return
 	hurt_left = stun
 	hurt_count += 1
+	Rumble.pulse(get_tree(), Rumble.HURT)
 	# 出到一半的招沒了：還沒判定的那一下不會打出去
 	if _puppet.action == "attack":
 		_puppet.action = ""
@@ -769,6 +772,7 @@ func release() -> Dictionary:
 	parent.add_child(last_release_fx)
 	last_release_fx.global_position = global_position
 	Sfx.play_at(parent, RELEASE_SFX, global_position + Vector3.UP, RELEASE_DB, 0.04, 8.0)
+	Rumble.pulse(get_tree(), Rumble.BURST)
 	if hits > 0:
 		Game.hit_stop(CombatTuning.num("feel.hit_stop_kill" if kills > 0 else "feel.hit_stop_weak", 0.08))
 	shake(CombatTuning.num("feel.shake_kill", 0.3))
@@ -958,9 +962,18 @@ func strike() -> int:
 		last_hit_sfx = HIT_SFX_HEAVY if heavy else HIT_SFX
 		Sfx.play_at(self, last_hit_sfx, global_position + forward * reach * 0.7 + Vector3.UP * 0.6, 0.0 if heavy else -2.0)
 		var stop_key: String = "feel.hit_stop_kill" if killed else ("feel.hit_stop_weak" if heavy else "feel.hit_stop")
-		Game.hit_stop(CombatTuning.num(stop_key, 0.06))
+		last_hit_stop = hit_stop_for(CombatTuning.num(stop_key, 0.06), _puppet.attack_speed, CombatTuning.num("feel.hit_stop_max_share", 1.0))
+		Game.hit_stop(last_hit_stop)
 		shake(CombatTuning.num("feel.shake_kill" if killed or finisher else "feel.shake_hit", 0.2))
+		Rumble.pulse(get_tree(), Rumble.KILL if killed else (Rumble.HIT_HEAVY if heavy else Rumble.HIT))
 	return hits
+
+
+## 砍中的打擊停頓（秒）：平常照數值檔，但最多只佔一刀的 max_share（出手 0.55 秒 ÷ 出手速度）——
+## 超頻（出手快 2.5 倍、0.22 秒一刀）時砍倒一隻停 0.12 秒會佔掉半刀，連砍起來一頓一頓的。純函式。
+static func hit_stop_for(base: float, attack_speed: float, max_share: float) -> float:
+	var swing_sec: float = float(Puppet.ACTION_TIME["attack"]) / maxf(attack_speed, 0.01)
+	return minf(base, swing_sec * max_share)
 
 
 ## 打中人的那一刻，手上、身上的東西給自己的狀態。同一種狀態只有一份，每次命中只是重新計時。
@@ -999,6 +1012,7 @@ func _on_status_changed(_status_id: String, event: String) -> void:
 ## 碎裂的那一刻：碎裂聲＋身上一團金色光點與金光＋鏡頭輕輕震一下
 func _on_reversal_shattered() -> void:
 	Sfx.play_at(self, "reversal_shatter", global_position + Vector3.UP, -1.0, 0.03, 8.0)
+	Rumble.pulse(get_tree(), Rumble.SHATTER)
 	if heal_fx != null:
 		heal_fx.burst(REVERSAL_GOLD, 48)
 	shake(CombatTuning.num("feel.reversal_shake", 0.12))

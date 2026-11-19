@@ -259,3 +259,57 @@ func test_reduced_shake() -> void:
 	settings.set("reduce_camera_shake", before)
 	player.queue_free()
 	await tree.process_frame
+
+
+## 打擊停頓照出手速度縮：最多只佔一刀的 hit_stop_max_share。平常的速度照數值檔；超頻（×2.5）砍倒一隻不再停掉半刀。
+func test_hit_stop_shrinks_when_swings_get_fast() -> void:
+	var share: float = CombatTuning.num("feel.hit_stop_max_share")
+	var kill: float = CombatTuning.num("feel.hit_stop_kill")
+	assert_true(share > 0.0 and share < 0.5, "有上限（%.2f）" % share)
+	assert_eq(PlayerController.hit_stop_for(kill, 1.0, share), kill, "平常的速度：照數值檔")
+	assert_eq(PlayerController.hit_stop_for(CombatTuning.num("feel.hit_stop"), 1.5, share), CombatTuning.num("feel.hit_stop"), "疊了幾層流血（快 50%）：平常那一刀的停頓不受影響")
+	var fast: float = PlayerController.hit_stop_for(kill, 2.5, share)
+	var swing: float = float(Puppet.ACTION_TIME["attack"]) / 2.5
+	assert_true(fast < kill and fast <= swing * share + 0.0001, "超頻：砍倒一隻最多停一刀的 %d%%（%.3f 秒，一刀 %.2f 秒）" % [roundi(share * 100.0), fast, swing])
+
+
+## 手把震動：只有最後用手把、設定開著才真的震；砍中、收尾、砍倒各是不同的強度。
+func test_rumble_only_on_a_gamepad_and_when_enabled() -> void:
+	var app: Node = tree.root.get_node("App")
+	var settings: Node = tree.root.get_node("Settings")
+	var device_before: int = int(app.get("last_device"))
+	var rumble_before: bool = bool(settings.get("pad_rumble"))
+	app.call("set_device", InputGlyphs.Device.KBM)
+	assert_false(Rumble.pulse(tree, Rumble.HIT), "鍵盤滑鼠不震")
+	assert_eq(Rumble.last, Rumble.HIT, "還是記下來要震哪一種")
+	app.call("set_device", InputGlyphs.Device.PAD)
+	settings.set("pad_rumble", true)
+	assert_true(Rumble.pulse(tree, Rumble.HIT), "手把＋設定開著：震")
+	settings.set("pad_rumble", false)
+	assert_false(Rumble.pulse(tree, Rumble.HIT), "設定關掉：不震")
+	assert_true(Rumble.HIT_HEAVY.y > Rumble.HIT.y and Rumble.KILL.y > Rumble.HIT_HEAVY.y, "收尾比平常重、砍倒最重")
+	# 砍中一刀：記下來的是平常的那一種
+	settings.set("pad_rumble", true)
+	var root := Node3D.new()
+	tree.root.add_child(root)
+	var player: PlayerController = (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as PlayerController
+	root.add_child(player)
+	var forward: Vector3 = -player.get_node("Body").global_basis.z as Vector3
+	var hits: Array[int] = [0]
+	var target: Health = _target(root, player.global_position + forward * 1.2, hits)
+	target.max_hp = 500.0
+	target.hp = 500.0
+	await tree.physics_frame
+	Rumble.last = Vector3.ZERO
+	player.start_attack()
+	for i: int in 60:
+		await tree.physics_frame
+		if hits[0] > 0:
+			break
+	assert_eq(Rumble.last, Rumble.HIT, "砍中：平常的震動")
+	assert_true(Rumble.fired, "用手把玩的時候真的送出去")
+	assert_eq(player.last_hit_stop, CombatTuning.num("feel.hit_stop"), "平常的速度：停頓照數值檔")
+	app.call("set_device", device_before)
+	settings.set("pad_rumble", rumble_before)
+	root.queue_free()
+	await tree.process_frame
