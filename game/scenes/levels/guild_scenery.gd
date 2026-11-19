@@ -21,9 +21,11 @@ const WALL_MARGIN: float = 0.45
 ## 大門（南牆中間）與走出去的那條線
 const DOOR_POS: Vector3 = Vector3(0, 0, HALF_L)
 const DOOR_SIZE: Vector2 = Vector2(2.6, 3.3)
-## 門開到底轉幾度（往屋裡開）。門洞裡那片天光貼在門框前面、門板後面（南牆是整片的，門後沒有洞）
+## 門開到底轉幾度（往屋裡開）
 const DOOR_SWING_DEG: float = 78.0
-const DOOR_DAYLIGHT_Z: float = -0.04
+## 門外那條街：街對面的房子離南牆多遠、石板路多寬（沿著街）
+const STREET_DEPTH: float = 7.0
+const STREET_HALF_W: float = 14.0
 ## 櫃檯那一排：中間是櫃檯，兩邊各兩個矮櫃接成一條長吧台；這條線以北是櫃檯裡面（上面是二樓的迴廊），客人進不去
 const COUNTER_POS: Vector3 = Vector3(0, 0, -8.0)
 const COUNTER_STRETCH: float = 1.45
@@ -34,7 +36,8 @@ const BOARD_POS: Vector3 = Vector3(-7.5, 0, 0.0)
 ## 西北角武器架旁邊的凳子（開場席菈縮著坐在上面）與它的高度
 const STOOL_POS: Vector3 = Vector3(-6.3, 0, -6.4)
 const STOOL_TOP: float = 0.58
-const SIGN_POS: Vector3 = Vector3(7.2, 0, 0.1)
+## 公會的招牌（戶外的立牌）：立在門外右手邊（從屋裡往外看），門開了看得到
+const SIGN_POS: Vector3 = Vector3(1.75, 0, HALF_L + 2.3)
 ## 二樓的迴廊：地板的高度、前緣（欄杆）在哪
 const LOFT_Y: float = 3.5
 const LOFT_EDGE_Z: float = -7.4
@@ -64,6 +67,7 @@ const COUNTER_MODEL: String = "tripo/prop_guild_counter_v2"
 const CRYSTAL_MODEL: String = "tripo/prop_aptitude_crystal"
 const BOARD_MODEL: String = "tripo/prop_guild_quest_board"
 const SIGN_MODEL: String = "tripo/prop_guild_signboard"
+const STREET_SHADER: Shader = preload("res://src/world/guild_street.gdshader")
 const WOOD_SHADER: Shader = preload("res://src/world/guild_wood.gdshader")
 const WALL_SHADER: Shader = preload("res://src/world/guild_wall.gdshader")
 const WINDOW_SHADER: Shader = preload("res://src/world/guild_window.gdshader")
@@ -110,6 +114,7 @@ static func build(level: Node3D, p_evening: bool) -> GuildScenery:
 	level.add_child(s._root)
 	s._build_environment(level)
 	s._build_shell()
+	s._build_street()
 	s._build_loft()
 	s._build_counter()
 	s._build_furniture()
@@ -255,7 +260,12 @@ func _build_shell() -> void:
 	_quad("WallEast", Vector2(HALF_L * 2.0, HEIGHT), Vector3(HALF_W, HEIGHT * 0.5, 0), Vector3(0, -90, 0), wall_ew)
 	_quad("WallWest", Vector2(HALF_L * 2.0, HEIGHT), Vector3(-HALF_W, HEIGHT * 0.5, 0), Vector3(0, 90, 0), wall_ew)
 	_quad("WallNorth", Vector2(HALF_W * 2.0, HEIGHT), Vector3(0, HEIGHT * 0.5, -HALF_L), Vector3(0, 0, 0), wall_ns)
-	_quad("WallSouth", Vector2(HALF_W * 2.0, HEIGHT), Vector3(0, HEIGHT * 0.5, HALF_L), Vector3(0, 180, 0), wall_ns)
+	# 南牆在大門的地方開一個洞（左、右、門上三片；shader 照世界座標畫，接起來看不出縫）——門開了看得到外面的街
+	var door_half: float = DOOR_SIZE.x * 0.5
+	var side_w: float = HALF_W - door_half
+	_quad("WallSouth", Vector2(side_w, HEIGHT), Vector3(-door_half - side_w * 0.5, HEIGHT * 0.5, HALF_L), Vector3(0, 180, 0), wall_ns)
+	_quad("WallSouthR", Vector2(side_w, HEIGHT), Vector3(door_half + side_w * 0.5, HEIGHT * 0.5, HALF_L), Vector3(0, 180, 0), wall_ns)
+	_quad("WallSouthTop", Vector2(DOOR_SIZE.x, HEIGHT - DOOR_SIZE.y), Vector3(0, (HEIGHT + DOOR_SIZE.y) * 0.5, HALF_L), Vector3(0, 180, 0), wall_ns)
 	_block("WallEastBlock", Vector3(1.0, HEIGHT, HALF_L * 2.0 + 2.0), Vector3(HALF_W + 0.5, HEIGHT * 0.5, 0))
 	_block("WallWestBlock", Vector3(1.0, HEIGHT, HALF_L * 2.0 + 2.0), Vector3(-HALF_W - 0.5, HEIGHT * 0.5, 0))
 	_block("WallNorthBlock", Vector3(HALF_W * 2.0 + 2.0, HEIGHT, 1.0), Vector3(0, HEIGHT * 0.5, -HALF_L - 0.5))
@@ -269,22 +279,20 @@ func _build_shell() -> void:
 	for z: float in [-10.0, -5.0, 0.0, 5.0, 10.0]:
 		_box(beams, Vector3(HALF_W * 2.0, 0.42, 0.36), Vector3(0, HEIGHT - 0.21, z), beam_mat)
 	_box(beams, Vector3(0.4, 0.3, HALF_L * 2.0), Vector3(0, HEIGHT - 0.57, 0), wood(BEAM_WOOD, Vector3(0, 0, 1), 0.4))
-	# 大門：門框＋兩片會往裡面開的門板（set_door_open），門洞是一片亮的天光（門開了才看得到；屋外沒有東西，走出去的人走到光前面消失）
+	# 大門：門框（兩邊的門柱與門楣）＋兩片會往裡面開的門板（set_door_open）；門外是 _build_street 的街
 	var door := Node3D.new()
 	door.name = "Door"
 	_root.add_child(door)
-	_quad("DoorFrame", DOOR_SIZE + Vector2(0.5, 0.25), DOOR_POS + Vector3(0, (DOOR_SIZE.y + 0.25) * 0.5, -0.02), Vector3(0, 180, 0), wood(DARK_WOOD * 0.7, Vector3(0, 1, 0), 0.5)).reparent(door)
-	var outside := StandardMaterial3D.new()
-	outside.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	outside.albedo_color = Color(1.0, 0.62, 0.36) if evening else Color(1.0, 0.95, 0.82)
-	outside.disable_fog = true
-	_quad("DoorDaylight", DOOR_SIZE, DOOR_POS + Vector3(0, DOOR_SIZE.y * 0.5, DOOR_DAYLIGHT_Z), Vector3(0, 180, 0), outside).reparent(door)
+	var frame_mat: ShaderMaterial = wood(DARK_WOOD * 0.7, Vector3(0, 1, 0), 0.5)
+	for side: float in [-1.0, 1.0]:
+		_quad("DoorJamb", Vector2(0.25, DOOR_SIZE.y + 0.25), DOOR_POS + Vector3(side * (door_half + 0.125), (DOOR_SIZE.y + 0.25) * 0.5, -0.02), Vector3(0, 180, 0), frame_mat).reparent(door)
+	_quad("DoorLintel", Vector2(DOOR_SIZE.x, 0.25), DOOR_POS + Vector3(0, DOOR_SIZE.y + 0.125, -0.02), Vector3(0, 180, 0), frame_mat).reparent(door)
 	var leaf_mat: ShaderMaterial = wood(Color(0.4, 0.24, 0.13), Vector3(0, 1, 0), 0.32)
 	var iron := StandardMaterial3D.new()
 	iron.albedo_color = Color(0.13, 0.12, 0.13)
 	iron.metallic = 0.6
 	iron.roughness = 0.5
-	var half: float = DOOR_SIZE.x * 0.5
+	var half: float = door_half
 	for side: float in [-1.0, 1.0]:
 		# 門軸在兩邊的門框上，門板往中間伸
 		var hinge := Node3D.new()
@@ -308,6 +316,40 @@ func _build_shell() -> void:
 			mat.set_shader_parameter("house_glow", 0.09 if lit else 0.42)
 			var w: MeshInstance3D = _quad("Window", WINDOW_SIZE, Vector3(side * (HALF_W - 0.03), WINDOW_SILL + WINDOW_SIZE.y * 0.5, z), Vector3(0, -90.0 * side, 0), mat)
 			windows.append(w)
+
+
+## 門外那條街：石板路、街對面的房子與天（guild_street.gdshader，不受光、照白天的顏色亮）、門邊的招牌與一盞照著它的燈。
+## 只從門洞看得到（牆的背面不畫，鏡頭退到牆外的時候也只是看到地面）；擋人的碰撞照舊是整面南牆。
+func _build_street() -> void:
+	var street := Node3D.new()
+	street.name = "Street"
+	_root.add_child(street)
+	var day: Color = Color(0.95, 0.66, 0.46) if evening else Color(0.9, 0.86, 0.78)
+	var ground := ShaderMaterial.new()
+	ground.shader = STREET_SHADER
+	ground.set_shader_parameter("part", 0)
+	ground.set_shader_parameter("daylight", day * (0.85 if evening else 1.0))
+	_quad("StreetGround", Vector2(STREET_HALF_W * 2.0, STREET_DEPTH), Vector3(0, 0.0, HALF_L + STREET_DEPTH * 0.5), Vector3(-90, 0, 0), ground).reparent(street)
+	var front := ShaderMaterial.new()
+	front.shader = STREET_SHADER
+	front.set_shader_parameter("part", 1)
+	front.set_shader_parameter("daylight", day)
+	if evening:
+		front.set_shader_parameter("sky_top", Color(0.45, 0.42, 0.7))
+		front.set_shader_parameter("sky_low", Color(1.0, 0.7, 0.45))
+	_quad("StreetHouses", Vector2(STREET_HALF_W * 2.0, 14.0), Vector3(0, 7.0, HALF_L + STREET_DEPTH), Vector3(0, 180, 0), front).reparent(street)
+	var sign_post: Node3D = _prop(SIGN_MODEL, SIGN_POS, -90.0)
+	if sign_post != null:
+		sign_post.name = "Signboard"
+		sign_post.reparent(street)
+	var sun := OmniLight3D.new()
+	sun.name = "StreetLight"
+	sun.light_color = day
+	sun.light_energy = 2.2
+	sun.omni_range = 6.0
+	sun.shadow_enabled = false
+	sun.position = Vector3(0.8, 3.0, HALF_L + 2.6)
+	street.add_child(sun)
 
 
 func _sun_color() -> Color:
@@ -446,10 +488,6 @@ func _build_furniture() -> void:
 	if board != null:
 		board.name = "QuestBoard"
 	_block("BoardBlock", Vector3(0.9, 2.3, 1.8), BOARD_POS + Vector3(0, 1.15, 0))
-	var sign_post: Node3D = _prop(SIGN_MODEL, SIGN_POS, 90.0)
-	if sign_post != null:
-		sign_post.name = "Signboard"
-	_block("SignBlock", Vector3(0.5, 2.4, 0.5), SIGN_POS + Vector3(0, 1.2, 0))
 	for i: int in TABLES.size():
 		var t: Vector2 = TABLES[i]
 		var at := Vector3(t.x, 0, t.y)

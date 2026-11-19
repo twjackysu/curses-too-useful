@@ -610,10 +610,14 @@ func _party_leaves() -> void:
 		who.leave_on_arrival = true
 		who.add_to_group(LEAVING_GROUP)
 		var lane := Vector3(-0.5 + 0.5 * float(i), 0, 0)
+		# 走出大門到街上、往右手邊轉進牆後面才消失（門開著的時候看得到外面）
+		var out: Array[Vector3] = [door + lane, GuildScenery.DOOR_POS + lane + Vector3(0, 0, 1.6), GuildScenery.DOOR_POS + Vector3(-3.6 - float(i) * 0.6, 0, 2.2)]
 		if key == "Leo":
-			who.walk_path([door + lane], 2.2)
+			who.walk_path(out, 2.2)
 		else:
-			who.walk_path([AISLE_WEST + lane + Vector3(0, 0, 0.8 * float(i)), door + lane], 2.0)
+			var path: Array[Vector3] = [AISLE_WEST + lane + Vector3(0, 0, 0.8 * float(i))]
+			path.append_array(out)
+			who.walk_path(path, 2.0)
 		i += 1
 	party.clear()
 

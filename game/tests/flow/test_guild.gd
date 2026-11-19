@@ -93,6 +93,12 @@ func test_hall_builds_with_the_counter_the_crystal_and_everyone_in_place() -> vo
 	for part: String in ["Floor", "WallNorth", "WallSouth", "WallEast", "WallWest", "Ceiling", "Door", "Loft", "Counter", "CrystalLook", "Carpet"]:
 		assert_not_null(hall.get_node_or_null(part), "大廳有 %s" % part)
 	assert_eq(level.scenery.windows.size(), 6, "東西兩面牆各三扇窗")
+	# 南牆在大門的地方開了洞，門外是一條街（石板路、街對面的房子）
+	for part: String in ["WallSouthR", "WallSouthTop", "Street/StreetGround", "Street/StreetHouses"]:
+		assert_not_null(hall.get_node_or_null(part), "大廳有 %s" % part)
+	var sign_post: Node3D = hall.get_node_or_null("Street/Signboard") as Node3D
+	if sign_post != null:
+		assert_true(sign_post.global_position.z > GuildScenery.HALF_L, "招牌立在門外")
 	assert_eq(level.scenery.window_lights.size(), 3, "受光的那一側每扇窗一道光柱")
 	for wl: WindowLight in level.scenery.window_lights:
 		assert_eq((wl.shafts.mesh as ArrayMesh).get_surface_count(), 2, "光柱有直的、橫的兩組面片")
@@ -246,12 +252,15 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	assert_false(level.is_alarm_ringing())
 	assert_true(level.scenery.crystal_light.light_energy < 0.5, "水晶暗掉了")
 	var door_opened: bool = false
+	var farthest: float = -INF
 	for i: int in 900:
 		await tree.physics_frame
 		door_opened = door_opened or level.scenery.door_open > 0.9
 		if not is_instance_valid(leo):
 			break
+		farthest = maxf(farthest, leo.global_position.z)
 	assert_false(is_instance_valid(leo), "雷歐走出去了")
+	assert_true(farthest > GuildScenery.HALF_L + 1.5, "走到門外的街上才消失（%.1f）" % farthest)
 	assert_true(door_opened, "大門為他們打開")
 	assert_true(level.door_creaks >= 1, "門被推開的時候吱嘎一聲")
 	await _frames(int(60.0 / GuildHall.DOOR_SPEED) + 30)
