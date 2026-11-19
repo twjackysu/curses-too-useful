@@ -1,6 +1,6 @@
 # 公會大廳（第一章的開場與結尾，劇本節點 1）的固定鏡頭組：名稱 幀數 旗標…（都用玩家的鏡頭或對話的鏡頭）
 # 走進大門的全景／櫃檯前（莉莉絲、水晶）／雷歐開口（--demo=leo：進場就摸水晶、他直接站到旁邊）／席菈問能不能一起去（選項）／
-# 結尾：傍晚扛著核心走進來／最後一句：二樓的巡察官。
+# 結尾：傍晚扛著核心走進來／最後一句：二樓的巡察官／「第一章　完」之後的製作名單（捲到第 12 秒）與下一章的預告。
 # 用法同 forest.txt：scripts/shots.sh guild [--save-baseline]
 guild-enter 40 --level=guild_hall --locale=zh_TW
 guild-counter 40 --level=guild_hall --registered --at=-0.9,-5.4 --locale=zh_TW
@@ -8,3 +8,5 @@ guild-leo 80 --level=guild_hall --registered --at=2.0,-6.6 --demo=leo --locale=z
 guild-sera 80 --level=guild_hall --quest-taken --demo=sera --talk-skip=3 --locale=zh_TW
 guild-return 40 --level=guild_hall --return --at=0.3,3.0 --locale=zh_TW
 guild-inspector 90 --level=guild_hall --return --at=0.2,-2.2 --talk-skip=8 --locale=zh_TW
+guild-credits 20 --level=guild_hall --return --demo=credits --locale=zh_TW
+guild-preview 20 --level=guild_hall --return --demo=preview --locale=zh_TW

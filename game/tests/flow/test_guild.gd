@@ -342,11 +342,16 @@ func test_lilith_hands_over_the_green_request_then_sera_asks_to_come_along() -> 
 	await _frames(20)
 	assert_true(hud.bark_keys().has("BARK_SERA_GUILD_GO"))
 	assert_true(sera.puppet().move_speed > 3.0, "用跑的")
+	var outside: bool = false
 	for i: int in 600:
 		await tree.physics_frame
 		if level.sera == null:
 			break
+		if level.sera.global_position.z > GuildScenery.DOOR_POS.z + 1.0:
+			outside = true
+	assert_true(outside, "她跑出大門、到門外的街上（不是走到門口就不見）")
 	assert_true(level.sera == null, "席菈出去了")
+	assert_eq(level.sera_exit_step, GuildHall.SERA_EXIT.size(), "走到街上轉進牆後面才消失")
 	# 諾恩走出大門：一張卡，播完換到腐敗之森
 	assert_eq(str(_game().get("last_level_request")), "")
 	player.global_position = GuildScenery.DOOR_POS + Vector3(0.2, 0.05, -0.8)

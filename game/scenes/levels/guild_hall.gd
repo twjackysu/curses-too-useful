@@ -88,6 +88,12 @@ const SERA_APPROACH_SPEED: float = 2.0
 const SERA_TALK_DIST: float = 2.3
 ## 結尾那段話講完隔多久出「第一章　完」
 const END_CARD_DELAY: float = 1.4
+## 席菈先跑出去的路：大門裡面 → 門外的街上 → 轉進牆後面（走到最後一個點才消失）
+const SERA_EXIT: Array[Vector3] = [
+	GuildScenery.DOOR_POS + Vector3(0, 0, -0.5),
+	GuildScenery.DOOR_POS + Vector3(0, 0, 1.5),
+	GuildScenery.DOOR_POS + Vector3(-4.0, 0, 2.2),
+]
 const END_MUSIC_DB: float = -5.0
 const MURMUR_DB: float = -17.0
 ## 大廳的人聲（整片循環）、「第一章　完」的配樂、警報之後冒險者的笑聲、大門打開的吱嘎
@@ -164,6 +170,8 @@ var _pulse_t: float = 0.0
 ## 席菈還沒結伴、站著的時候慢慢轉過去看的地方
 var _sera_look: Vector3 = Vector3.INF
 var _sera_leaving: bool = false
+## 席菈跑出大門走到 SERA_EXIT 的第幾個點了（測試用）
+var sera_exit_step: int = -1
 var _leaving: bool = false
 var _end_in: float = -1.0
 var _return_barked: bool = false
@@ -603,13 +611,21 @@ func _tick_leave() -> void:
 	if sera != null and is_instance_valid(sera):
 		if not _sera_leaving:
 			_sera_leaving = true
+			sera_exit_step = 0
 			sera.target = _player
 			sera.hold_speed = 0.0
-			sera.hold_at = GuildScenery.DOOR_POS + Vector3(0, 0, -0.5)
+			sera.hold_at = SERA_EXIT[0]
 			_hud.show_bark(sera, "BARK_SERA_GUILD_GO", 2.6, Sera.NAME_KEY)
-		elif sera.global_position.distance_to(sera.hold_at) < 0.9:
-			sera.queue_free()
-			sera = null
+		elif Vector2(sera.global_position.x - sera.hold_at.x, sera.global_position.z - sera.hold_at.z).length() < 0.6:
+			# 跑出大門到街上、往左手邊轉進牆後面才消失（跟雷歐小隊一樣）；出門那一步不撞擋人的那一層（南牆整面都是）
+			sera_exit_step += 1
+			if sera_exit_step == 1:
+				sera.collision_mask &= ~GuildScenery.PEOPLE_LAYER
+			if sera_exit_step >= SERA_EXIT.size():
+				sera.queue_free()
+				sera = null
+			else:
+				sera.hold_at = SERA_EXIT[sera_exit_step]
 	var p: Vector3 = _player.global_position
 	if p.z > GuildScenery.HALF_L - GuildScenery.WALL_MARGIN - 0.7 and absf(p.x) < GuildScenery.DOOR_SIZE.x * 0.5 + 0.3:
 		_leaving = true
