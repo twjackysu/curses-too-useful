@@ -113,6 +113,10 @@ var _trail_i: int = 0
 var _trailing: bool = false
 ## 出手動作的哪一段有劍光（動作時間比例）：拉開到頂（0.16）之後 → 砍到位（0.35）→ 順勢帶過去
 const TRAIL_WINDOW: Vector2 = Vector2(0.17, 0.56)
+## 劍砍中的聲音：平常的一刀／收尾那一刀與砍在破綻上（gen_sfx.py 的 cut_hit／cut_heavy）。最後一次響的是哪一聲（測試用）
+const HIT_SFX: String = "cut_hit"
+const HIT_SFX_HEAVY: String = "cut_heavy"
+var last_hit_sfx: String = ""
 ## 生命（數值在 data/combat/tuning.json 的 noen）；閃避無敵期間不扣血
 var health: Health
 ## 身上的持續狀態。【逆理之器】：落在諾恩身上的全部反轉成增益（StatusEffects.reverses）
@@ -948,7 +952,8 @@ func strike() -> int:
 	if hits > 0:
 		_apply_on_hit_source()
 		var heavy: bool = finisher or last_weak_hits > 0
-		Sfx.play_at(self, "blunt_weak" if heavy else "blunt", global_position + forward * reach * 0.7 + Vector3.UP * 0.6)
+		last_hit_sfx = HIT_SFX_HEAVY if heavy else HIT_SFX
+		Sfx.play_at(self, last_hit_sfx, global_position + forward * reach * 0.7 + Vector3.UP * 0.6, 0.0 if heavy else -2.0)
 		var stop_key: String = "feel.hit_stop_kill" if killed else ("feel.hit_stop_weak" if heavy else "feel.hit_stop")
 		Game.hit_stop(CombatTuning.num(stop_key, 0.06))
 		shake(CombatTuning.num("feel.shake_kill" if killed or finisher else "feel.shake_hit", 0.2))

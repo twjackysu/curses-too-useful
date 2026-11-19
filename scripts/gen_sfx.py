@@ -3,7 +3,8 @@
 
 只用標準函式庫（wave、math、random），固定亂數種子，每次產生的檔案相同。
 - （bell() 沒有自己的音檔了：鐘聲的合成只給 title_theme／part_end_theme 裡遠遠的鐘用。非諧波泛音、各自指數衰減。）
-- blunt / blunt_weak：鐘錘鈍擊。低頻下滑正弦＋短噪音；打中弱點多一層高頻「喀」。
+- blunt / blunt_weak：鈍擊（魔像的拳、樹人的下砸、敵人倒地）。低頻下滑正弦＋短噪音；blunt_weak 多一層高頻「喀」。
+- cut_hit／cut_heavy：諾恩的劍砍中（平常的一刀／收尾那一刀與砍在破綻上）。刃口的「嚓」＋砍進黏液的濕悶聲＋身體的低頻「咚」＋鏽鐵的一點餘響；重的那一聲低一個八度、拖得長、多幾聲碎裂。
 - claw：爪擊。高通噪音快掃。
 - slash：揮劍。帶通噪音＋金屬泛音。
 - vial_shot／vial_shatter／vial_load：席菈的手弩射出一瓶（弓弦＋彈簧＋木頭）、藥瓶在諾恩身上碎掉（小小的玻璃＋潑開的藥水）、下一瓶裝好（兩下機關聲＋一點玻璃）。
@@ -594,6 +595,58 @@ def reversal_shatter(seconds=1.25, seed=157):
     return out
 
 
+def _cut(seconds, seed, body_f, body_end, body_decay, slice_gain, wet_gain, ring, crunch):
+    """劍砍進敵人身上（諾恩的鏽劍）：刃口切進去的「嚓」（很短的高頻帶通雜訊，前 3 ms 最尖）＋
+    砍進肉／黏液的濕悶聲（低通雜訊，比刃口晚 6 ms）＋身體被砍中的低頻「咚」（往下滑的正弦）＋
+    鏽鐵的一點餘響（不和諧的幾個泛音，收尾那一刀比較長）＋（收尾才有）碎裂的「喀啦」。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    edge = onepole_lp(hp(noise(int(0.05 * RATE), rng), 2600), 7800)
+    for i, v in enumerate(edge):
+        t = i / RATE
+        out[i] += slice_gain * v * min(1.0, t / 0.0015) * math.exp(-t * 70)
+    wet = onepole_lp(hp(noise(n, rng), 180), 1300)
+    lag = int(0.006 * RATE)
+    for i in range(n - lag):
+        t = i / RATE
+        out[i + lag] += wet_gain * wet[i] * min(1.0, t / 0.004) * math.exp(-t * 26)
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        f = body_end + (body_f - body_end) * math.exp(-t * 28)
+        phase += 2 * math.pi * f / RATE
+        out[i] += 0.95 * math.sin(phase) * min(1.0, t / 0.002) * math.exp(-t * body_decay)
+    for f, gain, decay in ring:
+        for i in range(n):
+            t = i / RATE
+            out[i] += gain * math.sin(2 * math.pi * f * t) * min(1.0, t / 0.003) * math.exp(-t * decay)
+    for k in range(crunch):
+        start = int((0.012 + rng.uniform(0.0, 0.07)) * RATE)
+        c = hp(noise(int(0.018 * RATE), rng), 1400)
+        g = 0.55 * (1.0 - k / (crunch + 2.0))
+        for j, v in enumerate(c):
+            if start + j < n:
+                out[start + j] += g * v * math.exp(-j / RATE * 140)
+    fade = int(0.03 * RATE)
+    for i in range(fade):
+        out[n - 1 - i] *= i / fade
+    return out
+
+
+def cut_hit(seed=181):
+    """平常的一刀砍中（第一、二下）：短、乾、尖——一秒砍三四刀也不糊。"""
+    return _cut(0.26, seed, body_f=150.0, body_end=70.0, body_decay=24.0, slice_gain=0.75, wet_gain=0.85,
+                ring=[(2380.0, 0.05, 30.0), (3710.0, 0.035, 38.0)], crunch=0)
+
+
+def cut_heavy(seed=191):
+    """收尾那一刀、砍在破綻上：低一個八度的「咚」拖得比較長、刃口更響、幾聲碎裂的「喀啦」、
+    鏽鐵的餘響 0.4 秒——比平常的那一聲重，但不像鐘錘（以前借 `blunt_weak`，那是敲鐘的鈍擊）。"""
+    return _cut(0.55, seed, body_f=118.0, body_end=44.0, body_decay=11.0, slice_gain=0.9, wet_gain=1.0,
+                ring=[(1870.0, 0.07, 9.0), (2960.0, 0.05, 12.0), (4610.0, 0.03, 16.0)], crunch=5)
+
+
 def vial_shot(seconds=0.42, seed=167):
     """席菈的手弩射出一瓶藥：弓弦放開的「繃」（撥弦：低音很快往下掉、帶泛音）＋彈簧推桿「啵嗯」一下＋木頭弩身的一聲「喀」，
     後面拖一點點藥瓶飛走的風聲。跟諾恩的揮劍（帶金屬的長風聲）分得開。"""
@@ -722,6 +775,8 @@ def main():
         write("vial_shot", vial_shot()),
         write("vial_shatter", vial_shatter()),
         write("vial_load", vial_load()),
+        write("cut_hit", cut_hit()),
+        write("cut_heavy", cut_heavy()),
     ]
     for p in made:
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

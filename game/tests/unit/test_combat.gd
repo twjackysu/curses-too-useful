@@ -186,6 +186,7 @@ func test_three_hit_combo_ends_in_a_wide_finisher_and_each_cut_stacks_bleed() ->
 	var dmg: float = CombatTuning.num("noen.blunt_damage")
 	var steps: Array[int] = []
 	var took: Array[float] = []
+	var sounds: Array[String] = []
 	for swing: int in 4:
 		var before: float = front.hp
 		player.start_attack()
@@ -195,7 +196,12 @@ func test_three_hit_combo_ends_in_a_wide_finisher_and_each_cut_stacks_bleed() ->
 			if player.puppet().action != "attack":
 				break
 		took.append(before - front.hp)
+		sounds.append(player.last_hit_sfx)
 	assert_eq(steps, [0, 1, 2, 0] as Array[int], "三下一輪")
+	# 劍砍中是劍的聲音（不再借鐘錘的 blunt）：收尾那一刀是重的那一聲
+	assert_eq(sounds, ["cut_hit", "cut_hit", "cut_heavy", "cut_hit"] as Array[String], "砍中的聲音")
+	for n: String in sounds:
+		assert_not_null(Sfx.stream(n), "%s 有產生" % n)
 	# 出手越快砍得越重：砍中第 n 刀的時候身上已經有 n 層流血（每層出手快 12%，傷害也多 12%）
 	assert_eq(took[0], dmg)
 	assert_true(absf(took[1] - dmg * 1.12) < 0.01, "第二刀：一層流血（%s）" % took[1])
