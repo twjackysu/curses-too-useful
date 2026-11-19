@@ -870,6 +870,10 @@ func test_slime_chases_bumps_and_its_poison_heals_noen() -> void:
 			break
 	assert_true(struck, "史萊姆撞到諾恩")
 	assert_true(player.status_effects.has("poison"), "撞到會中毒（對諾恩是回血）")
+	assert_true(_playing(slime, Slime.HOP_SFX), "撲過來是濕濕的「啵嚶」（不再借閃避的風聲）")
+	assert_eq(slime.last_notice_sfx, "", "史萊姆發現人不叫")
+	slime._on_fall_impact()
+	assert_eq(slime.last_fall_sfx, Slime.SPLAT_SFX, "被砍爛是「啪嘰」")
 
 
 ## 史萊姆是紫的、霧也是紫的：牠身上一圈螢光綠的邊、腳下一盞綠燈，蓄力時變亮、倒下就熄。
@@ -1297,6 +1301,8 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 			break
 	assert_eq(player.status_effects.source_of("bleed"), "wolf_bite", "被狼咬到：流血")
 	assert_true(_playing(wolf, MiasmaWolf.BITE_SFX), "撲上來是低吼＋咬合的聲音（不再借爪擊）")
+	assert_eq(wolf.last_notice_sfx, MiasmaWolf.GROWL_SFX, "發現諾恩時低吼一聲")
+	assert_eq(wolf.fall_sfx(), MiasmaWolf.YELP_SFX, "倒下時哀叫")
 	assert_true(player.status_effects.attack_speed() > 1.0, "對諾恩是出手加速")
 	wolf.health.apply_damage(9999.0, {"source": player})
 	# 孢子樹人：前兆很長、打不斷，砸到緩速＋致盲
@@ -1317,6 +1323,8 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 	assert_true(player.status_effects.strikes_weakpoint() and player.status_effects.move_speed_scale() > 1.0, "對諾恩是刀刀砍中要害＋跑得更快")
 	assert_true(swung and leaned > SporeTreant.LEAN_BACK * 0.6, "砸之前先往後仰、再揮下來（最多仰 %.2f）" % leaned)
 	treant.set_physics_process(false)
+	assert_eq(treant.last_notice_sfx, SporeTreant.GROAN_SFX, "醒來時整棵樹被扭的一聲")
+	assert_eq(treant.fall_sfx(), SporeTreant.FALL_SFX, "倒下是樹幹裂開砸地")
 	# 整群打倒：記旗標、存檔；讀回來那一群不在
 	for e: EnemyActor in (explore.packs["wolves"] as Array):
 		e.health.apply_damage(9999.0, {"source": player})

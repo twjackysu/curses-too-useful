@@ -8,8 +8,10 @@ extends EnemyActor
 
 const CHARACTER_ID: String = "spore_treant"
 const SLAM_SOURCE: String = "treant_slam"
-## 一步：很重的木頭「咚」＋樹幹的吱嘎＋葉子沙沙
+## 一步：很重的木頭「咚」＋樹幹的吱嘎＋葉子沙沙；醒來時整棵樹被扭的低沉一聲、倒下時樹幹裂開砸地
 const STEP_SFX: String = "treant_step"
+const GROAN_SFX: String = "treant_groan"
+const FALL_SFX: String = "treant_fall"
 ## Puppet 的出手動作開始之後這麼久才「砍到」：前兆剩這麼多秒的時候開始揮，砸下去的那一刻才對得上
 const SWING_LEAD: float = 0.19
 ## 前兆往後仰、砸下去往前傾幾弧度
@@ -59,6 +61,14 @@ func _build_body() -> void:
 		_puppet.scale = Vector3.ONE * STAND_IN_SCALE
 	_puppet.footfall.connect(func() -> void: Sfx.play_at(self, STEP_SFX, global_position, -6.0))
 	add_toxic_glow(_puppet, 3.4)
+
+
+func notice_sfx() -> String:
+	return GROAN_SFX
+
+
+func fall_sfx() -> String:
+	return FALL_SFX
 
 
 ## 砸下去的那一刻：前方一大片都算。

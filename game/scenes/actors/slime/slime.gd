@@ -5,6 +5,9 @@ extends EnemyActor
 ## 外型：Tripo 的模型（建置時 scripts/gen_props.sh 擺正成 0.8 m 高）；檔案不在就用一顆半透明的球。
 ## 牠是紫的、森林的霧也是紫的，所以身上有「毒的螢光綠」（EnemyActor.add_toxic_glow）；蓄力要撲的時候變亮。
 
+## 撲過來的濕濕一聲、被砍爛的「啪嘰」（黴菌史萊姆也一樣）
+const HOP_SFX: String = "slime_hop"
+const SPLAT_SFX: String = "slime_splat"
 const BODY_RADIUS: float = 0.45
 const LUNGE_SPEED: float = 5.0
 
@@ -68,10 +71,14 @@ func _build_body() -> void:
 	add_toxic_glow(_look)
 
 
+func fall_sfx() -> String:
+	return SPLAT_SFX
+
+
 ## 出招的那一刻：記下往哪撲、判定前方的人。
 func _on_strike() -> void:
 	_lunge_dir = forward()
-	Sfx.play_at(self, "whoosh", global_position + Vector3.UP * 0.4, -8.0)
+	Sfx.play_at(self, HOP_SFX, global_position + Vector3.UP * 0.4, -7.0, 0.1)
 	var origin: Vector3 = global_position
 	var fwd: Vector3 = _lunge_dir
 	var reach: float = brain.attack_range + 0.5

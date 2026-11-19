@@ -26,6 +26,10 @@ var wait_ring: float = 0.0
 ## 被諾恩打中後仰過幾次、其中幾次打斷了前兆（測試、機器人的統計用）
 var flinch_count: int = 0
 var interrupt_count: int = 0
+## 發現目標（第一次離開待機）時叫一聲、倒地時的聲音：子類別覆寫 notice_sfx()／fall_sfx()。記下來給測試看
+var last_notice_sfx: String = ""
+var last_fall_sfx: String = ""
+var _noticed: bool = false
 
 var _player: PlayerController
 var _body: Node3D
@@ -89,6 +93,11 @@ func _physics_process(delta: float) -> void:
 	brain.may_attack = _may_attack()
 	if brain.tick(delta, dist):
 		_on_strike()
+	if not _noticed and brain.state != EnemyBrain.State.IDLE and brain.state != EnemyBrain.State.DEAD:
+		_noticed = true
+		last_notice_sfx = notice_sfx()
+		if last_notice_sfx != "":
+			Sfx.play_at(self, last_notice_sfx, global_position + Vector3.UP * _head_height(), -3.0, 0.08, 8.0)
 	var horizontal := Vector3.ZERO
 	if brain.state == EnemyBrain.State.STRIKE:
 		horizontal = _on_strike_tick(delta)
@@ -831,12 +840,23 @@ func _begin_death() -> void:
 	collision_layer = 0
 
 
+## 發現目標時叫的那一聲（空字串＝不叫）
+func notice_sfx() -> String:
+	return ""
+
+
+## 倒地的那一聲（預設是鈍擊）
+func fall_sfx() -> String:
+	return "blunt"
+
+
 ## 身體撞到地面那一刻；子類別可以加料（記得呼叫 super）。
 func _on_fall_impact() -> void:
 	has_fallen = true
 	var at: Vector3 = global_position + forward() * 0.8
+	last_fall_sfx = fall_sfx()
 	if is_inside_tree():
-		Sfx.play_at(get_parent(), "blunt", at, -4.0, 0.03)
+		Sfx.play_at(get_parent(), last_fall_sfx, at, -4.0, 0.03)
 	_ground_puff(at, Vector3(0.35, 0.05, 0.75), 24, Color(0.72, 0.74, 0.8, 0.65))
 	if debug_hold_fallen and _fall_tween != null:
 		_fall_tween.pause()

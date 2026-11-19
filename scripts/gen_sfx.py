@@ -8,7 +8,8 @@
 - 腳步：step_dirt／step_stone／step_wood、treant_step、golem_step
 - 席菈：vial_shot／vial_shatter／vial_load；glass_clink（喝藥）
 - 森林：forest_night（整片的夜晚）、swamp_bubble、campfire_crackle、vent_hiss（從東西發出來的循環）、
-  mushroom_pick、fruit_bite、web_stick、wolf_bite、chest_open、distant_scream
+  mushroom_pick、fruit_bite、web_stick、wolf_bite、chest_open、distant_scream；
+  敵人的叫聲：wolf_growl／wolf_yelp、treant_groan／treant_fall、slime_hop／slime_splat（發現諾恩、倒下；史萊姆是撲過來）
 - 祭壇：altar_air（整片）、boss_theme（Boss 戰配樂）、golem_roar、gaze_charge／gaze_beam、golem_slam、
   core_glow、stone_deflect、core_shatter、core_land、stone_peel（席菈的石殼剝落）
 - 公會：hall_murmur（人聲）、guild_theme（大廳的配樂）、crystal_alarm、crowd_laugh、door_creak／door_shut、chapter_end_theme（「第一章　完」）
@@ -1656,6 +1657,147 @@ def guild_theme(seed=383):
     return [v / peak * 0.7 for v in looped]
 
 
+# ---- 森林的敵人自己的叫聲 ----
+
+
+def _growl_src(n, rng, f0, f1):
+    """喉嚨的聲帶：粗糙的鋸齒波（f0 → f1）＋氣音。"""
+    return [s + 0.6 * rng.uniform(-1.0, 1.0) for s in _rough_saw(n, rng, lambda i: f0 + (f1 - f0) * i / n, 0.07)]
+
+
+def wolf_growl(seconds=0.95, seed=389):
+    """瘴氣狼發現諾恩：一聲低低的、會抖的「嗚嚕嚕——」（85 → 110 Hz 的粗聲帶、經過喉嚨的共振，
+    每秒抖 26 下），最後齜牙的一下「嘶」往上揚。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    src = _growl_src(n, rng, 85.0, 110.0)
+    body = svf_band(src, lambda i: 430.0 + 260.0 * (i / n) ** 2, 0.3)
+    snarl = onepole_lp(hp(noise(n, rng), 2500), 7000)
+    out = []
+    for i in range(n):
+        x = i / n
+        env = min(1.0, x / 0.15) * (1.0 - max(0.0, (x - 0.85) / 0.15))
+        rough = 0.55 + 0.45 * math.sin(2 * math.pi * 26.0 * i / RATE)
+        hiss = max(0.0, (x - 0.65) / 0.35) ** 2
+        out.append(env * (body[i] * rough + 0.25 * hiss * snarl[i]))
+    return out
+
+
+def wolf_yelp(seconds=0.42, seed=397):
+    """瘴氣狼倒下：一聲短短的哀叫「嗷嗚」（720 → 430 Hz 往下掉，經過「嗚」的共振）。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    src = []
+    ph = 0.0
+    for i in range(n):
+        x = i / n
+        f = 720.0 - 290.0 * x ** 0.7
+        ph = (ph + f * (1.0 + 0.01 * rng.uniform(-1.0, 1.0)) / RATE) % 1.0
+        env = min(1.0, x / 0.08) * (1.0 - x) ** 1.6
+        src.append(env * ((2.0 * ph - 1.0) + 0.3 * rng.uniform(-1.0, 1.0)))
+    a = svf_band(src, lambda i: 900.0 - 300.0 * i / n, 0.18)
+    b = svf_band(src, lambda i: 1900.0, 0.25)
+    return [a[i] + 0.4 * b[i] for i in range(n)]
+
+
+def _wood_groan(seconds, seed, rate_lo, rate_hi, resonances):
+    """木頭被扭的長長一聲：一串黏滑的小摩擦（每秒 rate_lo～rate_hi 下，中間最密），經過幾個木頭的共鳴。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    pulses = [0.0] * n
+    t = 0.0
+    while t < seconds:
+        x = t / seconds
+        i = int(t * RATE)
+        if i < n:
+            pulses[i] = rng.uniform(0.6, 1.0) * math.sin(math.pi * x)
+        t += 1.0 / (rate_lo + (rate_hi - rate_lo) * math.sin(math.pi * x) * (0.8 + 0.2 * math.sin(2 * math.pi * 3.0 * x)))
+    out = [0.0] * n
+    for fc, d, g in resonances:
+        b = svf_band(pulses, lambda i, fc=fc: fc, d)
+        for i in range(n):
+            out[i] += g * b[i]
+    peak = max(abs(v) for v in out) or 1.0
+    return [v / peak for v in out]
+
+
+def treant_groan(seconds=1.5, seed=401):
+    """孢子樹人醒過來：整棵樹被扭的低沉「嘎——嗚——」（很慢的黏滑摩擦，經過 170／390／820 Hz 三個木頭的共鳴）
+    ＋底下一聲很低的嗡（像樹裡面有東西在呼吸）。"""
+    groan = _wood_groan(seconds, seed, 22.0, 48.0, ((170.0, 0.05, 1.0), (390.0, 0.06, 0.6), (820.0, 0.08, 0.25)))
+    n = len(groan)
+    out = []
+    ph = 0.0
+    for i in range(n):
+        x = i / n
+        ph += 2 * math.pi * (62.0 + 8.0 * x) / RATE
+        out.append(groan[i] + 0.25 * math.sin(math.pi * x) * math.sin(ph))
+    return out
+
+
+def treant_fall(seconds=1.2, seed=409):
+    """孢子樹人倒下：樹幹裂開的「喀啦」→ 整棵樹砸在地上的「轟」（60 → 34 Hz、加二三倍頻）＋葉子、孢子嘩地散開。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    crack = hp(noise(int(0.05 * RATE), rng), 1800)
+    for i, v in enumerate(crack):
+        out[i] += 0.8 * v * math.exp(-i / RATE * 50)
+    _mix_at(out, 0.02, _creak(seed + 1, 0.3), 0.3)
+    start = int(0.22 * RATE)
+    ph = 0.0
+    for k in range(n - start):
+        t = k / RATE
+        ph += 2 * math.pi * (34.0 + 26.0 * math.exp(-t * 12.0)) / RATE
+        out[start + k] += min(1.0, t / 0.003) * math.exp(-t * 5.0) * (math.sin(ph) + 0.5 * math.sin(2 * ph) + 0.25 * math.sin(3 * ph))
+    leaves = onepole_lp(hp(noise(n - start, rng), 2200), 7000)
+    for k, v in enumerate(leaves):
+        x = k / len(leaves)
+        out[start + k] += 0.3 * v * math.sin(math.pi * min(1.0, x * 2.5)) * (1.0 - x)
+    return out
+
+
+def slime_hop(seconds=0.34, seed=419):
+    """史萊姆撲過來：濕濕的一聲「啵嚶」（往上滑的軟正弦）＋黏液甩開的濕聲。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    wet = onepole_lp(hp(noise(n, rng), 200), 1400)
+    out = []
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        x = i / n
+        ph += 2 * math.pi * (170.0 + 300.0 * x ** 0.6) / RATE
+        env = min(1.0, t / 0.01) * (1.0 - x) ** 1.5
+        out.append(env * (0.8 * math.sin(ph) + 0.15 * math.sin(2 * ph) + 0.9 * wet[i] * math.exp(-t * 14.0)))
+    return out
+
+
+def slime_splat(seconds=0.55, seed=421):
+    """史萊姆被砍爛：「啪嘰」一聲（低通的濕雜訊爆開）＋往下掉的「噗嚕」（300 → 90 Hz）＋幾滴黏液落地的小「滴」。"""
+    rng = random.Random(seed)
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    burst = onepole_lp(hp(noise(int(0.12 * RATE), rng), 150), 2200)
+    for i, v in enumerate(burst):
+        out[i] += 1.4 * v * math.exp(-i / RATE * 28)
+    ph = 0.0
+    for i in range(int(0.25 * RATE)):
+        t = i / RATE
+        ph += 2 * math.pi * (90.0 + 210.0 * math.exp(-t * 16.0)) / RATE
+        out[i] += 0.6 * math.exp(-t * 10.0) * math.sin(ph)
+    for k in range(5):
+        f = rng.uniform(600.0, 1300.0)
+        drop = []
+        ph = 0.0
+        for j in range(int(0.05 * RATE)):
+            t = j / RATE
+            ph += 2 * math.pi * f * (1.0 + 2.0 * t / 0.05) / RATE
+            drop.append(math.exp(-t * 70.0) * math.sin(ph))
+        _mix_at(out, rng.uniform(0.15, 0.45), drop, rng.uniform(0.08, 0.16))
+    return out
+
+
 def main():
     made = [
         write("blunt", thump(0.3, 140, 55, seed=2)),
@@ -1709,6 +1851,12 @@ def main():
         write("door_creak", door_creak()),
         write("door_shut", door_shut()),
         write("guild_theme", guild_theme()),
+        write("wolf_growl", wolf_growl()),
+        write("wolf_yelp", wolf_yelp()),
+        write("treant_groan", treant_groan()),
+        write("treant_fall", treant_fall()),
+        write("slime_hop", slime_hop()),
+        write("slime_splat", slime_splat()),
         write("manga_shock", manga_shock()),
         write("manga_sparkle", manga_sparkle()),
         write("manga_drop", manga_drop()),

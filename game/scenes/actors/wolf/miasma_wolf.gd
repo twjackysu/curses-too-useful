@@ -7,8 +7,10 @@ extends EnemyActor
 
 const MODEL: String = "tripo/enemy_miasma_wolf"
 const BITE_SOURCE: String = "wolf_bite"
-## 撲出去咬：短短的低吼＋牙齒合起來的「喀」
+## 撲出去咬：短短的低吼＋牙齒合起來的「喀」；發現諾恩時低吼、倒下時哀叫
 const BITE_SFX: String = "wolf_bite"
+const GROWL_SFX: String = "wolf_growl"
+const YELP_SFX: String = "wolf_yelp"
 const BODY_RADIUS: float = 0.45
 ## 走路那一段原地踏步，播一倍速大約等於每秒走這麼遠（公尺）：跑的時候照速度播快
 const WALK_CLIP_SPEED: float = 1.5
@@ -62,6 +64,14 @@ func _build_body() -> void:
 ## 有沒有在播走路的動作（測試用；沒有模型時是 false）
 func is_trotting() -> bool:
 	return _anim != null and _anim.is_playing() and _anim.speed_scale > 0.0
+
+
+func notice_sfx() -> String:
+	return GROWL_SFX
+
+
+func fall_sfx() -> String:
+	return YELP_SFX
 
 
 ## 撲出去的那一刻：記下往哪撲、判定前方的人；咬到就流血。
