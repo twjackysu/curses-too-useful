@@ -4,7 +4,8 @@ extends EnemyActor
 ## 砸到除了傷害還上緩速＋致盲（data/status/statuses.json 的 treant_slam）——對諾恩是跑得更快＋刀刀砍中要害。
 ## 不會後仰（打不斷）；失衡滿了跪很久，那是砍牠的時候。
 ## 外型：Tripo 的雙足模型，跟人物走同一條轉檔（scripts/gen_art.sh，Puppet 的 character_id＝spore_treant，2.6 m 高）；
-## 模型不在時是放大的程式人偶。動作用 Puppet 現成的：走路、出手的第三段（重劈）當下砸。
+## 模型不在時是放大的程式人偶。動作（tools/blender/common.py 的 monster_actions，D-303）：走路、兩手舉過頭一起砸下去
+## （前兆＝舉到頂停著，越撐越亮；剩 0.19 秒砸下去）、失衡滿了單膝跪地。以前借人的重劈＋整棵往後仰。
 
 const CHARACTER_ID: String = "spore_treant"
 const SLAM_SOURCE: String = "treant_slam"
@@ -12,11 +13,6 @@ const SLAM_SOURCE: String = "treant_slam"
 const STEP_SFX: String = "treant_step"
 const GROAN_SFX: String = "treant_groan"
 const FALL_SFX: String = "treant_fall"
-## Puppet 的出手動作開始之後這麼久才「砍到」：前兆剩這麼多秒的時候開始揮，砸下去的那一刻才對得上
-const SWING_LEAD: float = 0.19
-## 前兆往後仰、砸下去往前傾幾弧度
-const LEAN_BACK: float = 0.2
-const LEAN_SLAM: float = -0.3
 const STAND_IN_SCALE: float = 1.5
 
 var _puppet: Puppet
@@ -63,6 +59,13 @@ func _build_body() -> void:
 	add_toxic_glow(_puppet, 3.4)
 
 
+## 失衡滿了：單膝跪地，照跪多久整段縮放播
+func _on_kneel() -> void:
+	super._on_kneel()
+	if not health.is_dead():
+		_puppet.play_action("kneel", brain.kneel_sec())
+
+
 func notice_sfx() -> String:
 	return GROAN_SFX
 
@@ -85,28 +88,21 @@ func _on_strike() -> void:
 		_player.status_effects.apply_source(SLAM_SOURCE)
 
 
-## 走路照速度播；前兆往後仰（越仰越亮），快砸的時候開始揮；跪（失衡）＝整個人矮下去往前垂。
+## 走路照速度播；前兆＝兩手舉到頂停著（越撐越亮），剩 0.19 秒砸下去；跪（失衡）＝單膝跪地（_on_kneel）。
 func _update_look() -> void:
 	if _puppet == null:
 		return
 	_puppet.set_move_speed(Vector2(velocity.x, velocity.z).length())
 	var windup: float = brain.telegraph_progress()
-	var lean: float = LEAN_BACK * windup
-	var drop: float = 0.0
-	match brain.state:
-		EnemyBrain.State.TELEGRAPH:
-			if not _swung and brain.telegraph_sec - brain.time_in_state <= SWING_LEAD:
-				_swung = true
-				_puppet.attack_variant = Puppet.SLAM_VARIANT
-				_puppet.play_action("attack")
-		EnemyBrain.State.STRIKE, EnemyBrain.State.RECOVER:
-			lean = LEAN_SLAM if brain.state == EnemyBrain.State.STRIKE or brain.time_in_state < 0.4 else 0.0
-		EnemyBrain.State.STAGGERED:
-			lean = -0.5
-			drop = -0.55
-	if brain.state not in [EnemyBrain.State.TELEGRAPH, EnemyBrain.State.STRIKE]:
+	if brain.state == EnemyBrain.State.TELEGRAPH:
+		if not _swung:
+			_swung = true
+			_puppet.wind_up("hammer", brain.telegraph_sec)
+		elif _puppet.is_holding() and brain.telegraph_sec - brain.time_in_state <= Puppet.STRIKE_LEAD:
+			_puppet.release_hold()
+	elif brain.state != EnemyBrain.State.STRIKE:
 		_swung = false
-	_puppet.rotation.x = lerp_angle(_puppet.rotation.x, lean, 0.2)
-	_puppet.position.y = lerpf(_puppet.position.y, drop, 0.2)
+		if _puppet.is_holding():
+			_puppet.stop_action()
 	if not health.is_dead():
 		_set_glow(lerpf(1.0, GLOW_WINDUP, windup))

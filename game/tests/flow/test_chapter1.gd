@@ -1312,16 +1312,16 @@ func test_forest_enemies_each_feed_norn_a_different_boon() -> void:
 	player.status_effects.clear("slow")
 	player.global_position = treant.global_position + Vector3(0, 0.05, 2.0)
 	var swung: bool = false
-	var leaned: float = 0.0
+	var held: bool = false
 	for i: int in 400:
 		await tree.physics_frame
-		swung = swung or treant.puppet().current_state() == "attack"
-		leaned = maxf(leaned, treant.puppet().rotation.x)
+		swung = swung or treant.puppet().current_state() == "hammer"
+		held = held or (treant.brain.state == EnemyBrain.State.TELEGRAPH and treant.puppet().is_holding())
 		if player.status_effects.has("blind"):
 			break
 	assert_true(player.status_effects.has("slow") and player.status_effects.has("blind"), "被樹人砸到：緩速＋致盲")
 	assert_true(player.status_effects.strikes_weakpoint() and player.status_effects.move_speed_scale() > 1.0, "對諾恩是刀刀砍中要害＋跑得更快")
-	assert_true(swung and leaned > SporeTreant.LEAN_BACK * 0.6, "砸之前先往後仰、再揮下來（最多仰 %.2f）" % leaned)
+	assert_true(swung and held, "前兆是兩手舉過頭停著、再砸下來（有沒有舉到頂停著：%s）" % str(held))
 	treant.set_physics_process(false)
 	assert_eq(treant.last_notice_sfx, SporeTreant.GROAN_SFX, "醒來時整棵樹被扭的一聲")
 	assert_eq(treant.fall_sfx(), SporeTreant.FALL_SFX, "倒下是樹幹裂開砸地")
