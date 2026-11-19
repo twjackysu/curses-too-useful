@@ -680,7 +680,11 @@ func test_retry_restarts_the_fight_and_a_save_after_the_golem_fell_resumes_the_t
 	assert_false(level.golem.phases.is_enraged(), "從第一階段重打")
 	# 魔像倒了、話還沒講：讀回來接著講
 	level.golem.open_core()
+	level.golem.global_position = Vector3(3.0, 0.0, 2.0)
+	level.golem.set_facing(0.7)
 	level.golem.health.apply_damage(999999.0, {"source": player, "cut": Vector3.RIGHT})
+	var fell_at: Vector3 = level.golem.global_position
+	var fell_fwd: Vector3 = level.golem.fall_direction()
 	await _frames(2)
 	assert_eq(s.quests.stage_of("ch1_main"), "after_boss")
 	_game().call("cancel_hit_stop")
@@ -690,7 +694,12 @@ func test_retry_restarts_the_fight_and_a_save_after_the_golem_fell_resumes_the_t
 	assert_eq(str(_game().call("level_for_checkpoint", _session().state.checkpoint)), "ruined_altar")
 	level = _load_level()
 	assert_true(level.golem == null, "魔像不在了")
-	assert_true(level.core != null and level.core.position.distance_to(RuinedAltar.CORE_REST) < 0.01, "牠的核心躺在石板上")
+	var down: Vector3 = RuinedAltar.golem_down_spot()
+	var fwd: Vector3 = RuinedAltar.golem_down_facing()
+	assert_true(Vector2(down.x - fell_at.x, down.z - fell_at.z).length() < 0.01 and fwd.dot(fell_fwd) > 0.999, "存了牠倒在哪裡、面向哪裡")
+	assert_true(level.core != null and level.core.position.distance_to(PlagueGolem.core_rest_spot(down, fwd)) < 0.01, "牠的核心躺在牠倒下的旁邊")
+	var pile: RubblePile = level.get_node_or_null("Rubble") as RubblePile
+	assert_true(pile != null and pile.position.distance_to(down - fwd * PlagueGolem.RUBBLE_BACK) < 0.01, "那一堆碎石在牠倒下的地方")
 	assert_not_null(level.party.get("Leo"), "雷歐小隊還在")
 	for i: int in int(RuinedAltar.AFTER_TALK_RELOAD * 60.0) + 30:
 		await tree.physics_frame

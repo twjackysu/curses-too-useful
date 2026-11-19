@@ -17,6 +17,10 @@ const STAGE_AFTER: String = "after_boss"
 const FLAG_TALKED: String = "ch1.altar_talked"
 const FLAG_GOLEM_DOWN: String = "ch1.golem_down"
 const FLAG_DONE: String = "ch1.altar_done"
+## 魔像倒在哪裡、面向哪裡（讀檔回來那一堆碎石與核心照這個擺；沒存的舊存檔用牠一開始站的地方）
+const FLAG_DOWN_X: String = "ch1.golem_down_x"
+const FLAG_DOWN_Z: String = "ch1.golem_down_z"
+const FLAG_DOWN_YAW: String = "ch1.golem_down_yaw"
 const STAGES: PackedStringArray = [STAGE_ARRIVE, STAGE_BOSS, STAGE_AFTER]
 const ARRIVE_DIALOGUE: String = "ch1_altar_arrive"
 const AFTER_DIALOGUE: String = "ch1_altar_after"
@@ -55,8 +59,7 @@ const FINISH_HOLD_SEC: float = 3.5
 const FINISH_CAM_DIST: float = 5.4
 const FINISH_CAM_HEIGHT: float = 1.3
 const FINISH_AIM_HEIGHT: float = 1.8
-## 魔像已經倒了的存檔讀回來：核心躺在石板上的這裡；戰後那段話講完，核心飛到諾恩肩上要多久
-const CORE_REST: Vector3 = Vector3(-1.6, 0.24, 1.2)
+## 戰後那段話講完，核心飛到諾恩肩上要多久
 const CORE_TAKE_SEC: float = 0.7
 ## 第一次走進光環的那兩行說明出來之後，隔多久席菈才喊面具的那一句（開打的頭幾秒字太多：說明、雷歐的一句、魔像的第一拳都擠在這時候）
 const AURA_BARK_GAP: float = 7.0
@@ -159,15 +162,15 @@ func _ready() -> void:
 		if args.has("floor"):
 			golem.health.hp = golem.health.max_hp * golem.phases.hp_floor
 	else:
-		# 魔像倒了之後讀檔回來：牠崩成的那一堆碎石還在（倒下的位置沒存，放在牠一開始站的地方、往石板外面鋪）
+		# 魔像倒了之後讀檔回來：牠崩成的那一堆碎石還在倒下的地方
 		var pile: RubblePile = RubblePile.create()
 		add_child(pile)
-		pile.position = GOLEM_START
-		pile.face_along(Vector3(GOLEM_START.x, 0.0, GOLEM_START.z))
+		pile.position = golem_down_spot() - golem_down_facing() * PlagueGolem.RUBBLE_BACK
+		pile.face_along(golem_down_facing())
 	if bool(st.get_flag(FLAG_GOLEM_DOWN, false)) and stage() == STAGE_AFTER:
 		_after_talk_in = AFTER_TALK_RELOAD  # 魔像倒了、話還沒講就離開的存檔：讀回來接著講
 		core = GolemCore.create()
-		core.position = CORE_REST
+		core.position = PlagueGolem.core_rest_spot(golem_down_spot(), golem_down_facing())
 		add_child(core)
 	Game.dialogue_ended.connect(_on_dialogue_ended)
 	# 連拍用（scripts/burst.sh）：`--burst-on=hit|enrage|gaze|fire|chaos|shatter|down` 那一刻開始拍（hit＝魔像第一次被砍中、down＝魔像倒下）；`--demo=block` 凝視一開始就把諾恩放到那道光上、
@@ -184,6 +187,18 @@ func _ready() -> void:
 		if _demo in ["block", "miss"]:
 			golem.phases.gaze_sec = 1.2
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
+
+
+## 魔像倒在哪裡（存檔裡的；沒存就是牠一開始站的地方）
+static func golem_down_spot() -> Vector3:
+	var st: GameState = Game.session.state
+	return Vector3(float(st.get_flag(FLAG_DOWN_X, GOLEM_START.x)), 0.0, float(st.get_flag(FLAG_DOWN_Z, GOLEM_START.z)))
+
+
+## 魔像倒下時面向哪裡（水平；沒存就是一開始面向雷歐的方向）
+static func golem_down_facing() -> Vector3:
+	var yaw: float = float(Game.session.state.get_flag(FLAG_DOWN_YAW, atan2(-(PARTY[0][2] as Vector3).x + GOLEM_START.x, -(PARTY[0][2] as Vector3).z + GOLEM_START.z)))
+	return Vector3(-sin(yaw), 0.0, -cos(yaw))
 
 
 func footstep_surface(p: Vector3) -> String:
@@ -448,6 +463,11 @@ func _fade_out_music() -> void:
 func _on_golem_down() -> void:
 	if _burst_on == "down":
 		App.burst_start_in(1)
+	# 倒在哪裡、面向哪裡先存起來（下一個旗標會自動存檔）：讀檔回來那一堆碎石與核心擺在同一個地方
+	var fwd: Vector3 = golem.fall_direction()
+	Game.session.set_flag(FLAG_DOWN_X, golem.global_position.x)
+	Game.session.set_flag(FLAG_DOWN_Z, golem.global_position.z)
+	Game.session.set_flag(FLAG_DOWN_YAW, atan2(-fwd.x, -fwd.z))
 	Game.session.set_flag(FLAG_GOLEM_DOWN, true)
 	_hud.show_banner("CH1_GOLEM_DOWN", 4.0)
 	_hud.set_extra_hint("")

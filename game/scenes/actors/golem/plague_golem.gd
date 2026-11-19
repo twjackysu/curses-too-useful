@@ -8,7 +8,7 @@ extends EnemyActor
 ## 外型：Tripo 的雙足模型，跟人物走同一條轉檔（scripts/gen_art.sh，Puppet 的 character_id＝plague_golem，3.6 m 高）；模型不在時是放大的程式人偶。
 ## 動作（tools/blender/common.py 的 monster_actions，D-303）：走路、右手直拳（重拳）、兩手舉過頭砸下去（震地、睡著時舉著的拳頭）、
 ## 吼、凝視的前兆、單膝跪地（力竭、倒下前）、被砍的那一下。出招舉到頂停住等前兆走完，剩 0.19 秒才打下去。
-## 倒下：跪 → 往後倒 → 崩成一堆碎石（RubblePile，留在關卡上），不再沉進地面消失。
+## 倒下：跪 → 兩膝著地、整個上身垂下去（collapse）→ 崩成一堆碎石（RubblePile，留在關卡上），不再沉進地面消失。
 ## 演出（都是看得到的回饋，不改規則）：被諾恩砍中整個身體頓一下、掉石屑、身上的光亮一下；胸口的核心一直有一點光，
 ## 生命扣到底線打不下去的時候閃一圈（「核心還在」），open_core() 之後變成金色、一圈一圈往中心收（「砍這裡」）；
 ## 凝視的前兆眼睛越來越亮，打出去是一道從眼睛射出去的光＋掃過全場的一圈；粉碎的那一刀核心炸成碎片；倒地之後核心滾出來。
@@ -26,9 +26,12 @@ const GAZE_SOURCE: String = "petrify_gaze"
 const STAND_IN_SCALE: float = 2.0
 ## 被砍的那一下（flinch 動作）最少隔幾秒才再演一次：連砍的時候一直從頭演會抖
 const FLINCH_GAP: float = 0.9
-## 倒下：跪下去停在跪著的那一刻（kneel 動作的第幾秒）、跪多久才往後倒、倒地之後躺多久才崩成碎石、崩多久
+## 倒下：跪下去停在跪著的那一刻（kneel 動作的第幾秒）、跪多久才垮下去、垮到底（collapse 動作的第幾秒：兩手與頭垂到地上的那一聲）、
+## 垮完停在哪一刻、垮完之後停多久才崩成碎石、崩多久
 const DOWN_KNEEL_AT: float = 0.5
 const DOWN_KNEEL_SEC: float = 1.2
+const DOWN_SLUMP_SEC: float = 0.9
+const DOWN_REST_AT: float = 1.95
 const DOWN_LIE_SEC: float = 1.6
 const DOWN_CRUMBLE_SEC: float = 1.4
 ## 平常是毒的螢光綠，狂暴之後變成橘紅
@@ -69,6 +72,8 @@ const CORE_OPEN_SIZE: float = 2.4
 const CORE_COLOR: Color = Color(0.72, 0.42, 1.0)
 const CORE_OPEN_COLOR: Color = Color(1.0, 0.8, 0.35)
 const STONE_COLOR: Color = Color(0.4, 0.43, 0.4)
+## 石堆從牠腳下往後多遠開始鋪（往前鋪 RubblePile.LENGTH：垮下去的上身與兩手在前面）
+const RUBBLE_BACK: float = 1.4
 ## 被諾恩砍中的那一下（不是後仰——牠打不斷）：整個身體往後頓多遠、仰多少、身上的光多亮幾倍，多久退掉
 const JOLT_SEC: float = 0.22
 const JOLT_PUSH: float = 0.2
@@ -111,7 +116,7 @@ var _jolt_dir: Vector3 = Vector3.ZERO
 ## 打不下去的那一圈閃過幾次、被砍頓過幾次（測試用）
 var ward_count: int = 0
 var jolt_count: int = 0
-## 倒下那一刻面向哪裡（水平；倒地之後身體是躺平的，forward() 朝天）
+## 倒下那一刻面向哪裡（水平）：垮下去的那一聲、核心、石堆都照這個方向擺
 var _fall_fwd: Vector3 = Vector3.FORWARD
 
 
@@ -394,8 +399,9 @@ func _update_look() -> void:
 		_set_glow(glow + JOLT_GLOW * jolt)
 
 
-## 倒下：先單膝跪下、胸口炸開一團光，再往後仰倒（不往前趴——諾恩就站在牠面前）、躺一下，最後崩成一堆碎石（身體沉下去、
-## 石堆從地面拱上來；石堆留在關卡上）。比一般敵人久。垮完之前照樣擋路：粉碎核心的那一刀會往前滑一步，不擋的話諾恩會滑進牠的身體裡。
+## 倒下：先單膝跪下、胸口炸開一團光，再兩膝著地、整個上身往前垂下去（原地垮掉；以前是跪姿整個往後轉 76°，折著的腿翻到半空中，D-306）、
+## 停一下，最後崩成一堆碎石（身體沉下去、石堆從牠腳下拱上來；石堆留在關卡上）。比一般敵人久。
+## 垮完之前照樣擋路：粉碎核心的那一刀會往前滑一步，不擋的話諾恩會滑進牠的身體裡。
 func _on_died() -> void:
 	var f: Vector3 = forward()
 	_fall_fwd = Vector3(f.x, 0.0, f.z).normalized() if Vector2(f.x, f.z).length() > 0.01 else Vector3.FORWARD
@@ -420,8 +426,10 @@ func _on_died() -> void:
 	var t := create_tween()
 	_fall_tween = t
 	t.tween_interval(DOWN_KNEEL_SEC)
-	t.tween_property(_body, "rotation_degrees:x", -FALL_FORWARD * 76.0, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	t.parallel().tween_property(_body, "position:y", 0.35, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_callback(func() -> void:
+		_puppet.play_action("collapse")
+		_puppet.pause_at(DOWN_REST_AT))
+	t.tween_interval(DOWN_SLUMP_SEC)
 	t.tween_callback(_on_fall_impact)
 	t.tween_interval(DOWN_LIE_SEC)
 	t.tween_callback(_crumble)
@@ -429,7 +437,7 @@ func _on_died() -> void:
 	t.tween_callback(queue_free)
 
 
-## 崩成一堆碎石：身體往下沉（_on_died 的 tween）的同時，石堆從牠躺著的地方拱上來、揚起一大團灰、石塊往上噴。
+## 崩成一堆碎石：身體往下沉（_on_died 的 tween）的同時，石堆從牠垮著的地方拱上來（腳下往前鋪）、揚起一大團灰、石塊往上噴。
 ## 石堆掛在關卡上（牠被釋放之後還在），擋路的換成石堆。
 func _crumble() -> void:
 	collision_layer = 0
@@ -437,10 +445,10 @@ func _crumble() -> void:
 		return
 	rubble = RubblePile.create()
 	get_parent().add_child(rubble)
-	rubble.global_position = Vector3(global_position.x, global_position.y, global_position.z) - _fall_fwd * 0.2
-	rubble.face_along(-_fall_fwd)
+	rubble.global_position = global_position - _fall_fwd * RUBBLE_BACK
+	rubble.face_along(_fall_fwd)
 	rubble.grow(DOWN_CRUMBLE_SEC * 0.8)
-	var mid: Vector3 = global_position - _fall_fwd * 1.7
+	var mid: Vector3 = global_position + _fall_fwd * 0.3
 	_sound(SLAM_SFX, mid, -1.0, 10.0)
 	RockDebris.burst(get_parent(), mid + Vector3.UP * 0.5, Vector3.UP, 26, 0.32, STONE_COLOR, Vector2(1.5, 4.5))
 	var dust: CPUParticles3D = puff_build(Vector3(1.2, 0.3, 1.9), 60, Color(0.62, 0.64, 0.66, 0.7))
@@ -465,14 +473,27 @@ func _on_fall_impact() -> void:
 	has_fallen = true
 	if is_inside_tree():
 		_sound(SLAM_SFX, global_position, 4.0, 12.0)
-		RockDebris.burst(get_parent(), global_position - _fall_fwd * 1.8 + Vector3.UP * 0.6, Vector3.UP, 18, 0.3, STONE_COLOR, Vector2(2.0, 6.0))
+		RockDebris.burst(get_parent(), global_position + _fall_fwd * 1.1 + Vector3.UP * 0.6, Vector3.UP, 18, 0.3, STONE_COLOR, Vector2(2.0, 6.0))
 		_drop_core()
-	_ground_puff(global_position - _fall_fwd * 1.6, Vector3(1.8, 0.05, 1.8), 50, Color(0.6, 0.62, 0.66, 0.65))
+	_ground_puff(global_position + _fall_fwd * 1.1, Vector3(1.8, 0.05, 1.8), 50, Color(0.6, 0.62, 0.66, 0.65))
 	if _player != null and is_instance_valid(_player):
 		_player.shake(0.6)
 
 
-## 倒地的那一下，核心從胸口彈出來：拋到牠腳邊的左前方、滾一小段停住（掛在關卡上——魔像沉下去之後它還在；關卡接 core_dropped）。
+## 倒下那一刻面向哪裡（水平）
+func fall_direction() -> Vector3:
+	return _fall_fwd
+
+
+## 核心滾出來停在哪裡（牠倒在 at、面向 fwd）：牠左手邊前面＝站在牠面前的諾恩的右手邊。讀檔回來也放這裡
+static func core_rest_spot(at: Vector3, fwd: Vector3) -> Vector3:
+	var side: Vector3 = -fwd.cross(Vector3.UP)
+	var rest: Vector3 = at + fwd * 1.5 + side * 2.9
+	rest.y = at.y + GolemCore.RADIUS
+	return rest
+
+
+## 垮到底的那一下，核心從胸口彈出來：拋到牠腳邊的左前方、滾一小段停住（掛在關卡上——魔像沉下去之後它還在；關卡接 core_dropped）。
 func _drop_core() -> void:
 	var core: GolemCore = GolemCore.create()
 	var level: Node = get_parent()
@@ -480,11 +501,10 @@ func _drop_core() -> void:
 	# 往牠的左手邊滾＝站在牠面前的諾恩的右手邊：過肩鏡頭在諾恩右後方，畫面右邊是空的（左邊是狀態列）
 	var side: Vector3 = -_fall_fwd.cross(Vector3.UP)
 	var floor_y: float = global_position.y + GolemCore.RADIUS
-	var from: Vector3 = global_position - _fall_fwd * 1.6 + Vector3.UP * 1.3
+	var from: Vector3 = global_position + _fall_fwd * 0.9 + Vector3.UP * 1.3
 	var land: Vector3 = global_position + _fall_fwd * 0.9 + side * 1.7
 	land.y = floor_y
-	var rest: Vector3 = global_position + _fall_fwd * 1.5 + side * 2.9
-	rest.y = floor_y
+	var rest: Vector3 = core_rest_spot(global_position, _fall_fwd)
 	core.global_position = from
 	var t: Tween = core.create_tween()
 	t.tween_method(func(k: float) -> void:

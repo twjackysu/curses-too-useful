@@ -87,10 +87,36 @@ func test_rubble_pile_is_a_long_heap_that_grows_out_of_the_ground() -> void:
 		far = maxf(far, pile.to_global(at).x)
 	assert_true(far > RubblePile.LENGTH * 0.7, "沿著 face_along 的方向鋪出去（最遠 %.1f m）" % far)
 	assert_not_null(pile.get_node_or_null("Block"), "擋路")
+	# 石塊有稜角（D-306）：一面一面的切面——同一顆石頭上看得到很多不一樣的法線、而且不是圓的（頂點離中心的距離差很多）
+	var rock: ArrayMesh = (pile.get_node("Heap/Rocks0") as MultiMeshInstance3D).multimesh.mesh as ArrayMesh
+	var arr: Array = rock.surface_get_arrays(0)
+	var normals: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+	var facets: Dictionary = {}
+	for n: Vector3 in normals:
+		facets[Vector3i((n * 20.0).round())] = true
+	assert_true(facets.size() >= 20, "很多切面（%d 個方向）" % facets.size())
+	var near: float = 9.0
+	var farthest: float = 0.0
+	for v: Vector3 in (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+		near = minf(near, v.length())
+		farthest = maxf(farthest, v.length())
+	assert_true(farthest - near > 0.12, "不是圓的（頂點離中心 %.2f～%.2f m）" % [near, farthest])
+	var dim: float = 9.0
+	var bright: float = 0.0
+	var mossy: int = 0
+	for c: Color in pile.shades:
+		dim = minf(dim, c.get_luminance())
+		bright = maxf(bright, c.get_luminance())
+		if c.g > c.r * 1.15 and c.g > c.b * 1.15:
+			mossy += 1
+	assert_true(bright > dim * 2.0, "深淺差很多（%.2f～%.2f）" % [dim, bright])
+	assert_true(mossy >= 4, "有幾顆長苔（%d）" % mossy)
+	var shards := pile.get_node("Heap/Shards") as MultiMeshInstance3D
+	assert_true(shards.multimesh.instance_count >= 5 and (shards.multimesh.mesh.surface_get_material(0) as StandardMaterial3D).emission_enabled, "還亮著的晶片自己發光")
 	pile.grow(0.2)
-	assert_true((pile.get_node("Rocks") as Node3D).scale.y < 0.2, "一開始埋在地裡")
+	assert_true((pile.get_node("Heap") as Node3D).scale.y < 0.2, "一開始埋在地裡")
 	await tree.create_timer(0.35).timeout
-	assert_true((pile.get_node("Rocks") as Node3D).scale.is_equal_approx(Vector3.ONE), "長出來了")
+	assert_true((pile.get_node("Heap") as Node3D).scale.is_equal_approx(Vector3.ONE), "長出來了")
 	root.queue_free()
 	await tree.process_frame
 
