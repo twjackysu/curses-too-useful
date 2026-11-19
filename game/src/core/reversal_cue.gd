@@ -19,9 +19,14 @@ const FLIP_SEC: float = 0.24
 
 ## 開始之後過了幾秒；負的＝沒在播
 var t: float = -1.0
+## 這一次是「小的」：不畫整個畫面（ReversalOverlay 藏起來），只有狀態列的圖示翻面、劍亮、小小一團金光與比較小的碎裂聲。
+## 同一種狀態已經演過整套、又很快再上身一次（自己的劍每次停手又砍、被史萊姆連續撞）的時候用——每次都整片閃太吵（D-301）
+var quiet: bool = false
 
 
-func start() -> void:
+## quiet_one＝這一次演小的。整套正在演的時候又來一個小的：照整套重來，不會降級。
+func start(quiet_one: bool = false) -> void:
+	quiet = quiet_one and (quiet or not is_playing())
 	t = 0.0
 
 

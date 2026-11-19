@@ -1,7 +1,7 @@
 class_name ReversalOverlay
 extends ColorRect
 ## 反轉的畫面回饋：整個畫面一層（reversal_overlay.gdshader），邊緣紫紅 → 碎裂 → 金光。
-## 純顯示：Hud 每幀把玩家的 ReversalCue 丟進來，沒在播就藏起來（不佔填充率）。
+## 純顯示：Hud 每幀把玩家的 ReversalCue 丟進來，沒在播、或這一次是小的（`ReversalCue.quiet`）就藏起來（不佔填充率）。
 
 const SHADER: Shader = preload("res://src/ui/reversal_overlay.gdshader")
 
@@ -19,7 +19,7 @@ func _ready() -> void:
 
 
 func refresh(cue: ReversalCue) -> void:
-	visible = cue != null and cue.is_playing()
+	visible = cue != null and cue.is_playing() and not cue.quiet
 	if not visible:
 		return
 	_mat.set_shader_parameter("curse", cue.curse())

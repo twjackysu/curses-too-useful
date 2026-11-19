@@ -128,6 +128,11 @@ var health: Health
 var status_effects: StatusEffects
 ## 吃到狀態那一下的回饋時間軸（紫紅 → 碎裂 → 金光）；Hud 的 ReversalOverlay 每幀讀這個
 var reversal_cue: ReversalCue = ReversalCue.new()
+## 演過整套反轉的狀態（id → true）、離上一次整套幾秒、現在是不是劍砍中給自己的那一下（`cue_is_quiet` 要的）
+const QUIET_REPEAT_SEC: float = 2.0
+var _full_cue_ids: Dictionary = {}
+var _since_full_cue: float = 999.0
+var _applying_weapon: bool = false
 ## 回血的畫面回饋：回血期間身邊往上飄的綠色光點、喝藥那一下的一小團
 var heal_fx: HealMotes
 ## 可攜藥劑滿血時要先問（PotionBelt 回傳 confirm_full）：UI 接這個訊號跳「還是要喝嗎？」
@@ -308,6 +313,7 @@ func _physics_process(delta: float) -> void:
 	if not Game.is_player_locked():
 		status_effects.tick(delta, health)
 	reversal_cue.step(delta)
+	_since_full_cue += delta
 	_update_sword_glow(delta)
 	_update_body_glow()
 	# 麻痺被反轉＝出手變快（只有出手，不是整個人變快）；沒反轉的麻痺＝這段時間不能出手
@@ -980,7 +986,10 @@ static func hit_stop_for(base: float, attack_speed: float, max_share: float) -> 
 func _apply_on_hit_source() -> void:
 	if on_hit_source == "" or status_effects == null:
 		return
-	if status_effects.apply_source(on_hit_source) != "ignored":
+	_applying_weapon = true
+	var result: String = status_effects.apply_source(on_hit_source)
+	_applying_weapon = false
+	if result != "ignored":
 		on_hit_applied += 1
 
 
@@ -999,22 +1008,35 @@ static func in_strike_arc(origin: Vector3, forward: Vector3, target: Vector3, re
 
 
 ## 狀態剛上身（每一種都走這裡）：開始播回饋，ReversalCue.CURSE_SEC 秒後碎成金光。
-func _on_status_changed(_status_id: String, event: String) -> void:
+## 演過整套的狀態，再上身時如果是自己的劍給的、或離上一次整套不到 QUIET_REPEAT_SEC 秒，演小的（`cue_is_quiet`）。
+func _on_status_changed(status_id: String, event: String) -> void:
 	if event != "start":
 		return
 	# 同一下上身兩種狀態（一瓶藥、劍的第一刀）只響一聲：回饋才剛開始（還沒走過任何一幀）就不再播
 	var same_moment: bool = reversal_cue.t == 0.0
-	reversal_cue.start()
+	reversal_cue.start(cue_is_quiet(_full_cue_ids.has(status_id), _applying_weapon, _since_full_cue))
+	if not reversal_cue.quiet:
+		_full_cue_ids[status_id] = true
+		_since_full_cue = 0.0
 	if not same_moment:
-		Sfx.play_at(self, "curse_sting", global_position + Vector3.UP, -5.0, 0.03)
+		Sfx.play_at(self, "curse_sting", global_position + Vector3.UP, -14.0 if reversal_cue.quiet else -5.0, 0.03)
 
 
-## 碎裂的那一刻：碎裂聲＋身上一團金色光點與金光＋鏡頭輕輕震一下
+## 這一次反轉演小的嗎：這種狀態演過整套了，而且是自己的劍給的（停手幾秒又砍，每一刀都可能重新上身），
+## 或離上一次整套不到 QUIET_REPEAT_SEC 秒（被史萊姆連續撞、陷阱區連踩）。第一次見到的狀態一定演整套。純函式。
+static func cue_is_quiet(seen_full: bool, from_own_weapon: bool, since_full: float) -> bool:
+	return seen_full and (from_own_weapon or since_full < QUIET_REPEAT_SEC)
+
+
+## 碎裂的那一刻：碎裂聲＋身上一團金色光點與金光＋鏡頭輕輕震一下。小的那一次：聲音小、光點少、鏡頭不震、手把不震
 func _on_reversal_shattered() -> void:
-	Sfx.play_at(self, "reversal_shatter", global_position + Vector3.UP, -1.0, 0.03, 8.0)
-	Rumble.pulse(get_tree(), Rumble.SHATTER)
+	var quiet: bool = reversal_cue.quiet
+	Sfx.play_at(self, "reversal_shatter", global_position + Vector3.UP, -11.0 if quiet else -1.0, 0.03, 8.0)
 	if heal_fx != null:
-		heal_fx.burst(REVERSAL_GOLD, 48)
+		heal_fx.burst(REVERSAL_GOLD, 14 if quiet else 48)
+	if quiet:
+		return
+	Rumble.pulse(get_tree(), Rumble.SHATTER)
 	shake(CombatTuning.num("feel.reversal_shake", 0.12))
 
 

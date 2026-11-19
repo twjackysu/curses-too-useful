@@ -120,3 +120,50 @@ func test_two_statuses_in_the_same_moment_sting_once() -> void:
 	assert_eq(int(count.call()), 2, "之後新上身的狀態照樣響")
 	player.queue_free()
 	await tree.process_frame
+
+
+## 演過整套的狀態再上身：自己的劍給的（停手幾秒又砍）、或離上一次整套不到 QUIET_REPEAT_SEC 秒（被史萊姆連續撞），演小的——
+## 不畫整個畫面、碎裂聲小、光點少、鏡頭與手把不震；狀態列的圖示照樣翻面（看 age，不看這裡）、劍照樣亮。第一次見到的狀態一定演整套。
+func test_repeats_play_a_quiet_cue_without_the_full_screen() -> void:
+	assert_false(PlayerController.cue_is_quiet(false, true, 0.0), "沒演過整套：整套")
+	assert_true(PlayerController.cue_is_quiet(true, true, 99.0), "自己的劍、演過了：小的")
+	assert_true(PlayerController.cue_is_quiet(true, false, 0.5), "別的來源、剛演過：小的")
+	assert_false(PlayerController.cue_is_quiet(true, false, PlayerController.QUIET_REPEAT_SEC + 0.1), "別的來源、隔了一陣子：整套")
+	var cue := ReversalCue.new()
+	cue.start()
+	cue.step(0.05)
+	cue.start(true)
+	assert_false(cue.quiet, "整套正在演又來一個小的：不降級")
+	cue.step(5.0)
+	cue.start(true)
+	assert_true(cue.quiet)
+	var overlay := ReversalOverlay.new()
+	tree.root.add_child(overlay)
+	cue.step(0.1)
+	overlay.refresh(cue)
+	assert_false(overlay.visible, "小的：整個畫面那一層不畫")
+	overlay.queue_free()
+
+	var player: PlayerController = (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as PlayerController
+	tree.root.add_child(player)
+	await tree.process_frame
+	# 第一次砍中：流血第一次上身，整套
+	player._apply_on_hit_source()
+	assert_true(player.reversal_cue.is_playing() and not player.reversal_cue.quiet, "劍的第一刀：整套")
+	player.reversal_cue.step(5.0)
+	# 停手太久、狀態都退了，再砍中：小的
+	for id: String in player.status_effects.ids():
+		player.status_effects.clear(id)
+	var bursts: int = player.heal_fx.bursts
+	player._apply_on_hit_source()
+	assert_true(player.reversal_cue.is_playing() and player.reversal_cue.quiet, "停手之後又砍：小的")
+	var shake_before: float = player.shake_amount()
+	player.reversal_cue.step(ReversalCue.CURSE_SEC + 0.01)
+	assert_eq(player.heal_fx.bursts, bursts + 1, "小的也碎成一小團金光")
+	assert_true(player.shake_amount() <= shake_before, "小的：鏡頭不再震（%.2f → %.2f）" % [shake_before, player.shake_amount()])
+	# 別的東西帶來的新狀態（麻痺）：第一次，整套
+	player.reversal_cue.step(5.0)
+	player.status_effects.apply_source("sera_paralysis_vial")
+	assert_false(player.reversal_cue.quiet, "第一次見到的狀態：整套")
+	player.queue_free()
+	await tree.process_frame
