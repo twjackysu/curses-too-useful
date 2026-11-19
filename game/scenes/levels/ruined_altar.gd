@@ -309,6 +309,8 @@ func _spawn_party() -> void:
 		# 節點的原點在胸口附近（對話鏡頭對著這裡）：臉朝上＝頭往 +Z 躺、臉朝下＝頭往 −Z 趴
 		var face_up: bool = bool(spec[4])
 		body.rotation.x = PI * 0.5 if face_up else -PI * 0.5
+		# 倒在地上的樣子（兩手攤開、膝蓋立起來／一手往前伸、臉側貼地），不是站著的人整個放倒
+		body.pose = "down_back" if face_up else "down_front"
 		body.position = Vector3(0.0, 0.16, -1.25 if face_up else 1.25)
 		who.add_child(body)
 		add_child(who)

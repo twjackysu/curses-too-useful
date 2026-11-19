@@ -647,7 +647,8 @@ def release_action(a, frames=9):
     a.action("release", frames, fn, step=1)
 
 def social_actions(a):
-    """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、伸手摸（reach）、遞東西（give），
+    """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、倒在地上（down_back 仰躺、down_front 趴著）、
+    伸手摸（reach）、遞東西（give），
     對話的手勢（nod 點頭、bow 鞠躬、point 指、chest 左手按胸口、shrug 攤手、fist 握拳、wave 左手揮手）、慌張地找面具（fumble），
     扛東西（idle_carry、walk_carry、run_carry：左手扶著扛在左肩上的東西，腳照平常走）。
     角度的意思跟 standard_actions 一樣：arm_pose 的 hang 離垂直往外、swing 往前擺、elbow 手肘往前彎、twist 整條手臂繞垂直軸（正＝往左前帶）。"""
@@ -832,6 +833,33 @@ def social_actions(a):
         right = mix((13, 12, 38, 0), (24, -6, 50 - 14 * pat, 8), find)
         a.arm_pose("Right", f, hang=right[0], swing=right[1], elbow=right[2], twist=right[3])
 
+    # 倒在地上的人（祭壇上被魔像打倒的雷歐小隊）：遊戲裡整個人繞 X 轉 ±90° 放倒（ruined_altar.gd），所以這裡是「站著的座標」——
+    # 仰躺（down_back）：背貼地，兩手往兩邊攤開、手背貼地（往後擺），一邊膝蓋立起來，頭往後仰、歪一邊；
+    # 趴著（down_front）：右手往頭的前方伸出去（像要抓什麼）、左手折在身體旁邊，左腳彎、臉側貼地。都慢慢喘
+    def down_back(f, t):
+        b = math.sin(t * math.tau)
+        a.rot("Hips", f, (Z, -4.0))
+        a.move("Hips", f, (0, 0, 0))
+        a.rot("Spine", f, (X, 2 + 1.2 * b))
+        a.rot("Chest", f, (X, 3 + 2.0 * b))
+        a.rot("Head", f, (X, 14), (Z, 32))
+        a.arm_pose("Left", f, hang=55, swing=-18, elbow=28, twist=-10)
+        a.arm_pose("Right", f, hang=40, swing=-12, elbow=40, twist=8)
+        a.leg_pose("Left", f, thigh=50, knee=88, foot=10)
+        a.leg_pose("Right", f, thigh=4, knee=8, foot=-6)
+
+    def down_front(f, t):
+        b = math.sin(t * math.tau)
+        a.rot("Hips", f, (Z, 6.0))
+        a.rot("Spine", f, (X, -2 + 1.2 * b))
+        a.rot("Chest", f, (X, -2 + 2.0 * b))
+        a.rot("Head", f, (Z, 68), (X, 6))
+        a.arm_pose("Right", f, hang=34, swing=150, elbow=22)
+        a.arm_pose("Left", f, hang=40, swing=20, elbow=88, twist=-20)
+        a.rot("LeftUpperLeg", f, (X, 30), (Y, 18))
+        a.rot("LeftLowerLeg", f, (X, -55))
+        a.leg_pose("Right", f, thigh=-4, knee=6, foot=-10)
+
     def carried(base):
         # 扛東西：左手舉過肩、手肘往後折，手腕在左肩上面約 19 cm、往前 6 cm（諾恩的模型上量的），扶著扛在肩上的東西
         def fn(f, t):
@@ -855,6 +883,8 @@ def social_actions(a):
     a.action("fist", 26, fist, step=1)
     a.action("wave", 36, wave, step=1)
     a.action("fumble", 29, fumble, step=1)
+    a.action("down_back", 96, down_back, step=8)
+    a.action("down_front", 96, down_front, step=8)
     a.action("idle_carry", 72, carried(idle), step=6)
     a.action("walk_carry", 30, carried(walk), step=2)
     a.action("run_carry", 18, carried(run), step=1)
@@ -1021,7 +1051,7 @@ class Animator:
 
 
 def standard_actions(a):
-    """idle、walk、run、light_attack_01～03（右手拿劍的三下連段）、heavy_slam（怪物的正劈下砸）、shoot（右手拿武器的站姿）。"""
+    """idle、walk、run、light_attack_01～03（右手拿劍的三下連段）、shoot（右手拿武器的站姿）。怪物出招的動作在 monster_actions。"""
 
     def idle(f, t):
         b = math.sin(t * math.tau)
@@ -1102,13 +1132,6 @@ def standard_actions(a):
         {"twist": 14, "lean": 30, "r": (0, 44, 4), "l": (38, -48, 50)},
         {"twist": 40, "lean": 34, "r": (-30, 24, 6), "l": (38, -50, 50)}, 1.7)
 
-    # 怪物的下砸（魔像的震地、睡著時舉著的拳頭，樹人的下砸）：整個人往後拉滿，踏一大步正正地重劈到底。
-    # 這是 11/19 以前諾恩收尾的那一刀；收尾改成斜劈之後怪物還是用正劈（衝擊波在正前方）
-    heavy_slam = swing(
-        {"twist": 34, "lean": -14, "r": (40, 172, 105), "l": (40, 60, 30)},
-        {"twist": -38, "lean": 30, "r": (22, 34, 4), "l": (38, -48, 50)},
-        {"twist": -42, "lean": 34, "r": (20, 20, 6), "l": (38, -50, 50)}, 1.7)
-
     # 扛東西的走路、跑步（social_actions）是同一套腳步加上舉起來的左手
     a.base_fns = {"idle": idle, "walk": gait(27, 48, 20, 3, 0.012, 18, 34), "run": gait(42, 78, 38, 11, 0.03, 70, 62)}
     a.action("idle", 72, idle, step=6)
@@ -1134,7 +1157,6 @@ def standard_actions(a):
     a.action("light_attack_01", 16, attack_1, step=1)
     a.action("light_attack_02", 16, attack_2, step=1)
     a.action("light_attack_03", 16, attack_3, step=1)
-    a.action("heavy_slam", 16, heavy_slam, step=1)
     a.action("shoot", 22, shoot, step=1)
 
 

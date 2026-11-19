@@ -298,32 +298,39 @@ func test_built_models_face_forward_in_every_clip() -> void:
 		await tree.process_frame
 
 
-## 怪物的下砸（魔像的震地與舉著的拳頭、樹人的下砸）播自己的正劈 `heavy_slam`，不跟著諾恩的收尾（11/19 改成斜劈）走；
-## 模型沒有這一段就退回收尾那一段。
-func test_monster_slam_plays_its_own_straight_smash() -> void:
-	var p: Puppet = _puppet(_fake_model(["idle", "run", "light_attack_01", "light_attack_03", "heavy_slam"]))
-	p.attack_variant = 2
-	p.play_action("attack")
+## 怪物（魔像、樹人）有自己的動作（common.py 的 monster_actions）：出招舉到頂停住、放開才打下去；同一段動作再播一次從頭播。
+## 人沒有這些動作（模型沒有那一段就照平常站）。
+func test_monsters_have_their_own_strikes_roar_gaze_kneel_and_flinch() -> void:
+	var p: Puppet = _puppet(_fake_model(["idle", "run", "light_attack_01", "hammer", "flinch"]))
+	p.wind_up("hammer", 1.3)
 	p.advance(0.016)
-	assert_eq(p.model_animation, "light_attack_03", "諾恩的第三下")
-	p.advance(1.0)
-	p.attack_variant = Puppet.SLAM_VARIANT
-	p.play_action("attack")
+	assert_eq(p.model_animation, "hammer", "怪物的兩手砸")
+	for i: int in 60:
+		p.advance(1.0 / 60.0)
+	assert_true(p.is_holding() and p.anim.speed_scale == 0.0, "舉到頂停住")
+	p.release_hold()
 	p.advance(0.016)
-	assert_eq(p.model_animation, "heavy_slam", "怪物的下砸")
+	assert_true(p.anim.speed_scale > 0.0, "放開就接著播")
+	p.play_action("flinch")
+	p.advance(0.2)
+	p.play_action("flinch")
+	p.advance(0.016)
+	assert_true(p.anim.current_animation_position < 0.1, "連著被砍兩下：從頭播（%.2f）" % p.anim.current_animation_position)
 	p.queue_free()
-	var old: Puppet = _puppet(_fake_model(["idle", "run", "light_attack_01", "light_attack_03"]))
-	old.attack_variant = Puppet.SLAM_VARIANT
-	old.play_action("attack")
-	old.advance(0.016)
-	assert_eq(old.model_animation, "light_attack_03", "沒有 heavy_slam 的模型：退回收尾那一段")
-	old.queue_free()
 	for id: String in ["plague_golem", "spore_treant"]:
 		var scene: PackedScene = CharacterModels.scene_for(id)
 		if scene == null:
 			continue
 		var m: Puppet = _puppet(scene)
 		if m.anim != null:
-			assert_true(m.anim.has_animation("heavy_slam") or CharacterModels.find_animation(m.anim, "attack4") == "heavy_slam", "%s 有正劈的下砸" % id)
+			for clip: String in ["roar", "gaze", "kneel", "flinch", "punch", "hammer"]:
+				assert_ne(CharacterModels.find_animation(m.anim, clip), "", "%s 有 %s" % [id, clip])
 		m.queue_free()
+	var human: PackedScene = CharacterModels.scene_for("noen")
+	if human != null:
+		var n: Puppet = _puppet(human)
+		if n.anim != null:
+			assert_eq(CharacterModels.find_animation(n.anim, "roar"), "", "人沒有怪物的動作")
+			assert_ne(CharacterModels.find_animation(n.anim, "down_back"), "", "人有倒在地上的樣子")
+		n.queue_free()
 	await tree.process_frame

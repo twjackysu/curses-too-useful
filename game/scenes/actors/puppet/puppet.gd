@@ -48,7 +48,7 @@ const TALK_EASE: float = 5.0
 const HEAD_TILT: Dictionary = {"": 0.0, "down": -0.38, "up": 0.16}
 const TILT_SPEED: float = 1.6
 ## 站著不動的時候可以換成的樣子（模型的循環動作；程式人偶只會坐）
-const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump"]
+const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "laugh", "slump", "down_back", "down_front"]
 ## 「釋放」的姿勢播多久。它不是 action：疊在站姿／走路／出手上面，不佔出手與閃避（放完同一幀照樣能出手）
 const RELEASE_POSE_TIME: float = 0.36
 ## 模型的手骨頭在手腕：手上的掛點往指尖移這麼多（掌心）
@@ -93,8 +93,6 @@ var attack_speed: float = 1.0
 ## 連段的第幾下（0、1、2）：模型有 attack2／attack3 那兩段動作就播（橫掃、收尾的斜劈），沒有就都播第一下。
 ## 程式人偶三下都是同一個姿勢。出手的人在 play_action("attack") 之前寫。
 var attack_variant: int = 0
-## 怪物的正劈下砸（`heavy_slam`：魔像的震地與舉著的拳頭、樹人的下砸）；諾恩的三下是 0～2
-const SLAM_VARIANT: int = 3
 ## 「釋放」的姿勢還剩幾秒（0＝沒有在播）
 var release_left: float = 0.0
 ## 一次性動作停在第幾秒（< 0＝沒有停；hold_action）
