@@ -186,7 +186,7 @@ static func skip_to_return(session: GameSession) -> void:
 
 
 func _ready() -> void:
-	var args: Dictionary = App.parse_user_args(OS.get_cmdline_user_args())
+	var args: Dictionary = Game.level_args()
 	var s: GameSession = Game.session
 	# 截圖用：`--registered`（登錄那段話講過了：站在櫃檯前，可以摸水晶）、`--after-leo`（雷歐走了：跟莉莉絲說話）、
 	# `--quest-taken`（接了委託：席菈走過來）、`--ready`（可以出發了）、`--return`（結尾：傍晚回到公會）
@@ -719,7 +719,7 @@ func _play_end_card() -> void:
 		return
 	_music_to(Ambience.MUTED_DB, 1.0)
 	Ambience.music(self, END_MUSIC, END_MUSIC_DB, 1.2, "EndTheme")
-	card = ChapterCard.play(self, "CARD_END_SMALL", "CARD_END_TITLE", Game.back_to_title)
+	card = ChapterCard.play(self, "CARD_END_SMALL", "CARD_END_TITLE", Game.back_to_title, 1.0, false)
 
 
 ## 魔像核心：扛在諾恩的左肩上、左手扶著（GolemCore：祭壇那一關從魔像胸口滾出來的那一顆）

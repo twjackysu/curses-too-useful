@@ -1163,6 +1163,12 @@ func test_gathering_five_mushrooms_brings_the_scream_and_the_road_to_the_altar()
 		await tree.physics_frame
 	assert_eq(s.state.get_flag(ForestExplore.FLAG_ALTAR), true)
 	assert_eq(s.quests.stage_of("ch1_main"), "altar_arrive", "下一段：廢棄祭壇")
+	# 一張地點卡（腐敗之森深處——廢棄祭壇），卡在的時候不能走；播完換關卡
+	assert_not_null(explore.card, "走到路口：地點卡")
+	assert_eq(explore.card.title_text(), tr("CARD_ALTAR_TITLE"))
+	assert_true(bool(_game().call("is_player_locked")), "卡在的時候不能走")
+	assert_ne(str(_game().get("last_level_request")), "ruined_altar", "卡還沒播完")
+	explore.card.finish()
 	assert_eq(str(_game().get("last_level_request")), "ruined_altar", "換到祭壇那一關")
 	assert_true(s.has_save() and s.state.checkpoint == "ch1_altar", "換關卡之前存檔")
 	await tree.physics_frame
@@ -1705,6 +1711,8 @@ func test_walkthrough_from_new_game_to_the_end_of_chapter_one() -> void:
 	for i: int in 4:
 		await tree.physics_frame
 	assert_eq(s.quests.stage_of("ch1_main"), "altar_arrive", "走到祭壇路口")
+	assert_not_null(level.explore.card, "地點卡")
+	level.explore.card.finish()
 	assert_eq(str(_game().get("last_level_request")), "ruined_altar")
 	assert_false(player.health.is_dead())
 	# 換到廢棄祭壇那一關（遊戲裡是 Game 換場景；這裡把森林放掉、載入祭壇）

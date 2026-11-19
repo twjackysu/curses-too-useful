@@ -59,6 +59,8 @@ func _run() -> void:
 			# 測試自己擺位置、自己叫諾恩出手：自動攻擊（設定，預設開）每個測試開始前都關掉——有的測試會重讀設定檔，把它讀回預設的「開」。
 			# 要測自動攻擊的測試自己打開
 			root.get_node("Settings").set("auto_attack", false)
+			# 上一個測試播完章節卡（Game 的黑幕蓋著）也不影響下一個：玩家不會被當成在過場裡
+			(root.get_node("Game").get("fade") as ScreenFade).clear()
 			case.before_each()
 			await case.call(name)
 			case.after_each()

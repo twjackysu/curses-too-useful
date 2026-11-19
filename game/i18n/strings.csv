@@ -300,6 +300,8 @@ DLG_CH1_ASK_A,R-really!? Thank you! I-I'll go get my gas mask and my potions —
 DLG_CH1_ASK_B,"Y-you want to try one!? People usually run when they hear that...! I'll get my mask, and you can have all the potions you want — meet me at the forest entrance!",咦、你想試！？大家聽到都是用跑的耶……！我去拿面具，藥要多少有多少——森林口見！
 CARD_FOREST_SMALL,Outside Alder,奧爾德近郊
 CARD_FOREST_TITLE,The Corrupt Forest,腐敗之森
+CARD_ALTAR_SMALL,Deep in the Corrupt Forest,腐敗之森深處
+CARD_ALTAR_TITLE,The Ruined Altar,廢棄祭壇
 CARD_RETURN_SMALL,That evening,當天傍晚
 CARD_RETURN_TITLE,Alder Adventurers' Guild,奧爾德冒險者公會
 CARD_END_SMALL,Chapter 1: The Tumor and the Junk,第一章　毒瘤與破爛的共鳴

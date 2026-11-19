@@ -575,6 +575,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "guild_hall", "按繼續是從公會大廳接")
 	# 隔一下出「當天傍晚——奧爾德冒險者公會」的卡，播完換到大廳
 	assert_true(level.card == null, "先讓「獲得魔像核心」出來")
+	assert_true(bool(_game().call("is_player_locked")), "等卡出來的那幾秒是過場：不能在石板上走")
 	await _frames(int(RuinedAltar.RETURN_DELAY * 60.0) + 20)
 	assert_not_null(level.card, "換關卡的那張卡")
 	assert_eq(level.card.title_text(), tr("CARD_RETURN_TITLE"))

@@ -75,7 +75,7 @@ func _ready() -> void:
 	_mark("MiasmaEdge", MIASMA_POS + Vector3(0, 0, MIASMA_RADIUS))
 	_mark("SlimeGlade", GLADE_POS)
 	var spawn: Marker3D = $Spawn
-	var args: Dictionary = App.parse_user_args(OS.get_cmdline_user_args())
+	var args: Dictionary = Game.level_args()
 	# 新遊戲是從公會大廳開始的：直接進這一關（開發旗標 `--level=corrupt_forest`、測試）就當成大廳那一段演過了
 	if Game.session.in_story() and Game.session.quests.stage_of(GuildHall.QUEST) in GuildHall.OPENING_STAGES:
 		GuildHall.skip_opening(Game.session)

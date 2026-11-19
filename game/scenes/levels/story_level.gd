@@ -11,3 +11,11 @@ func ground_y(_p: Vector3) -> float:
 ## 腳下是什麼（腳步聲）：Footsteps.SURFACES 裡的一個。預設石頭。
 func footstep_surface(_p: Vector3) -> String:
 	return "stone"
+
+
+## 關卡自己的過場（例：祭壇戰後那段話講完、等卡出來的那幾秒）：玩家不能動。關卡被釋放時自己解開。
+func lock_for_cutscene(on: bool = true) -> void:
+	if on:
+		add_to_group(Game.CUTSCENE_GROUP)
+	elif is_in_group(Game.CUTSCENE_GROUP):
+		remove_from_group(Game.CUTSCENE_GROUP)

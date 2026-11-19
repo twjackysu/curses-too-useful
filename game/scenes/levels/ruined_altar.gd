@@ -116,7 +116,7 @@ static func skip_to_altar(session: GameSession) -> void:
 
 func _ready() -> void:
 	_rng.seed = 20261116
-	var args: Dictionary = App.parse_user_args(OS.get_cmdline_user_args())
+	var args: Dictionary = Game.level_args()
 	if Game.session.in_story() and not stage() in STAGES:
 		skip_to_altar(Game.session)
 	# 截圖用：`--boss` 跳過抵達的那段話直接開打；`--phase2` 魔像一醒來就只剩一半的生命（馬上狂暴）
@@ -449,6 +449,8 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 	if dialogue_id == AFTER_DIALOGUE:
 		_hud.show_banner("CH1_GOT_CORE", 4.0)
 		_return_in = RETURN_DELAY
+		# 等卡出來的這幾秒是過場：站著看核心飛到肩上（不能在石板上走）
+		lock_for_cutscene()
 		# 地上的核心飛到諾恩的左肩旁邊（結尾他就是這樣扛回公會的）
 		if core != null and is_instance_valid(core):
 			core.carry_on(_player.get_node("Body") as Node3D, CORE_TAKE_SEC, _player.puppet())

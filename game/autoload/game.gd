@@ -43,6 +43,8 @@ const DEFAULT_LEVEL: String = "corrupt_forest"
 const DEV_SAVE_DIR: String = "user://saves_dev"
 const TITLE_SCENE: String = "res://scenes/boot/boot.tscn"
 const TITLE_REQUEST: String = "title"
+## 在這個群組裡的節點還在場上時玩家不能動（`in_cutscene()`）
+const CUTSCENE_GROUP: StringName = &"cutscene"
 
 var session: GameSession
 ## false＝go_to_level 只記下要去哪、不真的換場景（測試把關卡直接掛在 root 底下：真的換會多出一個沒人管的關卡）
@@ -52,9 +54,17 @@ var last_level_request: String = ""
 var dialogues: DialogueDB
 ## 進行中的對話（沒有則為 null）
 var dialogue: DialogueRunner
+## 換關卡的黑幕（換之前淡成黑、新的一關從黑淡進來）
+var fade: ScreenFade
+## 這一次開遊戲換過幾次關卡（`level_args()` 只給第一個關卡開發旗標）
+var levels_loaded: int = 0
+## 黑幕淡完要換過去的場景（淡出的那幾幀再要求換關卡就不理）
+var _pending_scene: String = ""
 
 
 func _ready() -> void:
+	fade = ScreenFade.new()
+	add_child(fade)
 	session = GameSession.new(QuestDB.load_default())
 	dialogues = DialogueDB.load_default()
 	for e: String in dialogues.errors:
@@ -68,7 +78,8 @@ func _ready() -> void:
 		if not args.has("benchmark"):
 			session.save_dir = DEV_SAVE_DIR
 			session.new_game.call_deferred()
-		go_to_level.call_deferred(level)
+		# 開發旗標直接進關卡：不淡出淡入（截圖照幀數拍，第一幀就要看得到）
+		go_to_level.call_deferred(level, true)
 
 
 ## 標題畫面的「新遊戲／繼續」。load_level=false 給測試用（只改狀態、不換場景）。
@@ -99,7 +110,8 @@ func go_to_checkpoint_level() -> void:
 	go_to_level(level_for_checkpoint(session.state.checkpoint))
 
 
-func go_to_level(level_id: String) -> void:
+## instant＝不淡出淡入（開發旗標 `--level` 第一次進關卡）
+func go_to_level(level_id: String, instant: bool = false) -> void:
 	var path: String = str(LEVELS.get(level_id, ""))
 	if path == "":
 		push_error("Game: 沒有關卡 %s" % level_id)
@@ -107,12 +119,44 @@ func go_to_level(level_id: String) -> void:
 	last_level_request = level_id
 	cancel_hit_stop()
 	if not change_scenes:
+		fade.clear()
 		return
-	var err: Error = get_tree().change_scene_to_file(path)
-	if err != OK:
-		push_error("Game: 載入 %s 失敗：%s" % [path, error_string(err)])
+	if instant:
+		fade.clear()
+		if get_tree().change_scene_to_file(path) != OK:
+			push_error("Game: 載入 %s 失敗" % path)
+			return
+		levels_loaded += 1
+		level_loaded.emit(level_id)
 		return
-	level_loaded.emit(level_id)
+	_change_after_fade(path, level_id)
+
+
+## 先淡成黑（已經是黑的就馬上）再換場景，新的場景從黑淡進來
+func _change_after_fade(path: String, request: String) -> void:
+	if _pending_scene != "" and fade.covering():
+		return
+	_pending_scene = path
+	fade.fade_out(func() -> void:
+		_pending_scene = ""
+		cancel_hit_stop()
+		var err: Error = get_tree().change_scene_to_file(path)
+		if err != OK:
+			push_error("Game: 載入 %s 失敗：%s" % [path, error_string(err)])
+			fade.clear()
+			return
+		fade.fade_in()
+		if request != TITLE_REQUEST:
+			levels_loaded += 1
+			level_loaded.emit(request))
+
+
+## 關卡讀的開發旗標（`--at`、`--demo`、`--burst-on`……）：只給這一次開遊戲第一個載入的關卡。
+## 劇情換到下一關、倒下重來、回標題再進來都不套（從森林走到祭壇時 `--at` 不會把諾恩放到石板外面）。
+func level_args() -> Dictionary:
+	if levels_loaded > 1:
+		return {}
+	return App.parse_user_args(OS.get_cmdline_user_args())
 
 
 ## 開始一段對話；效果套用後讓任務推進。已有對話進行中時回傳 false。
@@ -202,9 +246,16 @@ func is_hit_stopped() -> bool:
 	return Engine.time_scale < 1.0
 
 
-## 玩家角色不能移動（對話中、倒下）。
+## 玩家角色不能移動（對話中、倒下、換關卡的黑幕與章節卡、關卡自己的過場）。
 func is_player_locked() -> bool:
-	return is_in_dialogue() or _player_dead
+	return is_in_dialogue() or _player_dead or in_cutscene()
+
+
+## 過場中：黑幕正在變黑，或場上有加進 CUTSCENE_GROUP 的節點（章節卡、製作名單；關卡 `StoryLevel.lock_for_cutscene()`）
+func in_cutscene() -> bool:
+	if fade != null and fade.covering():
+		return true
+	return is_inside_tree() and get_tree().get_first_node_in_group(CUTSCENE_GROUP) != null
 
 
 func _process(delta: float) -> void:
@@ -227,4 +278,6 @@ func back_to_title() -> void:
 	dialogue = null
 	last_level_request = TITLE_REQUEST
 	if change_scenes:
-		get_tree().change_scene_to_file(TITLE_SCENE)
+		_change_after_fade(TITLE_SCENE, TITLE_REQUEST)
+	else:
+		fade.clear()

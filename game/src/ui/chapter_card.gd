@@ -1,6 +1,6 @@
 class_name ChapterCard
 extends CanvasLayer
-## 章節卡：畫面淡成黑 → 置中出現「第一章」小字＋章名（明體）→ 停一下 → 呼叫 on_done（通常是換關卡）。
+## 章節卡：畫面淡成黑 → 置中出現小字＋大字（明體）→ 停一下 → 呼叫 on_done（通常是換關卡；新的一關由 Game 的黑幕從黑淡進來）。
 ## 掛在關卡底下：關卡被釋放（測試、回標題）時卡片跟著消失，on_done 不會被呼叫。
 ## 按確認鍵（ui_accept）可以提早結束；字一律用子節點 Label。
 
@@ -10,7 +10,7 @@ const LAYER: int = 40
 const FADE_SEC: float = 0.9
 const TEXT_IN_SEC: float = 0.8
 const HOLD_SEC: float = 2.6
-## 開始後多久才接受跳過（避免走進地窖時剛好按著確認鍵）
+## 開始後多久才接受跳過（避免走到門口時剛好按著確認鍵）
 const SKIP_AFTER_SEC: float = 0.6
 
 var on_done: Callable = Callable()
@@ -24,18 +24,28 @@ var _tween: Tween
 
 
 ## 建立一張章節卡加到 parent 底下並開始播放。number_key、title_key 是翻譯 key（例如「待續」那張卡）。
-static func play(parent: Node, number_key: String, title_key: String, done: Callable, time_scale: float = 1.0) -> ChapterCard:
+## duck_audio＝卡播的時候把這一關的聲音慢慢收掉（換關卡）；「第一章　完」那張自己有配樂，給 false。
+static func play(parent: Node, number_key: String, title_key: String, done: Callable, time_scale: float = 1.0, duck_audio: bool = true) -> ChapterCard:
 	var card := ChapterCard.new()
 	card.on_done = done
 	parent.add_child(card)
 	card.start(number_key, title_key, time_scale)
+	if duck_audio:
+		Game.fade.duck_to(1.0, card.total_sec() * maxf(time_scale, 0.01))
 	return card
+
+
+## 整張卡播多久（不跳過的話）
+static func total_sec() -> float:
+	return FADE_SEC + TEXT_IN_SEC + HOLD_SEC + TEXT_IN_SEC * 0.6
 
 
 func _init() -> void:
 	name = "ChapterCard"
 	layer = LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# 卡還在場上的時候玩家不能動（Game.in_cutscene）
+	add_to_group(Game.CUTSCENE_GROUP)
 	_black = ColorRect.new()
 	_black.name = "Black"
 	_black.color = Color(0.015, 0.017, 0.025, 1.0)
@@ -122,6 +132,8 @@ func finish() -> void:
 		_tween.kill()
 	_black.modulate.a = 1.0
 	_box.modulate.a = 0.0
+	# 畫面已經是黑的：Game 的黑幕直接接手（換關卡不用再淡出一次，新的一關從黑淡進來）
+	Game.fade.cover()
 	if on_done.is_valid():
 		on_done.call()
 

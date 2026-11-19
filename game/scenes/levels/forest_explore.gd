@@ -102,6 +102,8 @@ var packs: Dictionary = {}
 ## 每一叢野果還要幾秒才再長出來（0＝可以吃）
 var _regrow: PackedFloat32Array = []
 var _gate_bark_in: float = 0.0
+## 走到祭壇路口之後的地點卡（播完換到祭壇那一關；測試叫 card.finish()）
+var card: ChapterCard
 
 
 ## 自由探索開放了沒（教學戰與戰後那段話都過了；之後的階段——祭壇那一關——也算）
@@ -147,7 +149,7 @@ func _ready() -> void:
 	sera.fired.connect(_on_sera_fired)
 	# 連拍用（scripts/burst.sh，配 `--explore --at=x,z`）：`--burst-on=wolf|treant|mold` 那一種敵人第一次擺前兆的那一刻開始拍；
 	# `--burst-on=chest` 進場 1.2 秒後打開詛咒寶箱、`--burst-on=camp` 在營火休息（第一次會開始對話），從那一刻開始拍
-	_burst_on = str(App.parse_user_args(OS.get_cmdline_user_args()).get("burst-on", ""))
+	_burst_on = str(Game.level_args().get("burst-on", ""))
 	if _burst_on == "chest" or _burst_on == "camp":
 		get_tree().create_timer(1.2).timeout.connect(func() -> void:
 			App.burst_start_in(1)
@@ -178,9 +180,9 @@ func _physics_process(delta: float) -> void:
 			_gate_bark_in = GATE_BARK_EVERY
 			hud.show_bark(sera, "BARK_SERA_NOT_YET", 2.6, Sera.NAME_KEY)
 	if stage() == STAGE_ALTAR and ForestMap.flat(player.global_position).distance_to(Vector2(ForestMap.ALTAR_GATE.x, ForestMap.ALTAR_GATE.y)) < ALTAR_REACH:
-		# 下一個階段的檢查點在廢棄祭壇那一關：這裡存檔（生命、狀態、武器跟著走）、換關卡
+		# 下一個階段的檢查點在廢棄祭壇那一關：這裡存檔（生命、狀態、武器跟著走），一張地點卡、換關卡
 		Game.session.set_flag(FLAG_ALTAR, true)
-		Game.go_to_checkpoint_level()
+		card = ChapterCard.play(level, "CARD_ALTAR_SMALL", "CARD_ALTAR_TITLE", Game.go_to_checkpoint_level)
 
 
 func stage() -> String:
