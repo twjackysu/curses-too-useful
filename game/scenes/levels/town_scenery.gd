@@ -488,9 +488,10 @@ func _build_gate() -> void:
 		_box(gate, "GateLeaf%s" % ("N" if side < 0 else "S"), Vector3(2.6, 4.0, 0.14), Vector3(GATE_X + 1.3, 2.0, side * (GATE_HALF - 0.1)), wood(Color(0.36, 0.22, 0.12), Vector3(0, 1, 0), 0.24))
 	_box(gate, "Lintel", Vector3(1.6, 0.9, GATE_HALF * 2.0 + 0.6), Vector3(GATE_X, 5.4, 0), wood(Color(0.3, 0.19, 0.11), Vector3(0, 0, 1)))
 	# 門外的路兩邊：森林那邊的樹（遠遠看得到往哪裡走）
-	for i: int in 8:
-		var x: float = GATE_X + 9.0 + 6.0 * floorf(float(i) / 2.0)
-		var z: float = (7.5 + 2.0 * float(i % 3)) * (1.0 if i % 2 == 0 else -1.0)
+	# 從街上穿過門洞看得到路兩邊的樹（門洞只有 ±GATE_HALF 寬：近的種在路邊、遠的往兩邊散開）
+	for i: int in 10:
+		var x: float = GATE_X + 10.0 + 5.5 * floorf(float(i) / 2.0)
+		var z: float = (3.6 + 1.2 * float(i % 3) + 0.5 * floorf(float(i) / 2.0)) * (1.0 if i % 2 == 0 else -1.0)
 		_prop(TREE_MODEL, Vector3(x, 0, z), 37.0 * float(i), 0.9 + 0.08 * float(i % 3))
 
 
