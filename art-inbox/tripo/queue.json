@@ -596,6 +596,70 @@
    "prompt": "cute stylized anime manga fantasy game prop, bright appealing colors, vibrant hand-painted textures, readable silhouette, game-ready, no text, no logo, centered, standing on flat ground. Object only, nobody present. A short wide gnarled corrupted tree about 4 meters tall: thick hunched trunk splitting into two leaning halves, a broad umbrella of twisted branches with clusters of round purple fungus caps, dark bark with deep cracks, a few hanging moss strands, roots spreading straight into the flat ground, no base, eerie but stylized",
    "negative_prompt": "character, person, figure, face, pedestal, base, platform, grass mound, text, logo",
    "note": "腐敗之森的第三種樹（矮胖、傘狀）：同上"
+  },
+  {
+   "id": "town_pharmacist",
+   "model": "tripo-v3.1",
+   "params": {
+    "texture_quality": "detailed",
+    "face_limit": 40000
+   },
+   "prompt": "Stylized anime JRPG 3D game character, modern anime action RPG party member style: slim young-adult body, youthful anime proportions about 5.5 heads tall, slightly large head, sturdy legs, anime face with medium-large eyes, clean cel-shaded hand-painted textures, detailed layered fantasy clothing, slightly worn. Full body, strict T-pose, arms straight out to the sides, legs slightly apart, facing forward, empty open hands. A kind but tired pharmacist woman in her forties, town apothecary owner. Dark auburn hair tied up in a loose bun with a pencil stuck in it, thin round glasses, freckles, gentle smile. Long sage-green apron with many small pockets over a cream blouse with rolled-up sleeves, brown long skirt, soft leather shoes, a small herb pouch on the belt.",
+   "negative_prompt": "weapon, sword, staff, lantern, wings, text, logo, base, pedestal",
+   "rig": {
+    "type": "biped",
+    "spec": "mixamo"
+   },
+   "animations": [],
+   "note": "賒帳街的藥房店主（增補劇本「送籃子的人」：把五只保溫杯塞進空籃、問藥錢記在誰名下）。TownStreet 的 Pharmacist；沒產之前是程式拼的替身"
+  },
+  {
+   "id": "town_apprentice",
+   "model": "tripo-v3.1",
+   "params": {
+    "texture_quality": "detailed",
+    "face_limit": 40000
+   },
+   "prompt": "Stylized anime JRPG 3D game character, modern anime action RPG party member style: slim young-adult body, youthful anime proportions about 5.5 heads tall, slightly large head, sturdy legs, anime face with medium-large eyes, clean cel-shaded hand-painted textures, detailed layered fantasy clothing, slightly worn. Full body, strict T-pose, arms straight out to the sides, legs slightly apart, facing forward, empty open hands. A short cheerful apprentice boy at the apothecary, young adult, small and slim. Messy straw-blond hair under a cloth cap, big curious eyes, a smudge of soot on the cheek. Oversized beige work shirt, short brown apron, a measuring tape around the neck, patched knee breeches, sturdy little boots.",
+   "negative_prompt": "weapon, sword, staff, lantern, wings, text, logo, base, pedestal",
+   "rig": {
+    "type": "biped",
+    "spec": "mixamo"
+   },
+   "animations": [],
+   "note": "藥房的小學徒（拿尺量諾恩的鼻子、手上掛著兩副防毒面具）。TownStreet 的 Apprentice"
+  },
+  {
+   "id": "town_noodle_vendor",
+   "model": "tripo-v3.1",
+   "params": {
+    "texture_quality": "detailed",
+    "face_limit": 40000
+   },
+   "prompt": "Stylized anime JRPG 3D game character, modern anime action RPG party member style: slim young-adult body, youthful anime proportions about 5.5 heads tall, slightly large head, sturdy legs, anime face with medium-large eyes, clean cel-shaded hand-painted textures, detailed layered fantasy clothing, slightly worn. Full body, strict T-pose, arms straight out to the sides, legs slightly apart, facing forward, empty open hands. A loud friendly street noodle vendor man in his thirties, round face, big grin, thick eyebrows. Short black hair with a white headband towel, sleeveless dark blue work vest over a white undershirt, a long splattered white apron, wide dark trousers tied at the ankles, wooden sandals.",
+   "negative_prompt": "weapon, sword, staff, lantern, wings, text, logo, base, pedestal",
+   "rig": {
+    "type": "biped",
+    "spec": "mixamo"
+   },
+   "animations": [],
+   "note": "麵攤攤主（佈告一：湯三次沒煮開、地下室有東西在偷暖）。TownStreet 的 NoodleVendor"
+  },
+  {
+   "id": "town_warehouse_uncle",
+   "model": "tripo-v3.1",
+   "params": {
+    "texture_quality": "detailed",
+    "face_limit": 40000
+   },
+   "prompt": "Stylized anime JRPG 3D game character, modern anime action RPG party member style: slim young-adult body, youthful anime proportions about 5.5 heads tall, slightly large head, sturdy legs, anime face with medium-large eyes, clean cel-shaded hand-painted textures, detailed layered fantasy clothing, slightly worn. Full body, strict T-pose, arms straight out to the sides, legs slightly apart, facing forward, empty open hands. A big gentle warehouse keeper man in his fifties, tall and heavy built, kind tired eyes. Short grey crew cut, bushy grey moustache, a pencil behind the ear. Faded green work shirt with rolled sleeves, thick leather work apron, brown suspenders, a ring of keys on the belt, heavy work boots.",
+   "negative_prompt": "weapon, sword, staff, lantern, wings, text, logo, base, pedestal",
+   "rig": {
+    "type": "biped",
+    "spec": "mixamo"
+   },
+   "animations": [],
+   "note": "訓練場倉庫的大叔（佈告二：少了一面生鏽鐵盾、請諾恩找到後別當眾問主人）。TownStreet 的 WarehouseUncle"
   }
  ]
 }
