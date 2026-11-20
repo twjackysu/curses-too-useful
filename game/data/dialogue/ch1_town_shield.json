@@ -1,0 +1,62 @@
+{
+  "id": "ch1_town_shield",
+  "start": "h00",
+  "nodes": {
+    "h00": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_SHIELD_001",
+      "emote": "question",
+      "next": "h01"
+    },
+    "h01": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_SHIELD_002",
+      "next": "h02"
+    },
+    "h02": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_SHIELD_003",
+      "emote": "gloom",
+      "next": "ask"
+    },
+    "ask": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_SHIELD_ASK",
+      "choices": [
+        {
+          "text": "DLG_CH1_SHIELD_CHOICE_IOU",
+          "next": "a",
+          "do": {
+            "set": {
+              "ch1.shield": "iou",
+              "ch1.shield_done": true
+            }
+          }
+        },
+        {
+          "text": "DLG_CH1_SHIELD_CHOICE_TAKE",
+          "next": "b",
+          "do": {
+            "set": {
+              "ch1.shield": "taken",
+              "ch1.shield_done": true
+            },
+            "give": {
+              "rusty_shield": 1
+            }
+          }
+        }
+      ]
+    },
+    "a": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_SHIELD_A",
+      "act": "nod"
+    },
+    "b": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_SHIELD_B",
+      "act": "fist"
+    }
+  }
+}

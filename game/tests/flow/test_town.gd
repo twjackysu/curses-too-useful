@@ -314,3 +314,62 @@ func test_sera_shows_her_potion_notes_and_gives_three_vials() -> void:
 	assert_eq(runner.visible_choices.size(), 3, "抄過了：沒有那個選項")
 	_finish_dialogue(2)
 	assert_eq(int(s.state.items.get("sera_poison_vial", 0)), 3)
+
+
+func test_street_board_shows_the_two_notices() -> void:
+	_new_game_at_town()
+	var level: TownStreet = _load_level()
+	await _frames(1)
+	level.read_board()
+	assert_not_null(level.board_note)
+	assert_eq(level.board_note.title_key, "NOTICE_TITLE")
+	assert_true(bool(_session().state.get_flag(TownStreet.FLAG_NOTICES, false)))
+	assert_true((level.get_node("Hud") as Hud).bark_keys().has("BARK_NOEN_NOTICES"))
+	# 走開就收起來
+	_player().global_position = Vector3(30.0, 0.05, 0.0)
+	await _frames(2)
+	assert_true(level.board_note == null)
+
+
+func test_shield_on_the_drying_line_iou_or_take_then_the_reward() -> void:
+	_new_game_at_town()
+	var s: GameSession = _session()
+	var level: TownStreet = _load_level()
+	await _frames(1)
+	assert_true(TownScenery.is_walkable(level.shield_use.global_position), "後院走得到盾旁邊")
+	assert_not_null(level.shield.get_node_or_null("Strap0"), "綁帶")
+	# 先找大叔：請你找
+	assert_true(level.talk_uncle())
+	assert_eq((_game().get("dialogue") as DialogueRunner).dialogue_id, TownStreet.SHIELD_ASK_DIALOGUE)
+	_finish_dialogue(0)
+	assert_true(bool(s.state.get_flag(TownStreet.FLAG_SHIELD_ASKED, false)))
+	# 摸盾：辭工單、帶走
+	assert_true(level.check_shield())
+	assert_not_null(level.slip_note, "阿展的辭工單")
+	_finish_dialogue(1)
+	assert_eq(str(s.state.get_flag(TownStreet.FLAG_SHIELD, "")), "taken")
+	assert_true(bool(s.state.get_flag(TownStreet.FLAG_SHIELD_DONE, false)))
+	assert_eq(int(s.state.items.get(TownStreet.SHIELD_ITEM, 0)), 1, "盾帶在身上")
+	assert_false(level.shield.visible, "繩子上沒有盾了")
+	assert_false(level.shield_use.enabled)
+	# 回倉庫：謝禮（只給一次）
+	var before: int = Gear.new(s.state).coins()
+	assert_true(level.talk_uncle())
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_eq(runner.dialogue_id, TownStreet.SHIELD_REPORT_DIALOGUE)
+	assert_eq(runner.current_text(), "DLG_CH1_SHIELD_REPORT_TAKEN")
+	_finish_dialogue(0)
+	assert_eq(Gear.new(s.state).coins(), before + TownStreet.SHIELD_REWARD)
+	assert_false(level.uncle_use.enabled, "謝過了")
+
+
+func test_shield_iou_keeps_it_hanging() -> void:
+	_new_game_at_town()
+	var s: GameSession = _session()
+	var level: TownStreet = _load_level()
+	await _frames(1)
+	level.check_shield()
+	_finish_dialogue(0)
+	assert_eq(str(s.state.get_flag(TownStreet.FLAG_SHIELD, "")), "iou")
+	assert_true(level.shield.visible, "補借據：盾留在藥房")
+	assert_eq(int(s.state.items.get(TownStreet.SHIELD_ITEM, 0)), 0)

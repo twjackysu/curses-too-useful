@@ -1,0 +1,30 @@
+{
+  "id": "ch1_town_shield_ask",
+  "start": "u00",
+  "nodes": {
+    "u00": {
+      "speaker": "SPK_WAREHOUSE",
+      "text": "DLG_CH1_SHIELD_ASK_001",
+      "act": "wave",
+      "shot": "two",
+      "next": "u01"
+    },
+    "u01": {
+      "speaker": "SPK_WAREHOUSE",
+      "text": "DLG_CH1_SHIELD_ASK_002",
+      "emote": "sweat",
+      "head": "down",
+      "do": {
+        "set": {
+          "ch1.shield_asked": true
+        }
+      },
+      "next": "u02"
+    },
+    "u02": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_SHIELD_ASK_003",
+      "act": "nod"
+    }
+  }
+}

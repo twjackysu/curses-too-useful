@@ -31,6 +31,27 @@ const SERA_LIST_LINES: PackedStringArray = ["SERA_LIST_LINE_1", "SERA_LIST_LINE_
 const SERA_LIST_GIVE_LINE: String = "DLG_CH1_SLIST_COPY3"
 const LIST_PAPER: Color = Color(0.95, 0.92, 0.84)
 const LIST_INK: Color = Color(0.2, 0.16, 0.24)
+## 街上的佈告欄：兩張佈告（麵攤的地下室、訓練場的鐵盾）。讀過就算接了，不讀也可以直接去找人（劇本：不必先把佈告欄讀完）
+const NOTICE_LINES: PackedStringArray = ["NOTICE_LINE_1", "NOTICE_LINE_2", "NOTICE_LINE_3", "NOTICE_LINE_4"]
+const FLAG_NOTICES: String = "ch1.notices_read"
+const NOTICE_SHOW_SEC: float = 9.0
+const NOTICE_AWAY: float = 3.4
+## 佈告二：倉庫大叔（找盾）→ 藥房後院曬衣繩上的鐵盾 → 補借據把盾留下（iou）／帶上去問阿展（taken）→ 回倉庫領謝禮
+const UNCLE_KEY: String = "SPK_WAREHOUSE"
+const UNCLE_POS: Vector3 = TownScenery.WAREHOUSE_FRONT + Vector3(-1.2, 0, -0.6)
+const SHIELD_ASK_DIALOGUE: String = "ch1_town_shield_ask"
+const SHIELD_DIALOGUE: String = "ch1_town_shield"
+const SHIELD_REPORT_DIALOGUE: String = "ch1_town_shield_report"
+const FLAG_SHIELD_ASKED: String = "ch1.shield_asked"
+## 盾怎麼處理："iou"／"taken"（ch1.shield_done 也一起設）
+const FLAG_SHIELD: String = "ch1.shield"
+const FLAG_SHIELD_DONE: String = "ch1.shield_done"
+const FLAG_SHIELD_PAID: String = "ch1.shield_paid"
+const SHIELD_REWARD: int = 3
+const SHIELD_ITEM: String = "rusty_shield"
+## 曬衣繩上的盾（翻過來掛著、綁帶朝外）
+const SHIELD_POS: Vector3 = Vector3(8.6, 1.45, 14.2)
+const SLIP_LINES: PackedStringArray = ["AZHAN_SLIP_LINE_1", "AZHAN_SLIP_LINE_2", "AZHAN_SLIP_LINE_3"]
 const MERCHANT_KEY: String = "SPK_MERCHANT"
 const MERCHANT_POS: Vector3 = TownScenery.MERCHANT_STALL + Vector3(0.2, 0, 1.15)
 ## 攤子上那只戒指（模型 0.07 m 高：放大一點才看得到）
@@ -62,6 +83,14 @@ var apprentice: Npc
 var merchant: Npc
 var merchant_use: Interactable
 var sera_use: Interactable
+var board_use: Interactable
+var board_note: PaperNote
+var _board_t: float = 0.0
+var uncle: Npc
+var uncle_use: Interactable
+var shield: Node3D
+var shield_use: Interactable
+var slip_note: PaperNote
 var list_note: PaperNote
 var ring_prop: Node3D
 var talk_camera: TalkCamera
@@ -153,6 +182,11 @@ func _spawn_cast() -> void:
 	apprentice = Npc.create("Apprentice", "town_apprentice", APPRENTICE_POS, 20.0)
 	apprentice.doll_colors(Color(0.72, 0.62, 0.44), Color(0.45, 0.3, 0.2))
 	add_child(apprentice)
+	uncle = Npc.create("WarehouseUncle", "town_warehouse_uncle", UNCLE_POS, 180.0)
+	uncle.doll_colors(Color(0.36, 0.48, 0.32), Color(0.42, 0.3, 0.2))
+	add_child(uncle)
+	shield = _build_shield()
+	add_child(shield)
 	merchant = Npc.create("Merchant", "black_market_merchant", MERCHANT_POS, 0.0)
 	add_child(merchant)
 	ring_prop = PropModels.instance(Gear.load_data()["accessories"][RING_ID]["model"])
@@ -188,6 +222,7 @@ func _physics_process(delta: float) -> void:
 	if not Game.session.in_story() or _leaving:
 		return
 	_player.global_position = TownScenery.keep_inside(_player.global_position)
+	_tick_board(delta)
 	_gate_nag_t = maxf(_gate_nag_t - delta, 0.0)
 	match stage():
 		STAGE_BASKET:
@@ -241,6 +276,8 @@ func _speaker_node(key: String) -> Node3D:
 			return sera
 		MERCHANT_KEY:
 			return merchant
+		UNCLE_KEY:
+			return uncle
 	return null
 
 
@@ -248,6 +285,15 @@ func _build_interactables() -> void:
 	merchant_use = Interactable.create("TalkMerchant", TownScenery.MERCHANT_STALL + Vector3(0, 0, -1.2), "HINT_TALK_MERCHANT", 2.4)
 	merchant_use.used.connect(func(_by: PlayerController) -> void: talk_merchant())
 	add_child(merchant_use)
+	board_use = Interactable.create("ReadStreetBoard", TownScenery.BOARD_POS + Vector3(0, 0, 1.0), "HINT_READ_BOARD", 2.2)
+	board_use.used.connect(func(_by: PlayerController) -> void: read_board())
+	add_child(board_use)
+	uncle_use = Interactable.create("TalkUncle", UNCLE_POS + Vector3(0, 0, 1.2), "HINT_TALK_UNCLE", 2.4)
+	uncle_use.used.connect(func(_by: PlayerController) -> void: talk_uncle())
+	add_child(uncle_use)
+	shield_use = Interactable.create("CheckShield", Vector3(SHIELD_POS.x, 0, SHIELD_POS.z - 0.8), "HINT_CHECK_SHIELD", 2.0)
+	shield_use.used.connect(func(_by: PlayerController) -> void: check_shield())
+	add_child(shield_use)
 	sera_use = Interactable.create("TalkSera", SERA_SPOT + Vector3(-0.6, 0, -1.0), "HINT_TALK_SERA", 2.2)
 	sera_use.used.connect(func(_by: PlayerController) -> void: talk_sera())
 	add_child(sera_use)
@@ -259,6 +305,94 @@ func _refresh_interactables() -> void:
 	sera_use.enabled = Game.session.in_story() and not _leaving and sera != null and is_instance_valid(sera) and _flag(FLAG_BASKET)
 	if ring_prop != null:
 		ring_prop.visible = not Gear.new(Game.session.state).owns(RING_ID)
+	board_use.enabled = Game.session.in_story() and not _leaving
+	uncle_use.enabled = Game.session.in_story() and not _leaving and not _flag(FLAG_SHIELD_PAID)
+	shield_use.enabled = Game.session.in_story() and not _leaving and not _flag(FLAG_SHIELD_DONE)
+	# 帶走了就不在繩子上；補借據的留在藥房（還掛著）
+	shield.visible = str(Game.session.state.get_flag(FLAG_SHIELD, "")) != "taken"
+
+
+## 曬衣繩上的生鏽鐵盾：方的、生鏽的鐵板，翻過來掛著——兩條皮綁帶在朝外的那一面（拿盾的人是把東西托在前面送來的）
+func _build_shield() -> Node3D:
+	var root := Node3D.new()
+	root.name = "RustyShield"
+	root.position = SHIELD_POS
+	var rust := StandardMaterial3D.new()
+	rust.albedo_color = Color(0.5, 0.33, 0.24)
+	rust.metallic = 0.4
+	rust.roughness = 0.85
+	var plate := MeshInstance3D.new()
+	plate.name = "Plate"
+	var box := BoxMesh.new()
+	box.size = Vector3(0.62, 0.74, 0.05)
+	box.material = rust
+	plate.mesh = box
+	root.add_child(plate)
+	var leather := StandardMaterial3D.new()
+	leather.albedo_color = Color(0.32, 0.2, 0.12)
+	for i: int in 2:
+		var strap := MeshInstance3D.new()
+		strap.name = "Strap%d" % i
+		var sb := BoxMesh.new()
+		sb.size = Vector3(0.5, 0.06, 0.03)
+		sb.material = leather
+		strap.mesh = sb
+		strap.position = Vector3(0, -0.14 + 0.28 * float(i), -0.04)
+		root.add_child(strap)
+	var hook := MeshInstance3D.new()
+	var hm := CylinderMesh.new()
+	hm.top_radius = 0.01
+	hm.bottom_radius = 0.01
+	hm.height = 0.25
+	hook.mesh = hm
+	hook.position = Vector3(0, 0.48, 0)
+	root.add_child(hook)
+	return root
+
+
+## 街上的佈告欄：兩張佈告拿到眼前（離開或過幾秒收起來）
+func read_board() -> void:
+	if board_note != null and is_instance_valid(board_note):
+		_close_board()
+		return
+	board_note = PaperNote.create("NOTICE_TITLE", NOTICE_LINES, GuildHall.BOARD_PAPER, GuildHall.BOARD_INK)
+	_hud.add_child(board_note)
+	_board_t = 0.0
+	Game.session.set_flag(FLAG_NOTICES, true)
+	_hud.show_bark(_player, "BARK_NOEN_NOTICES", 3.0, "SPK_NOEN")
+
+
+func _tick_board(delta: float) -> void:
+	if board_note == null:
+		return
+	if not is_instance_valid(board_note):
+		board_note = null
+		return
+	_board_t += delta
+	if _player.global_position.distance_to(board_use.global_position) > NOTICE_AWAY or _board_t > NOTICE_SHOW_SEC or Game.is_in_dialogue():
+		_close_board()
+
+
+func _close_board() -> void:
+	if board_note != null and is_instance_valid(board_note):
+		board_note.close()
+	board_note = null
+
+
+## 跟倉庫大叔說話：還沒找到盾＝請你找（別當眾問主人）；找到了＝謝禮（只給一次）
+func talk_uncle() -> bool:
+	if _flag(FLAG_SHIELD_DONE):
+		return _talk(SHIELD_REPORT_DIALOGUE, ["SPK_NOEN", UNCLE_KEY])
+	return _talk(SHIELD_ASK_DIALOGUE, ["SPK_NOEN", UNCLE_KEY])
+
+
+## 摸曬衣繩上的盾：綁帶朝外、背面壓著阿展的辭工單（畫面右邊那張紙）→ 補借據／帶走
+func check_shield() -> bool:
+	if not _talk(SHIELD_DIALOGUE, ["SPK_NOEN"]):
+		return false
+	slip_note = PaperNote.create("AZHAN_SLIP_TITLE", SLIP_LINES, Color(0.9, 0.88, 0.8), Color(0.2, 0.18, 0.16))
+	_hud.add_child(slip_note)
+	return true
 
 
 ## 跟門邊的席菈說話：她把調藥的記錄攤在膝上（畫面右邊那張紙），一瓶一瓶問（互動鍵；測試直接叫）
@@ -283,6 +417,18 @@ func talk_merchant() -> bool:
 func _on_dialogue_ended(dialogue_id: String) -> void:
 	var g := Gear.new(Game.session.state)
 	match dialogue_id:
+		SHIELD_DIALOGUE:
+			if slip_note != null and is_instance_valid(slip_note):
+				slip_note.close(0.6)
+			slip_note = null
+			if _flag(FLAG_SHIELD_DONE):
+				Game.session.autosave()
+		SHIELD_REPORT_DIALOGUE:
+			if not _flag(FLAG_SHIELD_PAID):
+				Game.session.set_flag(FLAG_SHIELD_PAID, true)
+				g.add_coins(SHIELD_REWARD)
+				_hud.show_bark(_player, "BARK_NOEN_COINS", 2.4, "SPK_NOEN")
+				Game.session.autosave()
 		SERA_LIST_DIALOGUE:
 			if list_note != null and is_instance_valid(list_note):
 				list_note.close(0.6)

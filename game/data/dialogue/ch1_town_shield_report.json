@@ -1,0 +1,27 @@
+{
+  "id": "ch1_town_shield_report",
+  "start": "r00",
+  "nodes": {
+    "r00": {
+      "speaker": "SPK_WAREHOUSE",
+      "text": "DLG_CH1_SHIELD_REPORT_IOU",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.shield",
+            "eq": "taken"
+          },
+          "text": "DLG_CH1_SHIELD_REPORT_TAKEN"
+        }
+      ],
+      "emote": "sweat",
+      "shot": "two",
+      "next": "r01"
+    },
+    "r01": {
+      "speaker": "SPK_WAREHOUSE",
+      "text": "DLG_CH1_SHIELD_REPORT_PAY",
+      "act": "nod"
+    }
+  }
+}

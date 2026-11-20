@@ -452,3 +452,32 @@ DLG_CH1_SLIST_COPY1,...Y-you're sure? The side-effect column?,……你、你確
 DLG_CH1_SLIST_COPY2,Yeah. I want to know what they'll do to me.,對。我想知道它們會對我做什麼。
 DLG_CH1_SLIST_COPY3,Then... take these three. I labeled them all — the poisonous kind. You'll know when you drink one!,那……這三瓶給你。標籤都寫好了——中毒的那種，喝下去就知道了！
 DLG_CH1_SLIST_BYE,"Mm. Once the straps are fixed, I will take the back path to the forest edge!",嗯。扣帶修好我就從小路先去林口！
+SPK_WAREHOUSE,Warehouse keeper,倉庫大叔
+HINT_TALK_UNCLE,{key} Talk to the warehouse keeper,{key} 跟倉庫大叔說話
+HINT_CHECK_SHIELD,{key} Look at the shield on the line,{key} 看看繩子上的盾
+Q_CH1_LIST_SHIELD,Find the training yard's iron shield,找到訓練場的鐵盾
+NOTICE_TITLE,Notices on Tab Street,街上的佈告
+NOTICE_LINE_1,[Cellar cleanup] Soup won't boil — three times now. Something down there is stealing the heat.,【清理地下室】湯三次沒煮開。地下室有東西在偷暖。
+NOTICE_LINE_2,"— Noodle stall, just up the street",　　——前面的麵攤
+NOTICE_LINE_3,"[Lost] One rusty iron shield, missing from the training yard. Reward on return.",【尋物】訓練場少了一面生鏽的鐵盾。找到有謝禮。
+NOTICE_LINE_4,"— Warehouse, past the noodle stall",　　——麵攤再過去的倉庫
+BARK_NOEN_NOTICES,Both are on the way.,兩張都順路。
+BARK_NOEN_COINS,+3 coppers.,銅幣 +3。
+AZHAN_SLIP_TITLE,Letter of resignation,辭工單
+AZHAN_SLIP_LINE_1,Gatherer: Zhan,採集員：阿展
+AZHAN_SLIP_LINE_2,"After I bring the handcart back, I quit.",把手推車拿回來之後，我就不做了。
+AZHAN_SLIP_LINE_3,(signed with half a thumbprint),（落款只有半枚指印）
+DLG_CH1_SHIELD_ASK_001,You're the new registrant? Good timing. A rusty iron shield went missing from the training yard.,你是剛登錄的那個？正好。訓練場少了一面生鏽的鐵盾。
+DLG_CH1_SHIELD_ASK_002,"I'll pay if you find it. But... if you do, don't ask whoever has it in front of people, all right?",找到的話我出錢。不過……找到了，別當眾問主人，好嗎？
+DLG_CH1_SHIELD_ASK_003,...Got it.,……知道了。
+DLG_CH1_SHIELD_001,"That's the training yard's shield... flipped over, being used as a drying tray.",是訓練場的盾……翻過來當晾杯子的托盤用。
+DLG_CH1_SHIELD_002,The straps face out. Whoever carried it held it out in front — couldn't even get a hand through the straps.,綁帶朝外。拿盾的人是把東西托在前面送來的，連自己的手都穿不進帶子裡。
+DLG_CH1_SHIELD_003,"There's a resignation letter pressed underneath. Zhan, the gatherer. Signed with half a thumbprint.",背面壓著一張辭工單。採集員阿展，落款只有半枚指印。
+DLG_CH1_SHIELD_ASK,...What do I do with it?,……怎麼辦？
+DLG_CH1_SHIELD_CHOICE_IOU,Write an IOU and leave the shield with the apothecary.,補一張借據，把盾留在藥房。
+DLG_CH1_SHIELD_CHOICE_TAKE,Take the shield and ask Zhan who it should go back to.,把盾帶上，親自問阿展要還給誰。
+DLG_CH1_SHIELD_A,IOU written. The apothecary can borrow it for now.,借據寫好了。盾就先借給藥房吧。
+DLG_CH1_SHIELD_B,I'll bring it along. I'll ask him when I find him.,帶著走。見到他再問。
+DLG_CH1_SHIELD_REPORT_IOU,"An IOU? ...The apothecary, huh. Fine, I'll talk to her.",借據？……是藥房的老闆娘啊。好，我去跟她說。
+DLG_CH1_SHIELD_REPORT_TAKEN,You're going to ask him yourself? ...Then I'm counting on you.,你要親自去問他？……那就拜託你了。
+DLG_CH1_SHIELD_REPORT_PAY,Here's the reward. Three coppers — don't complain.,謝禮。三枚銅幣，別嫌少。
