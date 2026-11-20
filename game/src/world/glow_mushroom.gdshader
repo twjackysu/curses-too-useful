@@ -3,15 +3,19 @@ shader_type spatial;
 // 所以顏色照形狀算：朝上的面是蕈傘（傘頂紫、往邊緣偏藍綠，上面有會亮的青色斑點）、
 // 朝下的面是蕈褶（發青光）、直的面是蕈柄（淡青）、貼地的一圈是苔。
 // 原本的灰貼圖只拿來當表面的明暗細節，法線貼圖照用。斑點的位置用世界座標算，每一叢都不一樣。
+// 直的面光看法線分不出是蕈傘的側邊還是蕈柄（以前傘的邊緣是一圈淡青）：轉檔時在頂點色記了每一點往上看不看得到天空
+// （tripo_prop.py --sky-mask；R＝1 看得到）——看得到天空的直的面是傘的邊緣，塗傘的顏色；被傘擋住的才是蕈柄。
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable, hint_default_white;
 uniform sampler2D normal_map : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform float ground_y = 0.0;
 uniform float spot_size = 0.1;
 uniform float glow = 1.0;
+uniform float has_sky = 0.0;   // 模型有沒有記天空的頂點色（替身與舊的模型沒有：照以前只看法線）
 
 varying vec3 world_pos;
 varying vec3 world_n;
+varying float sky;
 
 vec3 hash3(vec3 p) {
 	p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6)));
@@ -36,12 +40,14 @@ float spot_dist(vec3 p) {
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	sky = COLOR.r;
 }
 
 void fragment() {
 	vec3 n = normalize(world_n);
-	float cap = smoothstep(0.1, 0.55, n.y);
 	float gill = smoothstep(-0.1, -0.55, n.y);
+	float rim = has_sky * smoothstep(0.35, 0.85, sky) * (1.0 - gill);
+	float cap = max(smoothstep(0.1, 0.55, n.y), rim);
 	float moss = 1.0 - smoothstep(0.05, 0.16, world_pos.y - ground_y);
 	vec3 cap_col = mix(vec3(0.27, 0.12, 0.66), vec3(0.12, 0.36, 0.7), smoothstep(0.8, 0.3, n.y));
 	vec3 col = mix(vec3(0.5, 0.82, 0.88), cap_col, cap);

@@ -354,6 +354,8 @@ static func paint_mushroom(model: Node3D) -> void:
 			if src != null:
 				mat.set_shader_parameter("detail", src.albedo_texture)
 				mat.set_shader_parameter("normal_map", src.normal_texture)
+			# 轉檔時記了「往上看不看得到天空」的頂點色（gen_props.sh 的 --sky-mask）：分得出傘的邊緣與蕈柄
+			mat.set_shader_parameter("has_sky", 1.0 if mi.mesh.surface_get_format(surface) & Mesh.ARRAY_FORMAT_COLOR else 0.0)
 			mi.set_surface_override_material(surface, mat)
 
 

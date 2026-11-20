@@ -971,6 +971,8 @@ func test_slimes_glow_green_in_the_purple_fog_and_mushrooms_have_colour() -> voi
 			assert_eq(mi.layers & lamp.light_cull_mask, 0, "夜光毒蕈自己的燈不照毒蕈")
 			var paint := mi.get_surface_override_material(0) as ShaderMaterial
 			assert_true(paint != null and paint.shader == ForestScenery.MUSHROOM_SHADER, "毒蕈的顏色照形狀算（模型的顏色貼圖是灰的）")
+			if PropModels.scene_for(ForestScenery.MUSHROOM_MODEL) != null:
+				assert_eq(float(paint.get_shader_parameter("has_sky")), 1.0, "Tripo 的毒蕈記了往上看不看得到天空：傘的邊緣塗傘的顏色、不是一圈淡青")
 		assert_true(lamp.light_cull_mask & 1 == 1, "照得到地面與旁邊的東西")
 	assert_true(lamps > 0, "有會發光的毒蕈（%d 叢）" % lamps)
 

@@ -86,6 +86,33 @@ def repaint_grass(meshes, below):
     return changed
 
 
+def sky_mask(meshes):
+    """每個頂點往正上方看不看得到天空（上面沒有自己的面擋住）：寫進頂點色 Sky 的 R（1＝看得到，0＝被擋住）。
+    夜光毒蕈用（glow_mushroom.gdshader）：蕈傘的頂與邊緣看得到天空，蕈柄、蕈褶在傘底下——光看法線分不出傘的側邊與蕈柄。
+    回傳被擋住的頂點比例。"""
+    import bmesh
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    bm = bmesh.new()
+    for o in meshes:
+        bm.from_mesh(o.data)
+    tree = BVHTree.FromBMesh(bm)
+    up = Vector((0.0, 0.0, 1.0))
+    total = hidden = 0
+    for o in meshes:
+        me = o.data
+        attr = me.color_attributes.new(name="Sky", type="BYTE_COLOR", domain="POINT")
+        me.color_attributes.active_color = attr
+        for v in me.vertices:
+            hit = tree.ray_cast(v.co + v.normal * 0.004 + up * 0.004, up, 3.0)
+            open_sky = hit[0] is None
+            attr.data[v.index].color = (1.0, 1.0, 1.0, 1.0) if open_sky else (0.0, 0.0, 0.0, 1.0)
+            total += 1
+            hidden += 0 if open_sky else 1
+    bm.free()
+    return hidden / max(total, 1)
+
+
 def face_colors(o):
     """每個面在貼圖上的顏色（UV 的中心取樣一點，sRGB 0～1）：(面數, 3)。沒有貼圖回傳 None。"""
     me = o.data
@@ -229,6 +256,7 @@ def main():
     ap.add_argument("--height", type=float, default=1.0)
     ap.add_argument("--turn", type=float, default=0.0, help="物件繞上下軸多轉幾度")
     ap.add_argument("--sink", type=float, default=0.0, help="物件往下沉幾公尺")
+    ap.add_argument("--sky-mask", action="store_true", help="頂點色 Sky 記每一點往上看不看得到天空（夜光毒蕈分蕈傘與蕈柄）")
     ap.add_argument("--moss-below", type=float, default=0.0, help="這個高度（公尺）以下的黃綠色草皮改塗成地面的苔色")
     ap.add_argument("--keep-below", type=float, default=0.0, help="只留這個高度比例（0～1）以下的部分")
     ap.add_argument("--lid-above", type=float, default=0.0, help="這個高度比例以上拆成會掀開的蓋子（節點 Lid）")
@@ -308,6 +336,8 @@ def main():
     if args.sink != 0.0:
         for o in meshes:
             o.data.transform(Matrix.Translation((0, 0, -args.sink)))
+    if args.sky_mask:
+        note += f"、頂點色 Sky：{sky_mask(meshes) * 100:.0f}% 在傘底下"
     if args.kind == "prop" and (args.lid_above > 0.0 or args.pick):
         meshes, split_note = split_parts(meshes, args.height, args.lid_above, args.pick, args.pick_min)
         note += split_note
@@ -315,8 +345,9 @@ def main():
             o.select_set(True)
     bpy.context.view_layer.objects.active = meshes[0]
     args.out.parent.mkdir(parents=True, exist_ok=True)
+    extra = {"export_vertex_color": "ACTIVE"} if args.sky_mask else {}
     bpy.ops.export_scene.gltf(filepath=str(args.out), export_format="GLB", use_selection=True,
-                              export_animations=False, export_yup=True, export_image_format="AUTO")
+                              export_animations=False, export_yup=True, export_image_format="AUTO", **extra)
     tris = sum(len(p.vertices) - 2 for o in meshes for p in o.data.polygons)
     print(f"[{args.out.stem}] 已匯出（Tripo）：{tris} 個三角面、{size} m{note}、{args.out.stat().st_size // 1024} KB")
 
