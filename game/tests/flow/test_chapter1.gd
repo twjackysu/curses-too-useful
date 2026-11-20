@@ -203,6 +203,24 @@ func test_ground_rises_only_where_noen_cannot_walk() -> void:
 	assert_true(t.y > 0.5 and t.y <= ForestMap.ground_y(far) + 0.001, "坡上的樹墊高、但不高過它腳下的地面（%.2f）" % t.y)
 
 
+## 外圍的土坡只是畫的（碰撞是平的）：敵人追出去、被擊退出去或席菈跟出去，都跟玩家一樣被拉回走得到的地方，不會被埋在坡裡。
+func test_enemies_and_sera_cannot_wander_into_the_painted_slopes() -> void:
+	var level: CorruptForest = _load_exploring()
+	await tree.physics_frame
+	var wolf: EnemyActor = (level.explore.packs["wolves"] as Array)[0] as EnemyActor
+	var out := Vector3(-60.0, 0.0, 10.0)
+	assert_true(ForestMap.ground_y(ForestMap.flat(out)) > 0.5, "放到坡上（%.2f m）" % ForestMap.ground_y(ForestMap.flat(out)))
+	wolf.global_position = out
+	level.sera.global_position = out + Vector3(0, 0, 3)
+	await tree.physics_frame
+	await tree.physics_frame
+	for who: Node3D in [wolf, level.sera]:
+		var p: Vector2 = ForestMap.flat(who.global_position)
+		assert_true(ForestMap.trail_reach(p) <= ForestMap.STRAY_LIMIT + 0.3, "%s 被拉回來（離路網 %.1f m）" % [who.name, ForestMap.trail_reach(p)])
+		assert_true(ForestMap.ground_y(p) < 0.05, "%s 腳下是平的" % who.name)
+	assert_true(level.get_node("SlopeClutter").get_child_count() >= SlopeClutter.ROCKS + SlopeClutter.LOGS, "坡上有石頭與倒木")
+
+
 func test_tree_variation_stays_in_range_and_differs_by_spot() -> void:
 	var seen: Dictionary = {}
 	for i: int in 50:

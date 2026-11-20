@@ -67,7 +67,9 @@ var _spores: CPUParticles3D
 func _ready() -> void:
 	_rng.seed = 20261114
 	ForestScenery.build_environment(self)
-	ForestScenery.build_ground(self, ForestScenery.build_forest(self, _rng, _no_tree_here))
+	var trees: PackedVector3Array = ForestScenery.build_forest(self, _rng, _no_tree_here)
+	ForestScenery.build_ground(self, trees)
+	SlopeClutter.build(self, trees)
 	ForestScenery.build_landmarks(self)
 	_build_miasma()
 	_spores = ForestScenery.build_spores(self)
@@ -183,8 +185,14 @@ func _physics_process(delta: float) -> void:
 	if not Game.session.in_story():
 		return
 	var st: GameState = Game.session.state
-	# 走進樹林太深就拉回來（地圖只有路與空地附近有東西）；孢子跟著玩家飄
+	# 走進樹林太深就拉回來（地圖只有路與空地附近有東西）；孢子跟著玩家飄。
+	# 敵人與席菈也一樣：外圍的土坡只是畫的（碰撞是平的），追人、被擊退走出去會被埋在坡裡
 	_player.global_position = ForestMap.keep_inside(_player.global_position)
+	sera.global_position = ForestMap.keep_inside(sera.global_position)
+	for e: Node in get_tree().get_nodes_in_group("enemies"):
+		var body := e as Node3D
+		if body != null:
+			body.global_position = ForestMap.keep_inside(body.global_position)
 	_spores.global_position = Vector3(_player.global_position.x, 1.5, _player.global_position.z)
 	_tick_meeting(st)
 	if not bool(st.get_flag(FLAG_REVERSAL, false)) and _player.status_effects.has("poison"):
