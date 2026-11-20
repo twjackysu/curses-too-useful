@@ -36,3 +36,32 @@ func test_camera_path_endpoints() -> void:
 	var pts: Array[Vector3] = BenchScript.get("PATH_POINTS")
 	assert_true(first.is_equal_approx(pts[0]), "起點")
 	assert_true(last.is_equal_approx(pts[pts.size() - 1]), "終點")
+
+
+## 雲端只有軟體算圖（一幀一兩秒）：照幀數跑，前幾幀暖機不算；每一幀畫了多少東西也記下來
+func test_frame_count_run_and_render_counts() -> void:
+	var run := BenchmarkRun.by_frames(4, 2)
+	var pushed: int = 0
+	while not run.is_finished() and pushed < 100:
+		run.push(1.5)  # 一幀 1.5 秒也照樣跑完
+		run.push_render(100 + pushed * 10, 50, 300000)
+		pushed += 1
+	assert_eq(pushed, 6, "4 幀＋暖機 2 幀")
+	assert_eq(run.stats.count(), 4, "暖機不計入")
+	var r: Dictionary = run.to_dict()["render"]
+	assert_eq(int(r["frames"]), 4)
+	assert_eq(int(r["draw_calls_max"]), 150, "最多那一幀")
+	assert_true(is_equal_approx(float(r["draw_calls_avg"]), 135.0), "平均（暖機的兩幀不算）：%s" % str(r["draw_calls_avg"]))
+	assert_true(is_equal_approx(float(r["primitives_avg_k"]), 300.0), "三角面以千為單位")
+
+
+func test_every_route_has_a_level_and_a_path() -> void:
+	var routes: Dictionary = BenchScript.get("ROUTES")
+	for key: String in ["entrance", "deep", "altar", "guild"]:
+		assert_true(routes.has(key), "有 %s 這條路線" % key)
+		var r: Dictionary = routes[key]
+		assert_true(ResourceLoader.exists(str(r["level"])), "關卡在：%s" % str(r["level"]))
+		var pts: Array = r["path"]
+		assert_true(pts.size() >= 3, "路徑至少三點")
+		var last: Vector3 = BenchScript.call("sample_path", 1.0, pts)
+		assert_true(last.is_equal_approx(pts[pts.size() - 1]), "%s 的終點" % key)
