@@ -37,6 +37,8 @@ func _run() -> void:
 		_collect(dir, ".gd", test_files)
 	# 開發用：TEST_FILTER=gamepad 只跑檔名含這段字的測試檔（CI 不設，全部跑）
 	var only: String = OS.get_environment("TEST_FILTER")
+	# TEST_NAME=campfire 再只跑函式名稱含這段字的
+	var only_name: String = OS.get_environment("TEST_NAME")
 	for path: String in test_files:
 		if not path.get_file().begins_with("test_"):
 			continue
@@ -48,7 +50,7 @@ func _run() -> void:
 			continue
 		for method: Dictionary in script.get_script_method_list():
 			var name: String = str(method.get("name", ""))
-			if not name.begins_with("test_"):
+			if not name.begins_with("test_") or (only_name != "" and not name.contains(only_name)):
 				continue
 			var case: TestCase = script.new() as TestCase
 			if case == null:

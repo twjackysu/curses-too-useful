@@ -72,6 +72,9 @@ const TALK_FAR: float = 3.0
 const TALK_GAP: float = 2.2
 const TALK_BACK_SPEED: float = 1.3
 const TALK_WALK_SPEED: float = 2.0
+## 蜘蛛網：離網這麼近才開始想要不要繞；繞的時候離網的那一頭至少多遠（她的肩膀不擦到枯枝）
+const WEB_LOOK: float = 4.0
+const WEB_CLEAR: float = 0.7
 
 ## 面具戴上／拿下來的那一刻（關卡接這個讓她喊一句）
 signal mask_changed(on: bool)
@@ -227,6 +230,8 @@ func _physics_process(delta: float) -> void:
 	# 裝填、換一瓶的時候站著不動（動作是整個人的：走著播會在地上滑）
 	var speed: float = 0.0 if locked or is_handling() else brain.follow_speed(dist)
 	var dir: Vector3 = to / dist if dist > 0.01 else Vector3.ZERO
+	if speed > 0.0:
+		dir = _around_webs(dir)
 	var anim_speed: float = speed
 	match _talk_spacing(dist):
 		-1:
@@ -268,6 +273,22 @@ func _physics_process(delta: float) -> void:
 		Sfx.play_at(self, "vial_load", global_position + Vector3.UP * 1.1, -6.0, 0.04)
 		slot_full = true
 		reloaded.emit()
+
+
+## 往諾恩走的路上有還完整的蜘蛛網（諾恩撞破的不算）：改往網的那一頭繞過去，不直接穿過去
+func _around_webs(dir: Vector3) -> Vector3:
+	var here := Vector2(global_position.x, global_position.z)
+	var goal := Vector2(target.global_position.x, target.global_position.z)
+	for n: Node in get_tree().get_nodes_in_group(WebTrap.GROUP):
+		var web := n as WebTrap
+		if web == null or not web.is_intact() or web.distance_to_web(global_position) > WEB_LOOK:
+			continue
+		var ends: PackedVector2Array = web.ends()
+		var via: Vector2 = SeraBrain.around(here, goal, ends[0], ends[1], WEB_CLEAR)
+		if via.is_finite():
+			var d: Vector2 = (via - here).normalized()
+			return Vector3(d.x, 0.0, d.y)
+	return dir
 
 
 ## 對話中這一幀要不要調整跟諾恩的距離（-1 退、1 走近、0 不動）。只在跟著他的時候（關卡叫她站在別的地方 hold_at 就不管）

@@ -1276,13 +1276,42 @@ func test_traps_are_supplies_vent_web_and_rotten_fruit() -> void:
 	assert_true(player.status_effects.attack_speed() > 1.4 and player.status_effects.move_speed_scale() > 1.1,
 		"出手加速＋跑得更快（×%.2f、×%.2f）" % [player.status_effects.attack_speed(), player.status_effects.move_speed_scale()])
 	assert_true(hud.bark_keys().has("BARK_SERA_WEB"))
+	# 撞破了：絲扯開不見、只剩枯枝；破掉的網撞不到；過一陣子長回來，再撞一次再黏一次
+	assert_false(web.is_intact(), "網被他撞破了")
+	var silk: Node3D = web.get_node("Look").find_child(WebTrap.SILK_NODE, true, false) as Node3D
+	assert_not_null(silk, "網的絲是自己一個節點（模型拆開了，或替身）")
+	for i: int in 20:
+		await tree.physics_frame
+	assert_false(silk.visible, "撞破的網看不到絲，只剩兩根枯枝")
+	assert_true(web.mend_in > 0.0 and web.mend_in <= WebTrap.MEND_SEC, "幾秒後會長回來")
 	player.global_position = web.global_position + across * 3.0 + Vector3(0, 0.05, 0)
 	for i: int in 3:
 		await tree.physics_frame
 	player.global_position = web.global_position + Vector3(0, 0.05, 0)
 	for i: int in 3:
 		await tree.physics_frame
-	assert_eq(web.snares, 2, "走開再撞一次：再黏一次")
+	assert_eq(web.snares, 1, "破掉的網再走過去不會黏")
+	player.global_position = web.global_position + across * 3.0 + Vector3(0, 0.05, 0)
+	web.mend_in = 0.02
+	for i: int in 4:
+		await tree.physics_frame
+	assert_true(web.is_intact() and silk.visible, "網長回來了")
+	player.global_position = web.global_position + Vector3(0, 0.05, 0)
+	for i: int in 3:
+		await tree.physics_frame
+	assert_eq(web.snares, 2, "長回來之後再撞一次：再黏一次")
+	# 席菈跟過來的路上有一張完整的網：從網的頭繞過去，不從中間穿過
+	web.mend_in = 0.02
+	var sera: Sera = level.sera
+	player.global_position = web.global_position + across * 7.0 + web.global_basis.z * 1.0 + Vector3(0, 0.05, 0)
+	sera.global_position = web.global_position - across * 3.0 + Vector3(0, 0.05, 0)
+	var closest: float = 99.0
+	for i: int in 300:
+		await tree.physics_frame
+		closest = minf(closest, web.distance_to_web(sera.global_position))
+	assert_true(web.is_intact(), "網是完整的")
+	assert_true(across.dot(sera.global_position - web.global_position) > 0.5, "她走到網的另一邊、諾恩那裡了")
+	assert_true(closest > 0.4, "一路上離網都超過 0.4 m：從頭繞過去（最近 %.2f m）" % closest)
 	assert_true(player.status_effects.rate("slow") >= 2.0, "緩速疊到兩層")
 	# 跑得更快是真的：往前跑一秒，比沒有緩速的時候遠
 	var bush: Interactable = explore.bushes[0]
@@ -1294,15 +1323,21 @@ func test_traps_are_supplies_vent_web_and_rotten_fruit() -> void:
 	assert_true(player.status_effects.damage_dealt_scale() > 1.1, "對諾恩是砍得更重（×%.2f）" % player.status_effects.damage_dealt_scale())
 	assert_true(hud.bark_keys().has("BARK_SERA_FRUIT"))
 	assert_true(_playing(level, ForestExplore.FRUIT_SFX), "吃下去是咬一口的聲音（不再借噴毒的嘶聲）")
-	await tree.physics_frame
+	var fruits: Array[Node3D] = ForestExplore.fruits_on(bush)
+	assert_true(fruits.size() >= 2, "灌木上看得到一顆一顆的果子（%d 顆）" % fruits.size())
+	for i: int in 12:
+		await tree.physics_frame
+	assert_eq(fruits.filter(func(f: Node3D) -> bool: return f.visible).size(), fruits.size() - 1, "吃掉一顆，灌木上少一顆")
 	assert_false(bush.enabled, "剛吃過，要等它再長")
 	assert_false((bush.get_node("PickupRing") as Node3D).visible, "吃過的那一叢腳下的光圈收起來")
+	var weak_before: float = player.status_effects.rate("weakness")
 	bush.use(player)
-	assert_true(absf(player.status_effects.rate("weakness") - 1.0) < 0.01, "還沒長出來不能連吃")
+	assert_true(absf(player.status_effects.rate("weakness") - weak_before) < 0.01, "還沒長出來不能連吃")
 	explore._regrow[0] = 0.02
 	for i: int in 4:
 		await tree.physics_frame
 	assert_true(bush.enabled, "過一下子再長出來")
+	assert_eq(fruits.filter(func(f: Node3D) -> bool: return f.visible).size(), fruits.size(), "吃掉的那一顆長回來了")
 	assert_true((bush.get_node("PickupRing") as Node3D).visible, "長出來了光圈又出現")
 	assert_eq(hud.status.rows.size(), 4, "狀態列四格：中毒、麻痺、緩速、衰弱")
 

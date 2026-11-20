@@ -35,6 +35,11 @@ const WEB_SPOTS: Array[Vector3] = [Vector3(-0.9, -28.5, 90.0), Vector3(11.5, -39
 const BUSH_SPOTS: Array[Vector3] = [Vector3(5.6, 0, -33.0), Vector3(-20.0, 0, -50.0), Vector3(27.0, 0, -37.5), Vector3(-4.5, 0, -55.0)]
 const FRUIT_SOURCE: String = "rotten_fruit"
 const FRUIT_REGROW_SEC: float = 8.0
+## 灌木上一顆一顆的果子（建置時從模型拆出來的節點 Fruit1、Fruit2…；模型不在就是程式做的兩顆紫球）：吃一顆少一顆，
+## 長回來的時候從小彈到原本的大小。咬下去噴的紫色汁
+const FRUIT_NODE: String = "Fruit"
+const FRUIT_JUICE: Color = Color(0.6, 0.28, 0.82)
+const FRUIT_GROW_SEC: float = 0.6
 ## 野外的敵人，一群一群放（每一隻：種類、x、z）。整群打倒就記一個旗標（ch1.pack.<名字>）並存檔，讀檔不會再生。
 ## 種類：slime＝劇毒史萊姆、mold＝黴菌史萊姆、wolf＝瘴氣狼、treant＝孢子樹人
 const PACKS: Dictionary = {
@@ -101,6 +106,8 @@ var _duo_pending: bool = false
 var packs: Dictionary = {}
 ## 每一叢野果還要幾秒才再長出來（0＝可以吃）
 var _regrow: PackedFloat32Array = []
+## 每一叢被吃掉的那一顆果子（長回來之前看不到；null＝都還在）
+var _eaten: Array[Node3D] = []
 var _gate_bark_in: float = 0.0
 ## 走到祭壇路口之後的地點卡（播完換到祭壇那一關；測試叫 card.finish()）
 var card: ChapterCard
@@ -148,14 +155,36 @@ func _ready() -> void:
 	_build_swamp()
 	sera.fired.connect(_on_sera_fired)
 	# 連拍用（scripts/burst.sh，配 `--explore --at=x,z`）：`--burst-on=wolf|treant|mold` 那一種敵人第一次擺前兆的那一刻開始拍；
-	# `--burst-on=chest` 進場 1.2 秒後打開詛咒寶箱、`--burst-on=camp` 在營火休息（第一次會開始對話），從那一刻開始拍
+	# `--burst-on=chest` 進場 1.2 秒後打開詛咒寶箱、`--burst-on=camp` 在營火休息（第一次會開始對話）、
+	# `--burst-on=fruit` 吃最近的那一叢野果、`--burst-on=web` 諾恩被放到最近的那一張網上（撞破），從那一刻開始拍
 	_burst_on = str(Game.level_args().get("burst-on", ""))
-	if _burst_on == "chest" or _burst_on == "camp":
-		get_tree().create_timer(1.2).timeout.connect(func() -> void:
-			App.burst_start_in(1)
-			(chest if _burst_on == "chest" else campfire).use(player))
+	if _burst_on in ["chest", "camp", "fruit", "web"]:
+		get_tree().create_timer(1.2).timeout.connect(_burst_demo)
 	Game.dialogue_ended.connect(_on_dialogue_ended)
 	Game.session.stage_changed.connect(_on_stage_changed)
+
+
+func _burst_demo() -> void:
+	App.burst_start_in(1)
+	match _burst_on:
+		"chest":
+			chest.use(player)
+		"camp":
+			campfire.use(player)
+		"fruit":
+			_nearest(bushes).use(player)
+		"web":
+			var web: WebTrap = _nearest(webs) as WebTrap
+			var side: float = signf(web.global_basis.x.dot(player.global_position - web.global_position))
+			player.global_position = web.global_position + web.global_basis.x * 0.3 * (side if side != 0.0 else 1.0) + Vector3.UP * 0.05
+
+
+func _nearest(nodes: Array) -> Node3D:
+	var best: Node3D = null
+	for n: Node3D in nodes:
+		if best == null or n.global_position.distance_to(player.global_position) < best.global_position.distance_to(player.global_position):
+			best = n
+	return best
 
 
 func _physics_process(delta: float) -> void:
@@ -569,9 +598,12 @@ func _spawn_traps() -> void:
 		bush.add_child(_sparkles(Color(1.0, 0.45, 0.35)))
 		bush.add_child(ForestScenery.pickup_ring(PICKUP_RING_RADIUS, Color(1.0, 0.5, 0.35)))
 		bush.used.connect(_on_fruit_eaten.bind(i))
+		if fruits_on(bush).is_empty():
+			_stand_in_fruits(look)
 		level.add_child(bush)
 		bushes.append(bush)
 		_regrow.append(0.0)
+		_eaten.append(null)
 
 
 ## 野果過一下子再長；第一次走進毒氣裡席菈喊一聲
@@ -579,6 +611,8 @@ func _tick_traps(delta: float) -> void:
 	for i: int in bushes.size():
 		if _regrow[i] > 0.0:
 			_regrow[i] = maxf(_regrow[i] - delta, 0.0)
+			if _regrow[i] <= 0.0:
+				_grow_fruit(i)
 		bushes[i].enabled = _regrow[i] <= 0.0
 		(bushes[i].get_node("Sparkles") as CPUParticles3D).emitting = bushes[i].enabled
 		(bushes[i].get_node("PickupRing") as Node3D).visible = bushes[i].enabled
@@ -596,10 +630,94 @@ func _on_fruit_eaten(by: PlayerController, i: int) -> void:
 	if _regrow[i] > 0.0:
 		return
 	_regrow[i] = FRUIT_REGROW_SEC
+	_pluck_fruit(i, by.global_position)
 	by.status_effects.apply_source(FRUIT_SOURCE)
 	Sfx.play_at(level, FRUIT_SFX, by.global_position + Vector3.UP * 1.5, -6.0)
 	if Game.session.state.grant_once("ch1.fruit_bark") and sera.joined:
 		hud.show_bark(sera, "BARK_SERA_FRUIT", 3.2, Sera.NAME_KEY)
+
+
+## 這一叢灌木上的果子（看不到的＝被吃掉了）
+static func fruits_on(bush: Node) -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	for n: Node in bush.find_children(FRUIT_NODE + "*", "Node3D", true, false):
+		out.append(n as Node3D)
+	return out
+
+
+## 摘掉離他最近的那一顆：一縮就不見、噴一點紫色的汁
+func _pluck_fruit(i: int, near: Vector3) -> void:
+	var best: Node3D = null
+	for f: Node3D in fruits_on(bushes[i]):
+		if f.visible and (best == null or f.global_position.distance_to(near) < best.global_position.distance_to(near)):
+			best = f
+	if best == null:
+		return
+	_eaten[i] = best
+	if not best.has_meta("home_scale"):
+		best.set_meta("home_scale", best.scale)
+	var juice: CPUParticles3D = _juice_burst()
+	level.add_child(juice)
+	juice.global_position = best.global_position
+	juice.restart()
+	get_tree().create_timer(juice.lifetime + 0.2).timeout.connect(juice.queue_free)
+	var t: Tween = best.create_tween()
+	t.tween_property(best, "scale", best.scale * 0.05, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	t.tween_callback(best.hide)
+
+
+## 吃掉的那一顆長回來
+func _grow_fruit(i: int) -> void:
+	var f: Node3D = _eaten[i]
+	_eaten[i] = null
+	if f == null or not is_instance_valid(f):
+		return
+	var home: Vector3 = f.get_meta("home_scale", Vector3.ONE)
+	f.visible = true
+	f.scale = home * 0.1
+	f.create_tween().tween_property(f, "scale", home, FRUIT_GROW_SEC).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+
+## 模型不在（或是沒拆出果子的舊檔）：掛兩顆紫色的球
+static func _stand_in_fruits(on: Node3D) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.45, 0.22, 0.62)
+	mat.roughness = 0.4
+	var spots: Array[Vector3] = [Vector3(0.24, 0.82, 0.38), Vector3(0.3, 0.9, -0.3)]
+	for k: int in spots.size():
+		var mi := MeshInstance3D.new()
+		mi.name = "%s%d" % [FRUIT_NODE, k + 1]
+		var ball := SphereMesh.new()
+		ball.radius = 0.13
+		ball.height = 0.26
+		ball.material = mat
+		mi.mesh = ball
+		mi.position = spots[k]
+		on.add_child(mi)
+
+
+## 咬下去噴的紫色汁：一小把往外濺、往下掉的水滴
+static func _juice_burst() -> CPUParticles3D:
+	var ps := CPUParticles3D.new()
+	ps.name = "FruitJuice"
+	ps.emitting = false
+	ps.one_shot = true
+	ps.explosiveness = 1.0
+	ps.amount = 14
+	ps.lifetime = 0.6
+	ps.direction = Vector3.UP
+	ps.spread = 80.0
+	ps.gravity = Vector3(0, -9.0, 0)
+	ps.initial_velocity_min = 1.2
+	ps.initial_velocity_max = 2.6
+	ps.scale_amount_min = 0.6
+	ps.scale_amount_max = 1.2
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.07, 0.07)
+	quad.material = ParticleLook.material(FRUIT_JUICE)
+	ps.mesh = quad
+	ps.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return ps
 
 
 ## 噴發口往上噴的毒氣：一股黃綠的煙（底座的模型只留鐵格柵與石頭）

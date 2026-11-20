@@ -15,10 +15,12 @@ uniform float sway_amount = 0.16;
 uniform float sway_speed = 0.7;
 uniform vec2 wind_dir = vec2(0.8, -0.6);
 instance uniform vec3 tint = vec3(1.0);
+// 這個網格的原點離模型的原點多高（模型拆成好幾個節點時：灌木上一顆一顆的果子原點在果子中間，要照整棵的高度擺）
+instance uniform float base_y = 0.0;
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
-	float h = clamp((VERTEX.y - sway_from) / max(sway_height - sway_from, 0.01), 0.0, 1.0);
+	float h = clamp((VERTEX.y + base_y - sway_from) / max(sway_height - sway_from, 0.01), 0.0, 1.0);
 	float phase = origin.x * 0.21 + origin.z * 0.17;
 	float slow = sin(TIME * sway_speed + phase) * 0.7 + sin(TIME * sway_speed * 2.3 + phase * 1.7) * 0.3;
 	float flutter = sin(TIME * 3.1 + dot(VERTEX, vec3(1.3, 0.7, 1.1)) * 2.0) * 0.12;

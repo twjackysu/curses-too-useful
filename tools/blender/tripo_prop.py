@@ -5,6 +5,7 @@ Tripo 的產物塞在邊長 1 的方塊裡、朝向隨意（武器常常是斜�
       縮到 --length；原點在握的地方（從底端算 --grip 比例）。
       --like staff／sword：尺寸與原點照 KayKit 的法杖／雙手劍（遊戲裡原本用的），可以直接替換、不用改握法的數字。
   物件（--kind prop）：照原本的上下，底部中心放在原點，縮到 --height 公尺。
+      --lid-above／--pick：拆成遊戲裡各自會動的節點（寶箱的蓋子 Lid、灌木上一顆一顆的果子、蜘蛛網的絲；split_parts）。
       --sink：整個往下沉幾公尺（模型自帶一圈底座時，讓底座的邊緣埋進地面）。
       --moss-below：這個高度以下的面，貼圖上黃綠色（草皮）的地方改塗成 MOSS（跟關卡地面的苔一樣的暗色）；
           蘑菇、樹根這些不是黃綠色的不動。Tripo 的樹自帶一圈亮黃綠的土丘，放進暗紫的森林裡太搶眼。
@@ -85,6 +86,136 @@ def repaint_grass(meshes, below):
     return changed
 
 
+def face_colors(o):
+    """每個面在貼圖上的顏色（UV 的中心取樣一點，sRGB 0～1）：(面數, 3)。沒有貼圖回傳 None。"""
+    me = o.data
+    uvs = me.uv_layers.active.data if me.uv_layers.active else None
+    img = next((n.image for mat in me.materials if mat and mat.node_tree for n in mat.node_tree.nodes
+                if n.type == "TEX_IMAGE" and n.image and any(l.to_socket.name == "Base Color" for l in n.outputs[0].links)), None)
+    if uvs is None or img is None:
+        return None
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(h, w, 4)
+    out = np.zeros((len(me.polygons), 3), dtype=np.float32)
+    for p in me.polygons:
+        uv = np.mean([uvs[li].uv for li in p.loop_indices], axis=0)
+        out[p.index] = px[int(np.clip(uv[1] * h, 0, h - 1)), int(np.clip(uv[0] * w, 0, w - 1)), :3]
+    return out
+
+
+# --pick 的顏色：紫色的果子（爛果灌木）、淡黃綠的蛛絲（蜘蛛網；枯枝是褐色）
+# （c＝每個面的顏色、z＝每個面重心的高度）。蛛絲不算離地 0.3 m 以下的（枯枝腳下的苔也是淡黃綠）
+PICKS = {
+    "purple": lambda c, z: (c[:, 2] > c[:, 1] * 1.3) & (c[:, 0] > c[:, 1] * 1.1),
+    "silk": lambda c, z: (c[:, 1] >= c[:, 0] * 0.92) & (c.max(1) > 0.42) & (z > 0.3),
+}
+
+
+def components(me, faces):
+    """faces（面的 index）照共用的頂點分成連在一起的幾塊：回傳 [[面…], …]，大的在前面。
+    頂點照位置認（匯入的 glb 在 UV 接縫上把同一個點拆成好幾個頂點，照 index 認會碎成一面一塊）。"""
+    key = [tuple(np.round(np.array(v.co) * 2000.0).astype(int)) for v in me.vertices]
+    parent = {}
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    owner = {}
+    for f in faces:
+        parent[f] = f
+        for v in me.polygons[f].vertices:
+            k = key[v]
+            if k in owner:
+                ra, rb = find(owner[k]), find(f)
+                if ra != rb:
+                    parent[ra] = rb
+            else:
+                owner[k] = f
+    groups = {}
+    for f in faces:
+        groups.setdefault(find(f), []).append(f)
+    return sorted(groups.values(), key=len, reverse=True)
+
+
+def keep_faces(o, keep, name):
+    """複製 o，只留 keep 裡的面，名字叫 name。"""
+    import bmesh
+    c = o.copy()
+    c.data = o.data.copy()
+    c.name = name
+    c.data.name = name
+    bpy.context.scene.collection.objects.link(c)
+    bm = bmesh.new()
+    bm.from_mesh(c.data)
+    bm.faces.ensure_lookup_table()
+    doomed = [f for f in bm.faces if f.index not in keep]
+    bmesh.ops.delete(bm, geom=doomed, context="FACES")
+    loose = [v for v in bm.verts if not v.link_faces]
+    bmesh.ops.delete(bm, geom=loose, context="VERTS")
+    bm.to_mesh(c.data)
+    bm.free()
+    return c
+
+
+def set_origin(o, at):
+    """原點挪到 at（物件的位置＝at，網格往反方向挪）：遊戲裡繞那一點轉、縮放。"""
+    o.data.transform(Matrix.Translation((-at[0], -at[1], -at[2])))
+    o.location = tuple(at)
+
+
+def split_parts(meshes, height, lid_above, picks, min_faces):
+    """把一個網格拆成幾個遊戲裡會各自動的物件（匯出成 glb 裡各自的節點）：
+    --lid-above：重心高於 height×比例的面 → "Lid"，原點在背面（−X）那一條邊上、切開的高度（寶箱的蓋子繞它掀開）。
+    --pick 顏色:名字[:each]：貼圖是那個顏色、連在一起超過 min_faces 個面的 → 名字（each＝每一塊各自一個「名字1、名字2…」，
+        原點在那一塊的中心：果子一顆一顆不見、長回來）。剩下的叫 "Body"。回傳新的網格清單與說明。"""
+    assert len(meshes) == 1, "拆開只支援一個網格的模型"
+    o = meshes[0]
+    me = o.data
+    taken = set()
+    made = []
+    note = []
+    if lid_above > 0.0:
+        import bmesh
+        cut = height * lid_above
+        # 先沿著切開的高度把跨過去的面切成兩半（UV 跟著內插），蓋子與箱身的邊才是一條直線、不是鋸齒
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
+        bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=(0.0, 0.0, cut), plane_no=(0.0, 0.0, 1.0))
+        bm.to_mesh(me)
+        bm.free()
+        lid = {p.index for p in me.polygons if p.center.z > cut}
+        part = keep_faces(o, lid, "Lid")
+        back = min(v.co.x for v in part.data.vertices)
+        set_origin(part, (back, 0.0, cut))
+        made.append(part)
+        taken |= lid
+        note.append(f"蓋子 {len(lid)} 個面（轉軸 x={back:.2f}、高 {cut:.2f}）")
+    cols = face_colors(o) if picks else None
+    for spec in picks:
+        bits = spec.split(":")
+        rule, name, each = bits[0], bits[1], len(bits) > 2 and bits[2] == "each"
+        zs = np.array([p.center.z for p in me.polygons])
+        hit = [i for i in np.nonzero(PICKS[rule](cols, zs))[0].tolist() if i not in taken]
+        groups = [g for g in components(me, hit) if len(g) >= min_faces]
+        if not each:
+            groups = [sum(groups, [])]
+        for k, g in enumerate(groups):
+            part = keep_faces(o, set(g), f"{name}{k + 1}" if each else name)
+            pts = np.array([v.co for v in part.data.vertices])
+            set_origin(part, (pts.max(0) + pts.min(0)) / 2.0)
+            made.append(part)
+            taken |= set(g)
+        note.append(f"{name} {len(groups)} 塊、{sum(len(g) for g in groups)} 個面")
+    body = keep_faces(o, {p.index for p in me.polygons if p.index not in taken}, "Body")
+    bpy.data.objects.remove(o)
+    return [body] + made, "、拆開：" + "、".join(note)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", type=Path, required=True)
@@ -100,6 +231,9 @@ def main():
     ap.add_argument("--sink", type=float, default=0.0, help="物件往下沉幾公尺")
     ap.add_argument("--moss-below", type=float, default=0.0, help="這個高度（公尺）以下的黃綠色草皮改塗成地面的苔色")
     ap.add_argument("--keep-below", type=float, default=0.0, help="只留這個高度比例（0～1）以下的部分")
+    ap.add_argument("--lid-above", type=float, default=0.0, help="這個高度比例以上拆成會掀開的蓋子（節點 Lid）")
+    ap.add_argument("--pick", action="append", default=[], help="顏色:名字[:each]，那個顏色的部分拆成自己的節點（顏色見 PICKS）")
+    ap.add_argument("--pick-min", type=int, default=30, help="--pick 連在一起少於這麼多個面的不算（樹枝上的苔、掉在地上的碎屑）")
     args = ap.parse_args()
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -174,6 +308,11 @@ def main():
     if args.sink != 0.0:
         for o in meshes:
             o.data.transform(Matrix.Translation((0, 0, -args.sink)))
+    if args.kind == "prop" and (args.lid_above > 0.0 or args.pick):
+        meshes, split_note = split_parts(meshes, args.height, args.lid_above, args.pick, args.pick_min)
+        note += split_note
+        for o in meshes:
+            o.select_set(True)
     bpy.context.view_layer.objects.active = meshes[0]
     args.out.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=str(args.out), export_format="GLB", use_selection=True,

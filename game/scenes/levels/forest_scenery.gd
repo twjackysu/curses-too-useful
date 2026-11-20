@@ -298,6 +298,8 @@ static func sway(model: Node3D, params: Vector3, tint: Color = Color.WHITE) -> v
 				src.set_meta(key, mat)
 			mi.set_surface_override_material(surface, mat)
 		mi.set_instance_shader_parameter("tint", Vector3(tint.r, tint.g, tint.b))
+		if mi != model:
+			mi.set_instance_shader_parameter("base_y", mi.position.y)
 
 
 ## 路邊的小東西（夜光毒蕈、灌木）。glows＝夜光毒蕈：顏色照形狀算、旁邊掛一盞青色的小燈（節點名 Glow）。

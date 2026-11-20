@@ -101,3 +101,17 @@ func test_waiting_alone_she_steps_toward_the_miasma_and_back() -> void:
 	assert_true(SeraBrain.HESITATE_IN_SEC > walk + 1.0, "走到前面之後停下來看一秒以上")
 	assert_true(SeraBrain.HESITATE_CYCLE_SEC - SeraBrain.HESITATE_IN_SEC > walk + 1.5, "走回原位、轉回來之後也停一下")
 
+
+
+## 路上有一張網（a～b）：穿過去的話改往近的那一頭繞；沒穿過、從網的外面經過、已經繞到頭了，就直直走
+func test_she_walks_around_a_web_instead_of_through_it() -> void:
+	var a := Vector2(0.0, -1.15)
+	var b := Vector2(0.0, 1.15)
+	var via: Vector2 = SeraBrain.around(Vector2(-3.0, 0.4), Vector2(3.0, 0.6), a, b, 0.7)
+	assert_true(via.is_finite(), "正面穿過網：要繞")
+	assert_true(via.y > b.y + 0.7, "往近的那一頭（b）繞、離網的頭超過 clear（%s）" % via)
+	assert_true(SeraBrain.around(Vector2(-3.0, -0.5), Vector2(3.0, -0.9), a, b, 0.7).y < a.y, "偏另一邊就往另一頭繞")
+	assert_false(SeraBrain.around(Vector2(-3.0, 0.0), Vector2(-1.0, 0.2), a, b, 0.7).is_finite(), "諾恩跟她在網的同一邊：不用繞")
+	assert_false(SeraBrain.around(Vector2(-3.0, 3.0), Vector2(3.0, 3.0), a, b, 0.7).is_finite(), "從網的外面經過：不用繞")
+	assert_true(SeraBrain.around(Vector2(-3.0, 1.6), Vector2(3.0, 1.6), a, b, 0.7).is_finite(), "擦過網的頭（clear 以內）也要繞")
+	assert_false(SeraBrain.around(via, Vector2(3.0, 0.6), a, b, 0.7).is_finite(), "走到繞的那一點：接下來直直走過去不會再碰到網")

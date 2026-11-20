@@ -14,6 +14,8 @@ const HESITATE_SPEED: float = 1.2
 ## 一輪幾秒；前面這麼多秒是「往前走＋站在前面看」，剩下的是「走回去＋站在原位看」
 const HESITATE_CYCLE_SEC: float = 6.0
 const HESITATE_IN_SEC: float = 2.4
+## 繞網（around）：繞到網的那一頭再往外多少倍的 clear（走到那裡回頭看就不會再穿過網）
+const WEB_DETOUR: float = 1.4
 
 var state: State = State.READY
 ## 正在往諾恩走
@@ -34,6 +36,28 @@ func _init() -> void:
 ## 猶豫的第 t 秒，她想站在「原位往瘴氣」幾公尺的地方（0＝原位）。
 static func hesitate_goal(t: float) -> float:
 	return HESITATE_STEP if fposmod(t, HESITATE_CYCLE_SEC) < HESITATE_IN_SEC else 0.0
+
+
+## 從 from 直直走到 goal 會不會穿過 a～b 這一張網（水平的線段；兩頭各多算 clear 公尺）：會的話回傳繞過去的那一點
+## （離 from、goal 加起來比較近的那一頭，再往外 WEB_DETOUR 倍的 clear），不會穿過回傳 Vector2.INF。純函式。
+static func around(from: Vector2, goal: Vector2, a: Vector2, b: Vector2, clear: float) -> Vector2:
+	var along: Vector2 = b - a
+	var span: float = along.length()
+	if span < 0.01:
+		return Vector2.INF
+	var u: Vector2 = along / span
+	var n := Vector2(-u.y, u.x)
+	var s0: float = (from - a).dot(n)
+	var s1: float = (goal - a).dot(n)
+	if signf(s0) == signf(s1) or absf(s0 - s1) < 0.0001:
+		return Vector2.INF
+	var cross: Vector2 = from.lerp(goal, s0 / (s0 - s1))
+	var t: float = (cross - a).dot(u)
+	if t < -clear or t > span + clear:
+		return Vector2.INF
+	var via_a: float = from.distance_to(a) + a.distance_to(goal)
+	var via_b: float = from.distance_to(b) + b.distance_to(goal)
+	return a - u * clear * WEB_DETOUR if via_a <= via_b else b + u * clear * WEB_DETOUR
 
 
 ## 這一幀要往諾恩走多快（m/s；0＝站著）。dist＝跟諾恩的水平距離。瞄準中不走。
