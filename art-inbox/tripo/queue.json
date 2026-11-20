@@ -576,6 +576,26 @@
    },
    "animations": [],
    "note": "公會大廳坐著的客人（斥候）；GuildHall.PATRONS 的 PatronC"
+  },
+  {
+   "id": "prop_corrupt_tree_tall",
+   "model": "tripo-v3.1",
+   "params": {
+    "face_limit": 8000
+   },
+   "prompt": "cute stylized anime manga fantasy game prop, bright appealing colors, vibrant hand-painted textures, readable silhouette, game-ready, no text, no logo, centered, standing on flat ground. Object only, nobody present. A tall thin corrupted forest tree about 8 meters tall: one straight dark purple-brown trunk, a few crooked bare branches only near the top, glowing cyan shelf fungus growing up the trunk, thin strands of pale green hanging moss, roots spreading straight into the flat ground, no base, eerie but stylized",
+   "negative_prompt": "character, person, figure, face, pedestal, base, platform, grass mound, text, logo",
+   "note": "腐敗之森的第二種樹（高瘦）：遠看一片樹林不再是同一個剪影（NEXT「森林再好看一點」①）。產出來 gen_props.sh 已經有一行、ForestScenery.TREE_MODELS 會照位置混著種"
+  },
+  {
+   "id": "prop_corrupt_tree_low",
+   "model": "tripo-v3.1",
+   "params": {
+    "face_limit": 8000
+   },
+   "prompt": "cute stylized anime manga fantasy game prop, bright appealing colors, vibrant hand-painted textures, readable silhouette, game-ready, no text, no logo, centered, standing on flat ground. Object only, nobody present. A short wide gnarled corrupted tree about 4 meters tall: thick hunched trunk splitting into two leaning halves, a broad umbrella of twisted branches with clusters of round purple fungus caps, dark bark with deep cracks, a few hanging moss strands, roots spreading straight into the flat ground, no base, eerie but stylized",
+   "negative_prompt": "character, person, figure, face, pedestal, base, platform, grass mound, text, logo",
+   "note": "腐敗之森的第三種樹（矮胖、傘狀）：同上"
   }
  ]
 }

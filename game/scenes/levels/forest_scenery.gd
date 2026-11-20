@@ -6,6 +6,8 @@ extends RefCounted
 ## 樹、毒蕈、灌木是 Tripo 的模型（scripts/gen_props.sh 擺正後放 assets/props/tripo/，不進 git）；檔案不在就用程式拼的替身。
 
 const TREE_MODEL: String = "tripo/prop_corrupt_tree"
+## 另外兩種樹（Tripo 佇列裡，產出來才有）：照位置混著種，遠看一片樹林不再是同一個剪影；檔案不在的那一種照種第一種
+const TREE_MODELS: Array[String] = [TREE_MODEL, "tripo/prop_corrupt_tree_tall", "tripo/prop_corrupt_tree_low"]
 const MUSHROOM_MODEL: String = "tripo/prop_glow_toxic_mushroom"
 const BUSH_MODEL: String = "tripo/prop_rotten_fruit_bush"
 ## 夜光毒蕈放的算圖層：它們自己的燈不照這一層（small_prop）
@@ -232,7 +234,9 @@ static func tree(at: Vector3, size: float, yaw: float) -> Node3D:
 	shape.shape = trunk
 	shape.position = Vector3(0, 2.0, 0)
 	body.add_child(shape)
-	var look: Node3D = PropModels.instance(TREE_MODEL)
+	var look: Node3D = PropModels.instance(TREE_MODELS[tree_kind(at)])
+	if look == null:
+		look = PropModels.instance(TREE_MODEL)
 	if look == null:
 		var mesh := MeshInstance3D.new()
 		var cyl := CylinderMesh.new()
@@ -261,6 +265,12 @@ static func variation(at: Vector3) -> Vector3:
 	var h2: float = fposmod(sin(at.x * 39.346 + at.z * 11.135) * 24634.6345, 1.0)
 	var h3: float = fposmod(sin(at.x * 73.156 + at.z * 52.235) * 17563.2189, 1.0)
 	return Vector3(lerpf(0.86, 1.06, h1), lerpf(0.9, 1.28, h2), h3)
+
+
+## 這個位置種哪一種樹（TREE_MODELS 的第幾個）：照位置算，每次都一樣；一半是第一種。純函式。
+static func tree_kind(at: Vector3) -> int:
+	var h: float = fposmod(sin(at.x * 27.619 + at.z * 63.733) * 31758.5453, 1.0)
+	return 0 if h < 0.5 else (1 if h < 0.75 else 2)
 
 
 ## 樹的顏色偏移：大多偏暗紫一點或偏青一點，少數亮一點。乘在模型的顏色上。

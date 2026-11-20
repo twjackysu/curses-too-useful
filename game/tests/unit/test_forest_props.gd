@@ -1,5 +1,5 @@
 extends TestCase
-## 森林外圍土坡上的石頭與倒木（SlopeClutter）：形狀的面朝外、擺在玩家走不到的坡上、貼著地面。
+## 森林的小東西：土坡上的石頭與倒木（SlopeClutter）、噴發口的底座、三種樹怎麼混著種。
 
 
 func _outward_ratio(mesh: ArrayMesh, axis_x: bool) -> float:
@@ -80,3 +80,19 @@ func test_vent_rim_has_glowing_stones_and_ground_cracks() -> void:
 	assert_true(cracks.position.y > 0.06, "綠縫在最底那一層霧盤（0.06 m）上面")
 	assert_eq((cracks.mesh.surface_get_material(0) as ShaderMaterial).shader, ForestExplore.VENT_CRACK_SHADER)
 	rim.free()
+
+
+## 三種樹照位置混著種（另外兩種還在 Tripo 佇列裡：檔案不在就種第一種）。
+func test_tree_kind_mixes_three_models_by_spot() -> void:
+	var seen: Dictionary = {}
+	for i: int in 60:
+		var at := Vector3(float(i) * 4.3 - 120.0, 0.0, float(i * 11 % 37) * 3.1 - 50.0)
+		var k: int = ForestScenery.tree_kind(at)
+		assert_true(k >= 0 and k < ForestScenery.TREE_MODELS.size())
+		assert_eq(ForestScenery.tree_kind(at), k, "同一個位置每次都一樣")
+		seen[k] = int(seen.get(k, 0)) + 1
+	assert_eq(seen.size(), 3, "三種都有")
+	assert_true(int(seen[0]) > 20, "第一種最多（%d）" % int(seen[0]))
+	var t: Node3D = ForestScenery.tree(Vector3(3.0, 0.0, -50.0), 1.0, 0.0)
+	assert_true(t.get_child_count() >= 2, "檔案不在的那一種也種得出樹（碰撞＋外型）")
+	t.free()
