@@ -28,6 +28,8 @@ var source_id: String = "miasma"
 var life: float = -1.0
 ## 霧有多濃（1＝森林口那一團）。範圍大的霧（毒沼）要調淡：人站在裡面，鏡頭到人之間隔著好幾公尺的霧，照 1 畫整個畫面是一片紫
 var thickness: float = 1.0
+## 1＝霧盤裡面是一縷一縷的、中間透得出地面（毒沼：一整片均勻的紫蓋住黑泥與綠水）；0＝整片一樣濃。建好之前設
+var wisps: float = 0.0
 var _mats: Array[ShaderMaterial] = []
 var _volume_mat: ShaderMaterial
 
@@ -51,6 +53,7 @@ func _ready() -> void:
 		mat.set_shader_parameter("layer", float(i) / float(LAYERS - 1))
 		mat.set_shader_parameter("overscan", DISC_OVERSCAN)
 		mat.set_shader_parameter("edge_strength", edge_strength(radius))
+		mat.set_shader_parameter("wisps", wisps)
 		_mats.append(mat)
 		var mi := MeshInstance3D.new()
 		mi.name = "MistLayer%d" % i
@@ -63,8 +66,10 @@ func _ready() -> void:
 	_volume_mat.shader = VOLUME_SHADER
 	_volume_mat.set_shader_parameter("density", VOLUME_DENSITY * thickness)
 	_volume_mat.set_shader_parameter("albedo", VOLUME_ALBEDO)
-	_volume_mat.set_shader_parameter("emission", VOLUME_EMISSION)
+	# 自己發的光也照濃淡調：淡的霧（毒沼）不調的話整片發紫光，站在裡面看下去地面是一片亮紫
+	_volume_mat.set_shader_parameter("emission", VOLUME_EMISSION * minf(thickness * 1.6, 1.0))
 	_volume_mat.set_shader_parameter("fade", 1.0)
+	_volume_mat.set_shader_parameter("sparse", wisps)
 	_volume_mat.set_shader_parameter("ground_offset", VOLUME_HEIGHT * 0.4)
 	var vol := FogVolume.new()
 	vol.name = "MistVolume"

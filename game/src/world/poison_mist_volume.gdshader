@@ -14,6 +14,7 @@ uniform float ground_offset = 0.68;  // 地面在這團中心下方多少公尺�
 uniform float flow_speed = 0.22;
 uniform float edge_soft = 0.6;       // 從邊界往裡多少公尺淡到滿
 uniform float edge_bite = 0.7;       // 雜訊把邊界往裡外推多少公尺（±一半）
+uniform float sparse = 0.0;          // 1＝只留濃的那幾縷（範圍大的霧：毒沼，中間透得出地面）
 
 float hash3(vec3 p) {
 	p = fract(p * vec3(0.1031, 0.1030, 0.0973));
@@ -41,7 +42,8 @@ void fog() {
 	// 邊界（SDF 裡面是負的）：加上雜訊，輪廓才不是一顆光滑的橢球；越高的地方咬得越兇（上面是一縷一縷的）
 	float inside = clamp((-SDF + (n - 0.5) * edge_bite * (0.7 + 0.6 * smoothstep(0.2, 1.2, hgt))) / edge_soft, 0.0, 1.0);
 	inside = inside * inside * (3.0 - 2.0 * inside);
-	DENSITY = density * fade * body * mix(0.5, 1.5, wisps) * inside;
+	float keep = mix(1.0, smoothstep(0.52, 0.8, n) * 1.6, sparse);
+	DENSITY = density * fade * body * mix(0.5, 1.5, wisps) * inside * keep;
 	ALBEDO = albedo.rgb * mix(vec3(0.78, 0.94, 0.82), vec3(1.0), wisps);
 	EMISSION = emission.rgb * (0.6 + 0.8 * wisps);
 }

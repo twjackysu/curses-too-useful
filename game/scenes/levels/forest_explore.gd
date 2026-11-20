@@ -507,6 +507,7 @@ func _build_swamp() -> void:
 	swamp_miasma = PoisonMist.create(SWAMP_MIASMA_RADIUS, "swamp_miasma")
 	swamp_miasma.name = "SwampMiasma"
 	swamp_miasma.thickness = SWAMP_MIASMA_THICKNESS
+	swamp_miasma.wisps = 1.0
 	swamp_miasma.position = ForestMap.at(ForestMap.SWAMP)
 	_loop_sound(swamp_miasma, SWAMP_SOUND, Vector3(0, 0.2, 0), "SwampBubble")
 	level.add_child(swamp_miasma)

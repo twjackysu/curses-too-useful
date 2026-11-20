@@ -151,3 +151,24 @@ func test_small_mist_discs_have_a_fainter_rim() -> void:
 	assert_eq(PoisonMist.edge_strength(8.5), PoisonMist.EDGE_STRENGTH, "大的霧（毒沼）照舊")
 	assert_true(PoisonMist.edge_strength(2.3) < PoisonMist.EDGE_STRENGTH * 0.5, "噴發口那麼小的淡一半以上（%.2f）" % PoisonMist.edge_strength(2.3))
 	assert_true(PoisonMist.edge_strength(0.5) > 0.0, "再小也還有一點邊")
+
+
+## 範圍大、調淡的霧（毒沼）：霧盤與那一團都只留一縷一縷的、自己發的光照濃淡調——站在裡面看得到黑泥與綠水，不是一片亮紫。
+func test_wide_thin_mist_is_wispy_and_barely_glows() -> void:
+	var m := PoisonMist.create(8.5, "swamp_miasma")
+	m.thickness = 0.12
+	m.wisps = 1.0
+	tree.root.add_child(m)
+	var disc := (m.get_node("MistLayer0") as MeshInstance3D).material_override as ShaderMaterial
+	assert_eq(float(disc.get_shader_parameter("wisps")), 1.0, "霧盤一縷一縷的")
+	var vol := (m.get_node("MistVolume") as FogVolume).material as ShaderMaterial
+	assert_eq(float(vol.get_shader_parameter("sparse")), 1.0, "那一團也是")
+	var glow: Color = vol.get_shader_parameter("emission")
+	assert_true(glow.b < PoisonMist.VOLUME_EMISSION.b * 0.3, "淡的霧自己幾乎不發光（%.3f）" % glow.b)
+	m.free()
+	var gate := PoisonMist.create(3.0, "miasma")
+	tree.root.add_child(gate)
+	var gate_vol := (gate.get_node("MistVolume") as FogVolume).material as ShaderMaterial
+	assert_eq(gate_vol.get_shader_parameter("emission"), PoisonMist.VOLUME_EMISSION, "森林口那一團照舊")
+	assert_eq(float(gate_vol.get_shader_parameter("sparse")), 0.0)
+	gate.free()

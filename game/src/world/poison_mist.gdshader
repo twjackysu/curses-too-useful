@@ -15,6 +15,7 @@ uniform float overscan = 1.0;    // 面片邊長 ÷ 毒霧直徑
 uniform float layer = 0.0;     // 0＝貼地那層（最濃），越上層越淡
 uniform float flow_speed = 0.06;
 uniform float fade = 1.0;      // 1＝滿，0＝散掉（會散的霧）
+uniform float wisps = 0.0;     // 1＝裡面是一縷一縷的（範圍大的霧：毒沼），中間透得出地面；0＝整片一樣濃
 uniform sampler2D depth_tex : hint_depth_texture, filter_linear;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -41,6 +42,9 @@ void fragment() {
 	float bite = (fbm(c * 1.7 - flow * 0.8 + 11.3 + layer * 1.7) - 0.5) * edge_bite * 2.0;
 	float rr = r - bite;
 	float body = smoothstep(1.0, 0.55, rr) * (0.45 + 0.75 * n) * density * (1.0 - layer * 0.35);
+	// 一縷一縷：另一組大塊的雜訊只留濃的地方（邊界那一圈照舊濃，進出還是看得出來）
+	float patchy = smoothstep(0.56, 0.82, fbm(c * 1.4 - flow * 1.6 + layer * 5.3));
+	body *= mix(1.0, max(patchy, smoothstep(0.72, 0.97, rr) * 0.7), wisps);
 	// 貼地那層：邊界上一道跟著雜訊走的淡亮緣
 	float edge = (1.0 - smoothstep(0.95, 1.03, rr)) * smoothstep(0.82, 0.95, rr) * edge_strength * (0.5 + 0.8 * n) * (1.0 - step(0.01, layer));
 	// 跟地面、牆的交界淡掉
