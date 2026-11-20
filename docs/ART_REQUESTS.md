@@ -20,6 +20,7 @@ loop 自己的美術待辦（不是給 Jacky 的需求單）。來源優先順�
 | 人物（mixamo 骨架） | `black_market_merchant` | **在遊戲裡**（11/18：公會大廳角落坐著喝酒的客人；11/20 也站在賒帳街街尾的攤子後面賣詛咒戒指） |
 | 人物（mixamo 骨架） | `guild_patron_a`～`c`（老練的矮壯冒險者、見習魔法師、斥候） | **11/18 排進佇列、還沒產**（約 165 點）：公會大廳坐著的客人，`GuildHall.PATRONS` 的位子已經留好 |
 | 人物（mixamo 骨架） | `town_pharmacist`、`town_apprentice`、`town_noodle_vendor`、`town_warehouse_uncle`（藥房店主、小學徒、麵攤攤主、倉庫大叔） | **11/20 排進佇列、還沒產**（約 220 點）：賒帳街的人，`TownStreet` 已經用這些 id（現在是程式人偶）；產出來 `gen_art.sh` 的 `SRC`／`ARGS`、`import_characters.py` 的 `KNOWN`、`check_character_glb.py` 的 `BUDGETS` 各加一行 |
+| 人物（mixamo 骨架） | `azhan`（採集員阿展：右手纏著繃帶、一捲繩子） | **11/21 排進佇列、還沒產**（約 55 點）：森林的斷軌與回程的藥房，`RailEvent`、`TownStreet` 已經用這個 id（現在是程式人偶）；產出來照上一列加進 `gen_art.sh`、`KNOWN`、`BUDGETS` |
 | 怪物 | `enemy_poison_slime`、`enemy_mold_slime`、`enemy_miasma_wolf`（四足骨架＋走路）、`enemy_spore_treant`（雙足骨架） | **都在遊戲裡**（`Slime`、`MoldSlime`、`MiasmaWolf`、`SporeTreant`） |
 | 怪物 | `boss_plague_golem`（雙足骨架；48140 面，收件檢查的上限另外開到 52000） | **在遊戲裡**（`PlagueGolem`，3.6 m） |
 | 武器 | `weapon_rusty_miasma_sword`、`weapon_alchemy_crossbow`、`weapon_ominous_split_blade` | **在遊戲裡**（諾恩右手的兩把、席菈右手） |
