@@ -79,14 +79,19 @@ const TIMBER: Color = Color(0.32, 0.2, 0.13)
 const AWNING_GREEN: Color = Color(0.3, 0.55, 0.46)
 const AWNING_RED: Color = Color(0.72, 0.3, 0.24)
 const SUN_DIR: Vector3 = Vector3(-0.55, -0.62, -0.56)
+## 傍晚（回程，TownStreet 的 return_pharmacy 階段）：太陽從西邊低低地照過來
+const DUSK_SUN_DIR: Vector3 = Vector3(0.82, -0.3, -0.36)
 
+## 傍晚的街（第一章的回程）
+var dusk: bool = false
 var _root: Node3D
 ## 每一棟房子（節點名 → 那個節點）：測試看
 var buildings: Dictionary = {}
 
 
-static func build(level: Node3D) -> TownScenery:
+static func build(level: Node3D, p_dusk: bool = false) -> TownScenery:
 	var s := TownScenery.new()
+	s.dusk = p_dusk
 	s._root = Node3D.new()
 	s._root.name = "Scenery"
 	level.add_child(s._root)
@@ -153,8 +158,8 @@ static func wood(tint: Color, along: Vector3, plank: float = 0.26) -> ShaderMate
 
 func _build_environment(level: Node3D) -> void:
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.36, 0.58, 0.92)
-	sky_mat.sky_horizon_color = Color(0.86, 0.9, 0.96)
+	sky_mat.sky_top_color = Color(0.3, 0.3, 0.6) if dusk else Color(0.36, 0.58, 0.92)
+	sky_mat.sky_horizon_color = Color(1.0, 0.62, 0.42) if dusk else Color(0.86, 0.9, 0.96)
 	sky_mat.ground_horizon_color = Color(0.72, 0.7, 0.66)
 	sky_mat.ground_bottom_color = Color(0.4, 0.36, 0.32)
 	sky_mat.sun_angle_max = 20.0
@@ -164,7 +169,7 @@ func _build_environment(level: Node3D) -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.42 if dusk else 0.55
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.0
@@ -183,12 +188,12 @@ func _build_environment(level: Node3D) -> void:
 	level.add_child(we)
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
-	sun.light_color = Color(1.0, 0.93, 0.8)
-	sun.light_energy = 1.4
+	sun.light_color = Color(1.0, 0.6, 0.36) if dusk else Color(1.0, 0.93, 0.8)
+	sun.light_energy = 1.25 if dusk else 1.4
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 70.0
 	level.add_child(sun)
-	sun.look_at_from_position(Vector3.ZERO, SUN_DIR, Vector3.UP)
+	sun.look_at_from_position(Vector3.ZERO, DUSK_SUN_DIR if dusk else SUN_DIR, Vector3.UP)
 
 
 func _build_ground() -> void:

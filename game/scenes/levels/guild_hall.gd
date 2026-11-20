@@ -205,7 +205,7 @@ static func skip_opening(session: GameSession) -> void:
 ## 直接跳到結尾「回到公會」（開發旗標 `--level=guild_hall --return` 與測試用）
 static func skip_to_return(session: GameSession) -> void:
 	RuinedAltar.skip_to_altar(session)
-	for flag: String in [RuinedAltar.FLAG_TALKED, RuinedAltar.FLAG_GOLEM_DOWN, RuinedAltar.FLAG_DONE]:
+	for flag: String in [RuinedAltar.FLAG_TALKED, RuinedAltar.FLAG_GOLEM_DOWN, RuinedAltar.FLAG_DONE, TownStreet.FLAG_DELIVERED, TownStreet.FLAG_RETURNED]:
 		session.set_flag(flag, true)
 
 

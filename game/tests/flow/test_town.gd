@@ -461,3 +461,109 @@ func test_return_to_the_guild_remembers_whose_name_the_money_is_under() -> void:
 	assert_eq(DialogueRunner.text_for(led, st), "DLG_CH1_RETURN_LEDGER_RECEIPT", "席菈的第一張收據")
 	assert_eq(str(db.node("ch1_guild_return", "a").get("next", "")), "led")
 	assert_eq(str(db.node("ch1_guild_return", "b").get("next", "")), "led")
+
+
+## 回程（第一章 ⑥，增補稿「祭壇與回程」）：傍晚從東門回來、扛著核心、席菈跟著、阿展在藥房 → 走到櫃檯交蕈：五只杯蓋亮起來、
+## 盾與藥錢照之前選的各一句 → 想的話去麵攤兌麵票 → 走回公會大門換到大廳的結尾。街上其他的事都收起來了
+func test_return_trip_delivers_the_mushrooms_then_walks_back_to_the_guild() -> void:
+	_game().call("new_game", false)
+	var s: GameSession = _session()
+	RuinedAltar.skip_to_altar(s)
+	for flag: String in [RuinedAltar.FLAG_TALKED, RuinedAltar.FLAG_GOLEM_DOWN, RuinedAltar.FLAG_DONE]:
+		s.set_flag(flag, true)
+	assert_eq(s.quests.stage_of("ch1_main"), TownStreet.STAGE_RETURN)
+	s.set_flag(TownStreet.FLAG_SHIELD, "taken")
+	s.state.items[TownStreet.SHIELD_ITEM] = 1
+	s.set_flag(TownStreet.FLAG_LEDGER, "receipt")
+	s.set_flag(TownStreet.FLAG_CELLAR_WAY, "lamp")
+	s.state.items[TownStreet.NOODLE_TICKET] = 2
+	var level: TownStreet = _load_level()
+	await _frames(2)
+	var hud: Hud = level.get_node("Hud") as Hud
+	var player: PlayerController = _player()
+	assert_true(level.is_return() and level.scenery.dusk, "傍晚的街")
+	assert_true(player.global_position.distance_to(TownStreet.RETURN_ENTRANCE) < 1.0, "從東門裡面開始")
+	assert_true(level.core != null and level.core.is_carried_by(player.get_node("Body") as Node3D), "扛著魔像核心")
+	assert_true(level.sera != null and level.sera.joined and level.sera.target == player, "席菈跟在後面")
+	assert_not_null(level.azhan, "阿展在藥房")
+	assert_eq(level.cup_lids.size(), TownStreet.CUP_COUNT, "櫃檯上五只保溫杯")
+	assert_eq(level.lids_lit(), 0, "杯蓋還沒亮")
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_RETURN_TOWN")
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_TOWN_RETURN_LINE1", "CH1_TOWN_RETURN_LINE2"]))
+	assert_false(level.merchant_use.enabled or level.board_use.enabled or level.cellar_door_use.enabled or level.uncle_use.enabled, "街上其他的事收起來了")
+	assert_true(level.vendor_use.enabled, "帶著麵票：麵攤可以兌")
+	# 東門不能再出去；還沒交蕈走到公會門口不會進去
+	player.global_position = Vector3(TownScenery.LEAVE_X + 1.0, 0.05, 0.0)
+	await _frames(2)
+	assert_true(player.global_position.x <= TownStreet.GATE_STOP_X + 0.01, "東門出不去")
+	player.global_position = TownScenery.GUILD_DOOR + Vector3(0, 0.05, 1.5)
+	await _frames(3)
+	assert_true(level.card == null and s.quests.stage_of("ch1_main") == TownStreet.STAGE_RETURN, "蕈還沒交")
+	# 交蕈
+	player.global_position = TownScenery.PHARMACY_COUNTER + Vector3(0, 0.05, -2.0)
+	await _until_dialogue(20)
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_eq(runner.dialogue_id, TownStreet.RETURN_DIALOGUE)
+	assert_true(level.talk_camera.cast.has(TownStreet.AZHAN_KEY), "鏡頭認得阿展")
+	runner.advance()
+	assert_eq(runner.current_text(), TownStreet.RETURN_LIDS_LINE)
+	await _frames(int(TownStreet.CUP_LIGHT_EVERY * 60.0 * 5.0) + 30)
+	assert_eq(level.lids_lit(), TownStreet.CUP_COUNT, "五只杯蓋一個接一個亮起來")
+	runner.advance()
+	assert_eq(str(runner.current()["speaker"]), TownStreet.AZHAN_KEY, "阿展改辭工單")
+	runner.advance()
+	runner.advance()
+	assert_eq(runner.current_text(), "DLG_CH1_TRET_005_TAKEN", "帶回來的盾：他自己簽名還")
+	runner.advance()
+	assert_eq(runner.current_text(), "DLG_CH1_TRET_006_RECEIPT", "給席菈的收據")
+	runner.advance()
+	assert_eq(runner.current_text(), "DLG_CH1_TRET_007_RECEIPT")
+	runner.advance()
+	assert_false(bool(_game().call("is_in_dialogue")))
+	assert_true(bool(s.state.get_flag(TownStreet.FLAG_DELIVERED, false)))
+	assert_eq(int(s.state.items.get(TownStreet.SHIELD_ITEM, 0)), 0, "盾還了")
+	assert_eq(hud.banner_text(), "CH1_TOWN_DELIVERED")
+	assert_eq(s.quests.marker_spec("ch1_main"), "node:GuildDoor")
+	# 麵攤：兩張麵票換熱湯；當初全砍了的，席菈多調一瓶
+	player.health.hp = 10.0
+	assert_true(level.talk_vendor())
+	runner = _game().get("dialogue") as DialogueRunner
+	assert_eq(runner.current_text(), "DLG_CH1_NBACK_001", "鍋底放回普通的柴")
+	_finish_dialogue(0)
+	assert_true(bool(s.state.get_flag(TownStreet.FLAG_NOODLE_BACK, false)))
+	assert_eq(int(s.state.items.get(TownStreet.NOODLE_TICKET, 0)), 0, "麵票用掉了")
+	assert_eq(int(s.state.items.get("sera_poison_vial", 0)), 1, "席菈多調一瓶")
+	assert_true(player.health.is_full(), "喝了熱湯")
+	assert_false(level.vendor_use.enabled)
+	# 走回公會
+	player.global_position = TownScenery.GUILD_DOOR + Vector3(0, 0.05, 1.5)
+	await _frames(3)
+	assert_eq(s.quests.stage_of("ch1_main"), "report")
+	assert_not_null(level.card, "進公會的那張卡")
+	level.card.finish()
+	assert_eq(str(_game().get("last_level_request")), "guild_hall")
+	# 讀檔（交蕈之後存的）：杯蓋是亮的
+	var again := GameSession.new(QuestDB.load_default(), _dir)
+	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
+	assert_true(bool(again.state.get_flag(TownStreet.FLAG_DELIVERED, false)))
+
+
+## 回程的另一種：盾留在藥房（補借據）、藥錢一起領、黴泥趕進桶裡——各換一句
+func test_return_trip_lines_follow_the_other_choices() -> void:
+	var db: DialogueDB = DialogueDB.load_default()
+	var st := GameState.new()
+	st.set_flag(TownStreet.FLAG_SHIELD, "iou")
+	st.set_flag(TownStreet.FLAG_LEDGER, "together")
+	st.set_flag(TownStreet.FLAG_CELLAR_WAY, "barrel")
+	var r := DialogueRunner.new(db, st)
+	r.start(TownStreet.RETURN_DIALOGUE)
+	var seen: PackedStringArray = []
+	while r.is_running() and seen.size() < 20:
+		seen.append(r.current_text())
+		r.advance()
+	assert_true(seen.has("DLG_CH1_TRET_005_IOU") and seen.has("DLG_CH1_TRET_006") and seen.has("DLG_CH1_TRET_007"), "借出去的盾當熱敷盤、藥錢一起領：%s" % str(seen))
+	r = DialogueRunner.new(db, st)
+	r.start(TownStreet.NOODLE_BACK_DIALOGUE)
+	assert_eq(r.current_text(), "DLG_CH1_NBACK_001_BARREL", "趕進桶裡的那一團養在鍋底")
+	r.advance()
+	assert_eq(r.current_text(), "DLG_CH1_NBACK_002_BARREL")

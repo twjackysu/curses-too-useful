@@ -289,7 +289,8 @@ func _physics_process(delta: float) -> void:
 	if _return_in >= 0.0:
 		_return_in -= delta
 		if _return_in < 0.0:
-			card = ChapterCard.play(self, "CARD_RETURN_SMALL", "CARD_RETURN_TITLE", Game.go_to_checkpoint_level)
+			# 回程先經過賒帳街的藥房（TownStreet 的 return_pharmacy 階段），再回公會
+			card = ChapterCard.play(self, "CARD_RETURN_SMALL", "CARD_TOWN_TITLE", Game.go_to_checkpoint_level)
 	match stage():
 		STAGE_ARRIVE:
 			if _player.global_position.z < ARRIVE_Z:

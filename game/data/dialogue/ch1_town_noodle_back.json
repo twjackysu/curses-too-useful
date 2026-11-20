@@ -1,0 +1,44 @@
+{
+  "id": "ch1_town_noodle_back",
+  "start": "n0",
+  "nodes": {
+    "n0": {
+      "speaker": "SPK_NOODLE",
+      "text": "DLG_CH1_NBACK_001",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.cellar_way",
+            "eq": "barrel"
+          },
+          "text": "DLG_CH1_NBACK_001_BARREL"
+        }
+      ],
+      "emote": "sparkle",
+      "act": "wave",
+      "next": "n1"
+    },
+    "n1": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_NBACK_002",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.cellar_way",
+            "eq": "barrel"
+          },
+          "text": "DLG_CH1_NBACK_002_BARREL"
+        }
+      ],
+      "emote": "blush",
+      "do": {
+        "set": {
+          "ch1.noodle_redeemed": true
+        },
+        "give": {
+          "noodle_ticket": -2
+        }
+      }
+    }
+  }
+}

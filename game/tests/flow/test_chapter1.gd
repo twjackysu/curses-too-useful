@@ -165,7 +165,14 @@ func test_quest_follows_the_four_flags_and_continue_restores_it() -> void:
 	assert_eq(s.state.checkpoint, "ch1_boss_down")
 	assert_false(s.quests.is_done("ch1_main"))
 	s.set_flag(RuinedAltar.FLAG_DONE, true)
-	assert_eq(s.quests.stage_of("ch1_main"), "report", "戰後那段話講完：回公會")
+	assert_eq(s.quests.stage_of("ch1_main"), "return_pharmacy", "戰後那段話講完：回程先經藥房（⑥）")
+	assert_eq(s.state.checkpoint, "ch1_town_return")
+	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "town_street", "換到傍晚的賒帳街")
+	assert_eq(s.quests.marker_spec("ch1_main"), "node:Pharmacy")
+	s.set_flag(TownStreet.FLAG_DELIVERED, true)
+	assert_eq(s.quests.marker_spec("ch1_main"), "node:GuildDoor", "蕈交出去了：指引改指向公會大門")
+	s.set_flag(TownStreet.FLAG_RETURNED, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "report", "走回公會")
 	assert_eq(s.state.checkpoint, "ch1_guild_return")
 	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "guild_hall", "換回公會大廳")
 	assert_false(s.story_finished())
@@ -1979,16 +1986,37 @@ func test_walkthrough_from_new_game_to_the_end_of_chapter_one() -> void:
 	# 戰後那段話講完：拿到核心，一張卡，換回公會大廳
 	await _until_dialogue(int(RuinedAltar.AFTER_TALK_DELAY * 60.0) + 90)
 	_finish_dialogue(0)
-	assert_eq(s.quests.stage_of("ch1_main"), "report", "打倒魔像、講完話：回公會")
+	assert_eq(s.quests.stage_of("ch1_main"), "return_pharmacy", "打倒魔像、講完話：回程先經藥房")
 	assert_false(player.health.is_dead())
 	for i: int in int(RuinedAltar.RETURN_DELAY * 60.0) + 30:
 		await tree.physics_frame
 		if altar.card != null:
 			break
-	assert_not_null(altar.card, "換回公會的那張卡")
+	assert_not_null(altar.card, "回程的那張卡")
 	altar.card.finish()
-	assert_eq(str(_game().get("last_level_request")), "guild_hall")
+	assert_eq(str(_game().get("last_level_request")), "town_street")
 	altar.free()
+	# ⑥ 回程：傍晚的賒帳街——走到藥房交蕈（五只杯蓋亮起來）→ 走回公會大門
+	var street: TownStreet = (load("res://scenes/levels/town_street.tscn") as PackedScene).instantiate() as TownStreet
+	_level_node = street
+	tree.root.add_child(street)
+	await tree.physics_frame
+	player = street.get_node("Player") as PlayerController
+	hud = street.get_node("Hud") as Hud
+	assert_true(street.is_return() and street.scenery.dusk, "傍晚的街")
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_RETURN_TOWN")
+	player.global_position = TownScenery.PHARMACY_COUNTER + Vector3(0, 0.05, -2.0)
+	await _until_dialogue(20)
+	_finish_dialogue(0)
+	assert_true(bool(s.state.get_flag(TownStreet.FLAG_DELIVERED, false)), "蕈交給藥房了")
+	player.global_position = TownScenery.GUILD_DOOR + Vector3(0, 0.05, 1.5)
+	for i: int in 4:
+		await tree.physics_frame
+	assert_eq(s.quests.stage_of("ch1_main"), "report", "走回公會")
+	assert_not_null(street.card, "進公會的那張卡")
+	street.card.finish()
+	assert_eq(str(_game().get("last_level_request")), "guild_hall")
+	street.free()
 	hall = (load("res://scenes/levels/guild_hall.tscn") as PackedScene).instantiate() as GuildHall
 	_level_node = hall
 	tree.root.add_child(hall)

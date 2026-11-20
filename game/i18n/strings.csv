@@ -563,3 +563,26 @@ BARK_SERA_CHAOS_WAIT,It's loaded! Norn... I waited for you. Take all of it!,裝�
 HINT_PICK_GLINT,{key} Pick up the glowing piece of metal,{key} 撿起那截發光的金屬
 CH1_GLINT_LINE1,"A glowing shard of metal, with two rows of tooth marks",一截發光的金屬——上面有兩排齒痕
 CH1_GLINT_LINE2,The paired glowing marks on the ground lead off toward the bog,地上成對的發光印子，一路往毒沼去
+Q_CH1_OBJ_RETURN_TOWN,"Bring the mushrooms to the apothecary, then head back to the guild",把夜光毒蕈送到藥房，再回公會
+Q_CH1_LIST_DELIVER,Hand the five mushrooms to the apothecary,把五朵夜光毒蕈交給藥房
+Q_CH1_LIST_GUILD,Walk back to the guild,走回公會
+Q_CH1_LIST_NOODLE,Trade the noodle tickets for hot soup,拿麵票去麵攤換熱湯
+CH1_TOWN_RETURN_LINE1,"Tab Street, at dusk",傍晚的賒帳街
+CH1_TOWN_RETURN_LINE2,The apothecary first: five people are waiting on those mushrooms,先去藥房——有五個人等著這五朵蕈下藥
+CH1_TOWN_DELIVERED,Mushrooms delivered. Back to the guild.,蕈交出去了——回公會
+DLG_CH1_TRET_001,Five glowing toxic mushrooms. The whole basket.,五朵夜光毒蕈，整籃在這裡。
+DLG_CH1_TRET_002,"Just in time. (She drops them into the cups one by one. Five lids light up, one after another.)",來得正好。（她把蕈一朵一朵放進保溫杯——五只杯蓋一個接一個亮了起來。）
+DLG_CH1_TRET_003,"(Writing on the lower half of his resignation slip with his left hand, he crosses out ""gathering alone"".) ...""Showing the apprentice the paths."" Will that do?",（他用左手在辭工單的下半頁寫字，把「獨自採集」四個字劃掉。）……改成「帶學徒認路」。這樣行嗎？
+DLG_CH1_TRET_004,(He pockets his ruler and drops one more mask into Azhan's basket.) Then I walk in front tomorrow!,（把尺收進口袋，往他的籃子裡多放了一副面具）那明天我走前面！
+DLG_CH1_TRET_005,"Azhan, give me your hand. Hold a cup while it's still warm.",阿展，手伸出來。杯子趁熱握著。
+DLG_CH1_TRET_005_IOU,(She warms a cup on the borrowed shield and presses it to the back of Azhan's hand.) I'll keep the note. The shield stays here as a warming tray for now.,（她用借來的那面盾溫了一只杯，貼在阿展的手背上）借據我收著，這面盾先當熱敷盤。
+DLG_CH1_TRET_005_TAKEN,"(Norn slides the shield in front of Azhan. With his left hand, slowly, he signs his whole name.) Good. I'll tell the warehouse for you.",（諾恩把盾推到阿展面前。他用左手，慢慢簽完自己的名字。）好，倉庫那邊我替你們說一聲。
+DLG_CH1_TRET_006,As for the payment: it's on the book. The two of you come and collect it together.,藥錢照說好的記在帳上——你們兩個一起來領。
+DLG_CH1_TRET_006_RECEIPT,"And this. ""Sera. Ingredients received and checked."" Keep it safe.",還有這張——「席菈，藥材驗收」。收好。
+DLG_CH1_TRET_007,T-together... okay!,一、一起領……嗯！
+DLG_CH1_TRET_007_RECEIPT,(She folds the slip very small and tucks it inside her glove.) ...Th-thank you.,（她把單子折得小小的，藏進手套裡。）……謝、謝謝。
+DLG_CH1_NBACK_001,"Two tickets, two bowls of hot soup! I put plain firewood back under the pot. It boils now!",兩張麵票，兩碗熱湯！鍋底下我放回一把普通的柴——這次煮得開了！
+DLG_CH1_NBACK_001_BARREL,"Two tickets, two bowls of hot soup! That blob you rolled into the barrel? I keep it under the warming pot now. The soup never goes cold!",兩張麵票，兩碗熱湯！你們趕進桶裡的那一團，我養在保溫鍋底了——湯永遠是熱的！
+DLG_CH1_NBACK_002,There was still a layer of mold on the barrel wall. I scraped it off and mixed one more vial... here.,桶壁上還剩一層黴，我刮下來調了一瓶……給你。
+DLG_CH1_NBACK_002_BARREL,"It, it's hiccuping under the pot... so cute.",牠、牠在鍋底打嗝……好可愛。
+CARD_BACK_SMALL,Through the big doors,推開大門

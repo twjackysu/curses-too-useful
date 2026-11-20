@@ -247,6 +247,39 @@
       }
     },
     {
+      "id": "return_pharmacy",
+      "objective": "Q_CH1_OBJ_RETURN_TOWN",
+      "hint": "Q_CH1_HINT_MOVE",
+      "checkpoint": "ch1_town_return",
+      "marker": "node:Pharmacy",
+      "marker_if": [
+        {
+          "when": {
+            "flag": "ch1.mushrooms_delivered"
+          },
+          "marker": "node:GuildDoor"
+        }
+      ],
+      "checklist": [
+        {
+          "text": "Q_CH1_LIST_DELIVER",
+          "flag": "ch1.mushrooms_delivered"
+        },
+        {
+          "text": "Q_CH1_LIST_GUILD",
+          "flag": "ch1.town_returned"
+        },
+        {
+          "text": "Q_CH1_LIST_NOODLE",
+          "flag": "ch1.noodle_redeemed",
+          "optional": true
+        }
+      ],
+      "done_when": {
+        "flag": "ch1.town_returned"
+      }
+    },
+    {
       "id": "report",
       "objective": "Q_CH1_OBJ_REPORT",
       "hint": "Q_CH1_HINT_MOVE",

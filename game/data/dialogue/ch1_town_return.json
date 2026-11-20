@@ -1,0 +1,94 @@
+{
+  "id": "ch1_town_return",
+  "start": "r0",
+  "nodes": {
+    "r0": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_TRET_001",
+      "act": "nod",
+      "to": "SPK_PHARMACIST",
+      "next": "r1"
+    },
+    "r1": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TRET_002",
+      "emote": "sparkle",
+      "next": "r2"
+    },
+    "r2": {
+      "speaker": "SPK_AZHAN",
+      "text": "DLG_CH1_TRET_003",
+      "head": "down",
+      "shot": "two",
+      "next": "r3"
+    },
+    "r3": {
+      "speaker": "SPK_APPRENTICE",
+      "text": "DLG_CH1_TRET_004",
+      "emote": "sparkle",
+      "act": "fist",
+      "to": "SPK_AZHAN",
+      "next": "r4"
+    },
+    "r4": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TRET_005",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.shield",
+            "eq": "iou"
+          },
+          "text": "DLG_CH1_TRET_005_IOU"
+        },
+        {
+          "if": {
+            "flag": "ch1.shield",
+            "eq": "taken"
+          },
+          "text": "DLG_CH1_TRET_005_TAKEN"
+        }
+      ],
+      "to": "SPK_AZHAN",
+      "next": "r5"
+    },
+    "r5": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TRET_006",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.ledger",
+            "eq": "receipt"
+          },
+          "text": "DLG_CH1_TRET_006_RECEIPT"
+        }
+      ],
+      "to": "SPK_SHEILA",
+      "next": "r6"
+    },
+    "r6": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_TRET_007",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.ledger",
+            "eq": "receipt"
+          },
+          "text": "DLG_CH1_TRET_007_RECEIPT"
+        }
+      ],
+      "emote": "blush",
+      "head": "down",
+      "do": {
+        "set": {
+          "ch1.mushrooms_delivered": true
+        },
+        "add": {
+          "sera.affinity": 5
+        }
+      }
+    }
+  }
+}

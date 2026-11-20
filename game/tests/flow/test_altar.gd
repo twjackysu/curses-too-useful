@@ -655,18 +655,18 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_eq(str(s.state.get_flag("ch1.altar_answer", "")), "share")
 	assert_eq(s.state.get_flag(RuinedAltar.FLAG_DONE), true)
 	assert_eq(s.state.get_flag("ch1.golem_core"), true, "拿到魔像核心")
-	assert_eq(s.quests.stage_of("ch1_main"), "report", "下一段：把核心帶回公會")
-	assert_eq(s.state.checkpoint, "ch1_guild_return")
+	assert_eq(s.quests.stage_of("ch1_main"), "return_pharmacy", "下一段：回程先經藥房，再把核心帶回公會")
+	assert_eq(s.state.checkpoint, "ch1_town_return")
 	await _frames(3)
 	assert_eq(hud.banner_text(), "CH1_GOT_CORE")
-	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_REPORT")
+	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_RETURN_TOWN")
 	assert_true(level.core.is_carried_by(player.get_node("Body") as Node3D), "核心飛到諾恩身上（結尾就是這樣扛回公會）")
 	assert_false(player.health.is_dead())
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
-	assert_eq(again.quests.stage_of("ch1_main"), "report", "存檔停在回公會之前")
-	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "guild_hall", "按繼續是從公會大廳接")
-	# 隔一下出「當天傍晚——奧爾德冒險者公會」的卡，播完換到大廳
+	assert_eq(again.quests.stage_of("ch1_main"), "return_pharmacy", "存檔停在回程之前")
+	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "town_street", "按繼續是從傍晚的賒帳街接")
+	# 隔一下出「當天傍晚——賒帳街」的卡，播完換到街上
 	assert_true(level.card == null, "先讓「獲得魔像核心」出來")
 	assert_true(bool(_game().call("is_player_locked")), "等卡出來的那幾秒是過場：不能在石板上走")
 	assert_true(level.outro_camera != null and level.outro_camera.current, "等卡的那幾秒鏡頭切到兩人的側面")
@@ -677,9 +677,9 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_true(hud.visible and not hud.cinematic, "HUD 照樣在：「獲得魔像核心」那一行看得到")
 	await _frames(int(RuinedAltar.RETURN_DELAY * 60.0) + 20)
 	assert_not_null(level.card, "換關卡的那張卡")
-	assert_eq(level.card.title_text(), tr("CARD_RETURN_TITLE"))
+	assert_eq(level.card.title_text(), tr("CARD_TOWN_TITLE"))
 	level.card.finish()
-	assert_eq(str(_game().get("last_level_request")), "guild_hall", "卡播完：換到公會大廳")
+	assert_eq(str(_game().get("last_level_request")), "town_street", "卡播完：換到傍晚的賒帳街")
 	# 打完繼續待在這一關：魔像沉下去、被釋放之後關卡照樣跑（光環跟著牠一起沒了）
 	await _frames(600)
 	assert_false(is_instance_valid(golem), "魔像崩掉、不在了")
@@ -756,7 +756,7 @@ func test_retry_restarts_the_fight_and_a_save_after_the_golem_fell_resumes_the_t
 			break
 	assert_true(bool(_game().call("is_in_dialogue")), "戰後那段話接著講")
 	_finish_dialogue(0)
-	assert_eq(_session().quests.stage_of("ch1_main"), "report")
+	assert_eq(_session().quests.stage_of("ch1_main"), "return_pharmacy")
 	assert_true(level.core.is_carried_by(level.get_node("Player/Body") as Node3D), "講完：核心到諾恩的肩上")
 
 

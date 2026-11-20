@@ -8,6 +8,27 @@ const QUEST: String = "ch1_main"
 const STAGE_BASKET: String = "deliver_basket"
 const STAGE_GATE: String = "east_gate"
 const TOWN_STAGES: PackedStringArray = [STAGE_BASKET, STAGE_GATE]
+## 回程（增補稿「祭壇與回程」）：傍晚從東門回來，先把五朵夜光毒蕈交給藥房（對話 ch1_town_return：五只杯蓋亮起來、阿展把辭工單改成
+## 「帶學徒認路」、盾／藥錢各一句），想的話去麵攤兌麵票（ch1_town_noodle_back），再走回公會大門換到大廳的結尾
+const STAGE_RETURN: String = "return_pharmacy"
+const FLAG_DELIVERED: String = "ch1.mushrooms_delivered"
+const FLAG_RETURNED: String = "ch1.town_returned"
+const FLAG_NOODLE_BACK: String = "ch1.noodle_redeemed"
+const RETURN_DIALOGUE: String = "ch1_town_return"
+const NOODLE_BACK_DIALOGUE: String = "ch1_town_noodle_back"
+const RETURN_LIDS_LINE: String = "DLG_CH1_TRET_002"
+const AZHAN_KEY: String = RailEvent.AZHAN_KEY
+const AZHAN_POS: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(1.9, 0, -0.5)
+## 回程從東門裡面開始、朝西（yaw 90°）
+const RETURN_ENTRANCE: Vector3 = Vector3(TownScenery.GATE_X - 4.0, 0.05, 0.0)
+const RETURN_YAW_DEG: float = 90.0
+## 走到公會大門這麼近就進去
+const GUILD_ENTER_DIST: float = 2.4
+## 櫃檯上的五只保溫杯（回程才擺出來）：杯蓋一個接一個亮，隔幾秒
+const CUP_COUNT: int = 5
+const CUP_LIGHT_EVERY: float = 0.35
+const CUP_GLOW: Color = Color(0.55, 1.0, 0.9)
+const CUP_LIT: float = 1.8
 const FLAG_BASKET: String = "ch1.basket_delivered"
 ## 藥錢記在誰名下：together＝「等我們兩個一起回來收」、receipt＝「給做杯子的人開張收據吧」（結尾用）
 const FLAG_LEDGER: String = "ch1.ledger"
@@ -130,6 +151,9 @@ var list_note: PaperNote
 var ring_prop: Node3D
 var talk_camera: TalkCamera
 var card: ChapterCard
+var azhan: Npc
+var core: GolemCore
+var cup_lids: Array[MeshInstance3D] = []
 var _leaving: bool = false
 var _gate_nag_t: float = 0.0
 
@@ -152,13 +176,21 @@ func _ready() -> void:
 	# 截圖用：`--delivered` 籃子送到了（可以去東門）
 	if s.in_story() and args.has("delivered"):
 		s.set_flag(FLAG_BASKET, true)
-	scenery = TownScenery.build(self)
+	# 截圖用：`--return` 回程的傍晚（祭壇打完了；`--delivered` 蕈交出去了）
+	if s.in_story() and args.has("return"):
+		RuinedAltar.skip_to_altar(s)
+		for flag: String in ["ch1.altar_talked", "ch1.golem_down", "ch1.altar_done"]:
+			s.set_flag(flag, true)
+		if args.has("delivered"):
+			s.set_flag(FLAG_DELIVERED, true)
+	scenery = TownScenery.build(self, is_return())
 	_mark("Pharmacy", TownScenery.PHARMACY_COUNTER + Vector3(0, 0, -1.4))
 	_mark("EastGate", Vector3(TownScenery.GATE_X, 0, 0))
+	_mark("GuildDoor", TownScenery.GUILD_DOOR + Vector3(0, 0, 1.0))
 	_player.collision_mask |= GuildScenery.PEOPLE_LAYER
 	_player.peaceful = true
-	_player.global_position = ENTRANCE
-	_player.yaw = deg_to_rad(ENTRANCE_YAW_DEG)
+	_player.global_position = RETURN_ENTRANCE if is_return() else ENTRANCE
+	_player.yaw = deg_to_rad(RETURN_YAW_DEG if is_return() else ENTRANCE_YAW_DEG)
 	var at: PackedStringArray = str(args.get("at", "")).split(",")
 	if at.size() == 2:
 		_player.global_position = Vector3(float(at[0]), ENTRANCE.y, float(at[1]))
@@ -170,7 +202,9 @@ func _ready() -> void:
 	Game.dialogue_ended.connect(_on_dialogue_ended)
 	Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
 		if r.dialogue_id == SERA_LIST_DIALOGUE:
-			r.line_shown.connect(_on_list_line))
+			r.line_shown.connect(_on_list_line)
+		elif r.dialogue_id == RETURN_DIALOGUE:
+			r.line_shown.connect(_on_return_line))
 	# 開局的零錢寫進旗標（對話的條件「錢夠不夠」讀旗標）
 	if s.in_story():
 		Gear.new(s.state).ensure_coins()
@@ -205,6 +239,13 @@ func _ready() -> void:
 			get_tree().create_timer(0.3).timeout.connect(lure_one)
 	elif stage() == STAGE_BASKET:
 		_hud.show_center_lines("CH1_TOWN_LINE1", "CH1_TOWN_LINE2", 5.5, Hud.CENTER_LINE2_COLOR)
+	elif is_return():
+		# 扛著魔像核心走回來（公會的結尾接著扛進大廳）
+		core = GolemCore.create()
+		core.carry_on(_player.get_node("Body") as Node3D, 0.0, _player.puppet())
+		_player.burden = GuildHall.CARRY_PACE
+		if not _flag(FLAG_DELIVERED):
+			_hud.show_center_lines("CH1_TOWN_RETURN_LINE1", "CH1_TOWN_RETURN_LINE2", 5.5, Hud.CENTER_LINE2_COLOR)
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
 
 
@@ -214,6 +255,11 @@ func footstep_surface(_p: Vector3) -> String:
 
 func stage() -> String:
 	return Game.session.quests.stage_of(QUEST)
+
+
+## 回程的傍晚（祭壇打完、還沒回到公會）
+func is_return() -> bool:
+	return Game.session.in_story() and stage() == STAGE_RETURN
 
 
 func _flag(key: String) -> bool:
@@ -244,7 +290,20 @@ func _spawn_cast() -> void:
 		ring_prop.position = RING_ON_STALL
 		ring_prop.scale = Vector3.ONE * RING_SHOW_SCALE
 		add_child(ring_prop)
-	if not _flag(FLAG_LEFT):
+	if is_return():
+		# 回程：席菈跟在後面、阿展在藥房櫃檯旁邊、櫃檯上擺著五只保溫杯
+		sera = Sera.new()
+		sera.name = "Sera"
+		sera.holstered = true
+		sera.target = _player
+		sera.collision_mask |= GuildScenery.PEOPLE_LAYER
+		sera.position = _player.global_position + Vector3(1.6, 0, 1.1)
+		add_child(sera)
+		azhan = Npc.create("Azhan", "azhan", AZHAN_POS, -25.0)
+		azhan.doll_colors(Color(0.5, 0.42, 0.3), Color(0.3, 0.42, 0.36))
+		add_child(azhan)
+		_build_cups()
+	elif not _flag(FLAG_LEFT):
 		sera = Sera.new()
 		sera.name = "Sera"
 		sera.holstered = true
@@ -296,6 +355,77 @@ func _physics_process(delta: float) -> void:
 				_refresh_interactables()
 			if _player.global_position.x > TownScenery.LEAVE_X:
 				_leave()
+		STAGE_RETURN:
+			_tick_return()
+
+
+## 櫃檯上的五只保溫杯：杯身＋杯蓋（CupLid1～5；交蕈那段話裡一個接一個亮）
+func _build_cups() -> void:
+	var body := StandardMaterial3D.new()
+	body.albedo_color = Color(0.62, 0.56, 0.5)
+	body.metallic = 0.3
+	body.roughness = 0.5
+	for i: int in CUP_COUNT:
+		# 櫃檯面高 0.92；擺在靠街的那一排（後面一排是原本的藥瓶）
+		var at: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(-0.7 + 0.35 * float(i), 0.92, -0.42)
+		var cup := MeshInstance3D.new()
+		cup.name = "Cup%d" % (i + 1)
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.07
+		cyl.bottom_radius = 0.06
+		cyl.height = 0.2
+		cyl.material = body
+		cup.mesh = cyl
+		cup.position = at + Vector3(0, 0.1, 0)
+		add_child(cup)
+		var lid := MeshInstance3D.new()
+		lid.name = "CupLid%d" % (i + 1)
+		var top := CylinderMesh.new()
+		top.top_radius = 0.05
+		top.bottom_radius = 0.075
+		top.height = 0.05
+		var glow := StandardMaterial3D.new()
+		glow.albedo_color = Color(0.3, 0.3, 0.32)
+		glow.emission_enabled = true
+		glow.emission = CUP_GLOW
+		glow.emission_energy_multiplier = CUP_LIT if _flag(FLAG_DELIVERED) else 0.0
+		top.material = glow
+		lid.mesh = top
+		lid.position = at + Vector3(0, 0.225, 0)
+		add_child(lid)
+		cup_lids.append(lid)
+
+
+## 亮了幾只杯蓋（測試用）
+func lids_lit() -> int:
+	var n: int = 0
+	for lid: MeshInstance3D in cup_lids:
+		if ((lid.mesh as CylinderMesh).material as StandardMaterial3D).emission_energy_multiplier > 1.0:
+			n += 1
+	return n
+
+
+## 交蕈那段話：店主把蕈放進保溫杯的那一句，五只杯蓋一個接一個亮起來
+func _on_return_line(_speaker: String, text_key: String) -> void:
+	if text_key != RETURN_LIDS_LINE:
+		return
+	for i: int in cup_lids.size():
+		var mat: StandardMaterial3D = (cup_lids[i].mesh as CylinderMesh).material as StandardMaterial3D
+		var t: Tween = cup_lids[i].create_tween()
+		t.tween_interval(CUP_LIGHT_EVERY * float(i))
+		t.tween_property(mat, "emission_energy_multiplier", CUP_LIT, 0.25)
+
+
+## 回程：走到藥房交蕈 → 走回公會大門，換到大廳的結尾。東門不能再出去
+func _tick_return() -> void:
+	_player.global_position.x = minf(_player.global_position.x, GATE_STOP_X)
+	if not _flag(FLAG_DELIVERED):
+		if _player.global_position.distance_to(TownScenery.PHARMACY_COUNTER + Vector3(0, 0.05, -1.2)) < PHARMACY_TALK_DIST:
+			_talk(RETURN_DIALOGUE, ["SPK_NOEN", PHARMACIST_KEY, AZHAN_KEY, APPRENTICE_KEY, Sera.NAME_KEY])
+	elif not Game.is_in_dialogue() and _player.global_position.distance_to(TownScenery.GUILD_DOOR + Vector3(0, 0.05, 1.0)) < GUILD_ENTER_DIST:
+		_leaving = true
+		Game.session.set_flag(FLAG_RETURNED, true)
+		card = ChapterCard.play(self, "CARD_BACK_SMALL", "CARD_RETURN_TITLE", Game.go_to_checkpoint_level)
 
 
 ## 走出東門：換到腐敗之森（地點卡）
@@ -326,6 +456,8 @@ func _speaker_node(key: String) -> Node3D:
 			return pharmacist
 		APPRENTICE_KEY:
 			return apprentice
+		AZHAN_KEY:
+			return azhan
 		Sera.NAME_KEY:
 			return sera
 		MERCHANT_KEY:
@@ -372,6 +504,13 @@ func _build_interactables() -> void:
 
 
 func _refresh_interactables() -> void:
+	if is_return() or _flag(FLAG_RETURNED):
+		for it: Interactable in [merchant_use, sera_use, board_use, cellar_door_use, ladder_use, lamp_use, valve_use, uncle_use, shield_use]:
+			it.enabled = false
+		var st: GameState = Game.session.state
+		vendor_use.enabled = not _leaving and not _flag(FLAG_NOODLE_BACK) and int(st.items.get(NOODLE_TICKET, 0)) > 0
+		shield.visible = str(st.get_flag(FLAG_SHIELD, "")) == "iou"
+		return
 	merchant_use.enabled = Game.session.in_story() and not _leaving
 	sera_use.enabled = Game.session.in_story() and not _leaving and sera != null and is_instance_valid(sera) and _flag(FLAG_BASKET)
 	if ring_prop != null:
@@ -496,6 +635,21 @@ func talk_merchant() -> bool:
 func _on_dialogue_ended(dialogue_id: String) -> void:
 	var g := Gear.new(Game.session.state)
 	match dialogue_id:
+		RETURN_DIALOGUE:
+			if _flag(FLAG_DELIVERED):
+				# 帶去問阿展的那面盾，他自己簽名還了
+				if str(Game.session.state.get_flag(FLAG_SHIELD, "")) == "taken":
+					Game.session.state.items[SHIELD_ITEM] = 0
+				_hud.show_banner("CH1_TOWN_DELIVERED", 3.2)
+				Game.session.autosave()
+		NOODLE_BACK_DIALOGUE:
+			if _flag(FLAG_NOODLE_BACK):
+				_player.health.heal(_player.health.max_hp, {"source": "noodles"})
+				# 當初全砍了的：席菈拿桶壁上剩的黴多調一瓶
+				if str(Game.session.state.get_flag(FLAG_CELLAR_WAY, "")) != "barrel":
+					Game.session.state.items["sera_poison_vial"] = int(Game.session.state.items.get("sera_poison_vial", 0)) + 1
+				_refresh_interactables()
+				Game.session.autosave()
 		NOODLE_REPORT_DIALOGUE:
 			if _flag(FLAG_CELLAR_DONE) and not _flag(FLAG_CELLAR_PAID):
 				Game.session.set_flag(FLAG_CELLAR_PAID, true)
@@ -615,6 +769,8 @@ static func _blob_stand_in() -> Node3D:
 
 ## 跟麵攤攤主說話：還沒解＝湯沒煮開、拜託下去看看；解了＝謝禮（只給一次）
 func talk_vendor() -> bool:
+	if is_return():
+		return _talk(NOODLE_BACK_DIALOGUE, ["SPK_NOEN", VENDOR_KEY, Sera.NAME_KEY])
 	if _flag(FLAG_CELLAR_DONE):
 		return _talk(NOODLE_REPORT_DIALOGUE, ["SPK_NOEN", VENDOR_KEY])
 	return _talk(NOODLE_ASK_DIALOGUE, ["SPK_NOEN", VENDOR_KEY])

@@ -30,6 +30,7 @@ const CHECKPOINT_LEVELS: Dictionary = {
 	"ch1_guild_leave": "guild_hall",
 	"ch1_town": "town_street",
 	"ch1_town_gate": "town_street",
+	"ch1_town_return": "town_street",
 	"ch1_forest_gate": "corrupt_forest",
 	"ch1_with_sera": "corrupt_forest",
 	"ch1_slimes": "corrupt_forest",
