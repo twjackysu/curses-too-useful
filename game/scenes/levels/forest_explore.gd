@@ -991,9 +991,11 @@ static func vent_rim(seed_value: int) -> Node3D:
 	quad.orientation = PlaneMesh.FACE_Y
 	var glow := ShaderMaterial.new()
 	glow.shader = VENT_CRACK_SHADER
+	# 畫在三層霧盤之後（不然被上面兩層蓋掉一半）：綠縫透過紫霧亮出來
+	glow.render_priority = 1
 	quad.material = glow
 	cracks.mesh = quad
-	# 霧盤最底那一層在 0.06 m：縫畫在它上面一點，隔著紫霧也透得出綠
+	# 霧盤最底那一層在 0.06 m：縫擺在它上面一點
 	cracks.position = Vector3(0, 0.09, 0)
 	cracks.rotation.y = float(seed_value) * 0.9
 	cracks.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

@@ -41,6 +41,8 @@ const GATE_DRUM_RADIUS: float = 0.55
 const GATE_RUNE_GLOW: float = 0.35
 ## 營火旁坐的圓木（x、z 對營火的位移，y＝朝向的角度）與行李（Quaternius 的小物，scripts/gen_props.sh 的 QUAT）
 const CAMP_LOGS: Array[Vector3] = [Vector3(-2.3, 0.4, 80.0), Vector3(1.0, -2.2, 160.0)]
+const CAMP_LOG_RADIUS: float = 0.26
+const CAMP_LOG_SEED: int = 31
 const CAMP_GEAR: Array[String] = ["quaternius/Bag", "quaternius/Pouch_Large", "quaternius/Bucket_Wooden_1"]
 const CAMP_GEAR_SPOTS: Array[Vector3] = [Vector3(-2.9, -1.0, 30.0), Vector3(-2.5, -1.6, 75.0), Vector3(2.4, -1.4, 10.0)]
 ## 孢子跟著玩家飄：這麼大的一塊（公尺，半邊長）
@@ -471,41 +473,20 @@ static func camp_site() -> Node3D:
 	var root := Node3D.new()
 	root.name = "CampSite"
 	root.position = ForestMap.at(ForestMap.CAMP)
-	var bark := StandardMaterial3D.new()
-	bark.albedo_color = Color(0.3, 0.21, 0.2)
-	bark.roughness = 0.95
-	var cut := StandardMaterial3D.new()
-	cut.albedo_color = Color(0.62, 0.48, 0.36)
 	for i: int in CAMP_LOGS.size():
 		var spec: Vector3 = CAMP_LOGS[i]
 		var log_body := StaticBody3D.new()
 		log_body.name = "Log%d" % (i + 1)
 		log_body.position = Vector3(spec.x, 0.0, spec.y)
 		log_body.rotation.y = deg_to_rad(spec.z)
+		# 跟土坡上的倒木同一套（SlopeClutter）：樹皮紋、兩頭的截面有年輪、朝上的面長苔
 		var mi := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.24
-		cyl.bottom_radius = 0.27
-		cyl.height = 1.9
-		cyl.radial_segments = 12
-		cyl.material = bark
-		mi.mesh = cyl
-		mi.rotation.z = PI * 0.5
+		mi.name = "Wood"
+		mi.mesh = SlopeClutter.log_mesh(CAMP_LOG_SEED + i, 1.9, CAMP_LOG_RADIUS, 12, 5)
+		mi.material_override = SlopeClutter.log_material(CAMP_LOG_RADIUS)
 		mi.position = Vector3(0, 0.25, 0)
+		mi.rotation.x = float(i) * 1.7
 		log_body.add_child(mi)
-		# 兩頭鋸開的截面（亮一點的木頭色）
-		for end: float in [-0.951, 0.951]:
-			var cap := MeshInstance3D.new()
-			var disc := CylinderMesh.new()
-			disc.top_radius = 0.23
-			disc.bottom_radius = 0.23
-			disc.height = 0.02
-			disc.radial_segments = 12
-			disc.material = cut
-			cap.mesh = disc
-			cap.rotation.z = PI * 0.5
-			cap.position = Vector3(end, 0.25, 0)
-			log_body.add_child(cap)
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = Vector3(1.9, 0.5, 0.5)
