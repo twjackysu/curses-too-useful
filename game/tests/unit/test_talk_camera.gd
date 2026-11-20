@@ -121,8 +121,9 @@ func test_two_shot_frames_both_from_the_players_side() -> void:
 		var fwd: Vector3 = -t.basis.z
 		var half_w: float = tan(deg_to_rad(TalkCamera.TALK_FOV) * 0.5) * 16.0 / 9.0
 		var half_h: float = tan(deg_to_rad(TalkCamera.TALK_FOV) * 0.5)
+		# 腰以上（下面四分之一是對話框；聽的人在前面、近一點，膝蓋以下可以出畫面）
 		for who: Vector3 in [speaker, listener]:
-			for h: float in [0.3, 1.6]:
+			for h: float in [0.7, 1.6]:
 				var v: Vector3 = who + Vector3.UP * h - t.origin
 				var depth: float = v.dot(fwd)
 				assert_true(depth > 0.5, "在鏡頭前面")
@@ -133,3 +134,40 @@ func test_two_shot_frames_both_from_the_players_side() -> void:
 		assert_true((t.origin - speaker).dot(Vector3.RIGHT) > 0.0, "看得到講話的人的臉")
 	var same: Transform3D = TalkCamera.two_shot(Vector3.ZERO, Vector3.ZERO, Vector3(0, 2, 4))
 	assert_true(same.origin.is_finite() and absf(same.basis.determinant() - 1.0) < 0.001)
+
+
+## 兩人隔得遠（跟在後面的席菈）：鏡頭往聽的人那一邊多轉一點，兩個人不再一左一右貼著畫面邊、中間空一大片；兩個都還在畫面裡
+func test_two_shot_of_two_far_apart_pulls_them_toward_the_middle() -> void:
+	var speaker := Vector3(0, 0, 0)
+	var listener := Vector3(3.0, 0, 0)
+	var home := Vector3(1.5, 2, 6)
+	var t: Transform3D = TalkCamera.two_shot(speaker, listener, home)
+	var fwd: Vector3 = -t.basis.z
+	var half_w: float = tan(deg_to_rad(TalkCamera.TALK_FOV) * 0.5) * 16.0 / 9.0
+	var xs: Array[float] = []
+	for who: Vector3 in [speaker, listener]:
+		for side: float in [-0.3, 0.3]:
+			var v: Vector3 = who + Vector3.UP * 1.3 + t.basis.x * side - t.origin
+			assert_true(absf(v.dot(t.basis.x)) / v.dot(fwd) < half_w * 0.97, "肩膀都在畫面裡（%s）" % str(who))
+		var c: Vector3 = who + Vector3.UP * 1.3 - t.origin
+		xs.append(c.dot(t.basis.x) / c.dot(fwd) / half_w)
+	assert_true(absf(xs[0] - xs[1]) < 1.2, "兩個人在畫面上的距離不到畫面寬的六成（%.2f／%.2f）" % [xs[0], xs[1]])
+	assert_true((t.origin - listener).length() < (t.origin - speaker).length(), "聽的人在前面、講話的人在後面面向鏡頭")
+	assert_true((t.origin - speaker).dot(Vector3.RIGHT) > 0.0, "看得到講話的人的臉")
+	assert_true(signf(t.origin.z) == signf(home.z), "還是在玩家鏡頭那一側")
+
+
+## 一起看著某個東西、兩個離得很遠（雷歐點名角落的席菈，7 m）：前景講話的人整個在畫面裡（以前右邊被切掉一塊）
+func test_look_shot_keeps_the_near_speaker_inside_the_frame() -> void:
+	var speaker := Vector3(0, 0, 0)
+	var target := Vector3(-6.0, 0, -3.5)
+	var home := Vector3(2, 2, 4)
+	var t: Transform3D = TalkCamera.look_shot(speaker, target, home, TalkCamera.DEFAULT_HEIGHT)
+	var fwd: Vector3 = -t.basis.z
+	var half_w: float = tan(deg_to_rad(TalkCamera.LOOK_FOV) * 0.5) * 16.0 / 9.0
+	for who: Vector3 in [speaker, target]:
+		for side: float in [-0.35, 0.35]:
+			var v: Vector3 = who + Vector3.UP * 1.4 + t.basis.x * side - t.origin
+			assert_true(v.dot(fwd) > 0.5 and absf(v.dot(t.basis.x)) / v.dot(fwd) < half_w * 0.97,
+				"%s 的兩邊肩膀都在畫面裡（%.2f）" % [str(who), absf(v.dot(t.basis.x)) / v.dot(fwd) / half_w])
+	assert_true((t.origin - speaker).length() < (t.origin - target).length(), "講話的人在前景")

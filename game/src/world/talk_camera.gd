@@ -45,6 +45,13 @@ const TWO_TOWARD_LISTENER: float = 0.3
 const TWO_AIM: float = 1.2
 ## 對準兩人之間偏講話的人一點（0.5＝正中間）：講話的人離畫面中間近一點
 const TWO_FAVOR: float = 0.44
+## 兩人隔得遠（例：跟在後面的席菈 2.5 m）：鏡頭往聽的人那一邊多轉一點，兩人在畫面上的距離收到 TWO_SPREAD 公尺左右
+## （聽的人近一點、大一點，講話的人在後面面向鏡頭），最多轉到 TWO_TURN_MAX 度——以前兩個人在畫面兩邊、中間空一大片（D-309）
+const TWO_SPREAD: float = 1.6
+const TWO_TURN_MAX: float = 40.0
+## 講話中有人走動（席菈走近或退一步、有人走過來）：框到的人離開鏡位算好的地方這麼遠就重算，鏡頭每秒往新的鏡位靠這麼多
+const TRACK_MOVE: float = 0.15
+const TRACK_RATE: float = 3.5
 ## 一起看著某個東西（look）：鏡頭的視角、多高、左右留多少、往講話的人那一邊偏多少；
 ## 那個東西最高到多高寫在它身上的 meta（沒寫＝站著的人）
 const LOOK_FOV: float = 50.0
@@ -71,6 +78,11 @@ var _shot_fov: float = TALK_FOV
 var _detour: Vector3 = Vector3.ZERO
 ## 0＝玩家的鏡頭，1＝對話的鏡位
 var _blend: float = 0.0
+## 現在這一句框的是誰（講話的人、對象、一起看的東西）、算鏡位時他們站在哪；有人走開了就重算 _goal，_shot 慢慢靠過去
+var _framed: Array[Node3D] = []
+var _framed_at: Array[Vector3] = []
+var _goal: Transform3D
+var _kind: String = ""
 
 
 ## 這一句的鏡位。`speaker`、`listener` 是兩人腳下的位置，`home` 是玩家鏡頭的位置（決定站在兩人連線的哪一側）。
@@ -94,7 +106,7 @@ static func over_shoulder(speaker: Vector3, target: Vector3, offset: Vector3 = V
 
 
 ## 兩人同框：鏡頭在兩人連線上玩家鏡頭的那一側（不跨線），兩個人都在畫面裡、左右各留 TWO_MARGIN；
-## 往聽的人那邊偏一點，講話的人（面向聽的人）的臉看得到。speaker、listener 是兩人腳下的位置
+## 往聽的人那邊偏一點，講話的人（面向聽的人）的臉看得到；隔得遠就多偏一點（TWO_SPREAD）。speaker、listener 是兩人腳下的位置
 static func two_shot(speaker: Vector3, listener: Vector3, home: Vector3) -> Transform3D:
 	var flat := Vector3(listener.x - speaker.x, 0.0, listener.z - speaker.z)
 	var along: Vector3 = flat.normalized() if flat.length() > 0.05 else Vector3.RIGHT
@@ -102,13 +114,27 @@ static func two_shot(speaker: Vector3, listener: Vector3, home: Vector3) -> Tran
 	var side: Vector3 = along.cross(Vector3.UP)
 	if (home - mid).dot(side) < 0.0:
 		side = -side
-	# 畫面寬一半的 tan（16:9）
-	var half_w: float = tan(deg_to_rad(TALK_FOV) * 0.5) * 16.0 / 9.0
-	var dist: float = maxf((flat.length() * 0.5 + TWO_MARGIN) / half_w, TWO_MIN_DIST)
-	var dir: Vector3 = (side + along * TWO_TOWARD_LISTENER).normalized()
+	# 轉多少：畫面上兩人的距離＝隔多遠 × cos(轉的角度)
+	var turn: float = atan(TWO_TOWARD_LISTENER)
+	if flat.length() > TWO_SPREAD:
+		turn = clampf(acos(TWO_SPREAD / flat.length()), turn, deg_to_rad(TWO_TURN_MAX))
+	var dir: Vector3 = (side * cos(turn) + along * sin(turn)).normalized()
+	var dist: float = fit_dist(mid, dir, [speaker, listener], TALK_FOV, TWO_MARGIN, TWO_MIN_DIST)
 	var aim: Vector3 = speaker.lerp(listener, TWO_FAVOR) + Vector3.UP * TWO_AIM
 	var eye: Vector3 = mid + dir * dist + Vector3.UP * EYE_HEIGHT
 	return Transform3D(Basis.looking_at(aim - eye, Vector3.UP), eye)
+
+
+## 鏡頭從 mid 往 dir（水平、指向鏡頭）退多遠，points（腳下）左右都塞得進 16:9 的畫面、在各自的深度各留 margin 公尺。
+## 離鏡頭近的人照他自己的深度算（以前照兩人中間算：往一邊偏的時候前景那個人被畫面邊切掉）
+static func fit_dist(mid: Vector3, dir: Vector3, points: Array[Vector3], fov_deg: float, margin: float, min_dist: float) -> float:
+	var half_w: float = tan(deg_to_rad(fov_deg) * 0.5) * 16.0 / 9.0
+	var across: Vector3 = Vector3.UP.cross(dir).normalized()
+	var d: float = min_dist
+	for p: Vector3 in points:
+		var rel := Vector3(p.x - mid.x, 0.0, p.z - mid.z)
+		d = maxf(d, (absf(rel.dot(across)) + margin) / half_w + rel.dot(dir))
+	return d
 
 
 ## 一起看著某個東西：講話的人與 target 同框，鏡頭在兩人連線上玩家鏡頭的那一側（不跨線）、往講話的人那一邊偏一點（他在前景）。
@@ -121,12 +147,12 @@ static func look_shot(speaker: Vector3, target: Vector3, home: Vector3, top: flo
 	var side: Vector3 = along.cross(Vector3.UP)
 	if (home - mid).dot(side) < 0.0:
 		side = -side
-	var half_w: float = tan(deg_to_rad(LOOK_FOV) * 0.5) * 16.0 / 9.0
 	var span: float = deg_to_rad(LOOK_FOV * (1.0 - LOOK_FLOOR - LOOK_HEADROOM))
-	var dist: float = maxf((flat.length() * 0.5 + LOOK_MARGIN) / half_w, TWO_MIN_DIST)
+	var dir: Vector3 = (side - along * LOOK_TOWARD_SPEAKER).normalized()
+	# 左右照各自的深度塞（講話的人在前景：以前照中間算，兩個離 7 m 的時候他被畫面邊切掉一塊）
+	var dist: float = fit_dist(mid, dir, [speaker, target], LOOK_FOV, LOOK_MARGIN, TWO_MIN_DIST)
 	while dist < 40.0 and atan2(top - LOOK_EYE, dist) - atan2(-LOOK_EYE, dist) > span:
 		dist += 0.25
-	var dir: Vector3 = (side - along * LOOK_TOWARD_SPEAKER).normalized()
 	var eye: Vector3 = mid + dir * dist + Vector3.UP * LOOK_EYE
 	var pitch: float = atan2(-LOOK_EYE, dist) + deg_to_rad(LOOK_FOV * (0.5 - LOOK_FLOOR))
 	var ahead: Vector3 = -dir * cos(pitch) + Vector3.UP * sin(pitch)
@@ -211,8 +237,13 @@ func _physics_process(delta: float) -> void:
 			var look: Node3D = _member(str(line.get("look", "")))
 			_turn_cast(who, to, look)
 			_shot_fov = LOOK_FOV if look != null else TALK_FOV
+			_kind = kind
 			_shot = _frame(who, kind, to, look)
+			_goal = _shot
+			_remember_framed(who, to, look)
 			_detour = _clear_detour()
+		elif who != null:
+			_track(delta)
 		_blend = minf(_blend + delta / BLEND_SEC, 1.0)
 	else:
 		_blend = maxf(_blend - delta / BLEND_SEC, 0.0)
@@ -223,6 +254,32 @@ func _physics_process(delta: float) -> void:
 	global_transform = _home.global_transform.interpolate_with(_shot, t)
 	global_position += _detour * sin(PI * t)
 	fov = lerpf(_home.fov, _shot_fov, t)
+
+
+## 記住這個鏡位框了誰、他們那時站在哪（講話的人、他面對的人或一起看的東西）
+func _remember_framed(who: Node3D, to: Node3D, look: Node3D) -> void:
+	_framed = [who, to if to != null else _listener(who), look]
+	_framed_at.clear()
+	for n: Node3D in _framed:
+		_framed_at.append(n.global_position if n != null and is_instance_valid(n) else Vector3.ZERO)
+
+
+## 講話中框到的人走動了（席菈走近、退一步）：重算鏡位，鏡頭慢慢靠過去（不是一下子跳過去）
+func _track(delta: float) -> void:
+	var moved: bool = false
+	for i: int in _framed.size():
+		var n: Node3D = _framed[i]
+		if n != null and is_instance_valid(n) and n.global_position.distance_to(_framed_at[i]) > TRACK_MOVE:
+			moved = true
+	if moved:
+		var r: DialogueRunner = Game.dialogue
+		var line: Dictionary = r.current()
+		_goal = _frame(_framed[0], _kind, _member(str(line.get("to", ""))), _member(str(line.get("look", ""))))
+		for i: int in _framed.size():
+			var n: Node3D = _framed[i]
+			if n != null and is_instance_valid(n):
+				_framed_at[i] = n.global_position
+	_shot = _shot.interpolate_with(_goal, minf(delta * TRACK_RATE, 1.0))
 
 
 func _member(key: String) -> Node3D:
@@ -261,6 +318,8 @@ func _leave() -> void:
 	_framing = ""
 	_blend = 0.0
 	_detour = Vector3.ZERO
+	_framed.clear()
+	_framed_at.clear()
 
 
 ## 這一句有寫 to／look：to＝講話的人轉過去面向那個人、其他人轉過來看講話的人；look＝大家一起轉過去看那個東西。
