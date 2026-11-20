@@ -34,7 +34,7 @@ const ALTAR_GATE: Vector3 = Vector3(0, -80, 4.5)
 ## 斷軌事件（增補稿時段 B，RailSite／RailEvent）：狼徑往東——阿展坐的木軌盡頭、坡頂（絞盤）、坡底的泥灘（靠毒沼的那一邊）
 const RAIL: Vector3 = Vector3(47, -41.5, 6.0)
 const RAIL_TOP: Vector3 = Vector3(66, -34, 5.5)
-const RAIL_MUD: Vector3 = Vector3(56.5, -49, 4.5)
+const RAIL_MUD: Vector3 = Vector3(56.5, -49, 6.0)
 const CLEARINGS: Array[Vector3] = [GLADE, TRAPS, CAMP, WOLVES, SWAMP, HOLLOW, ALTAR_GATE, RAIL, RAIL_TOP, RAIL_MUD]
 const PATHS: Array[Vector4] = [
 	Vector4(0, 34, 0, -15),

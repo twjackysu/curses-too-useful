@@ -149,6 +149,16 @@ func test_meeting_azhan_and_trying_the_lever_opens_two_ways() -> void:
 	assert_true(rail.vine_knot.active and rail.tree_chop.active, "兩條走法開放")
 	assert_true(rail.vine_knot.is_in_group("damageable") and rail.vine_knot.is_in_group(Choppable.GROUP))
 	assert_false(rail.winch_use.enabled or rail.hold_use.enabled or rail.shield_use.enabled, "還沒準備好、也沒帶盾")
+	assert_false(rail.weigh_use.enabled, "還沒採到毒蕈：沒有可以放的")
+	s.add_flag(ForestExplore.FLAG_MUSHROOMS, 1)
+	await _frames(2)
+	assert_true(rail.weigh_use.enabled, "採到一朵：可以自己放上去試")
+	rail.weigh_use.use(player)
+	assert_eq(hud.banner_text(), "CH1_RAIL_WEIGH")
+	await _frames(30)
+	assert_true(rail.site.cart.position.y < RailSite.cart_spot(false).y - 0.03, "車又沉了一點")
+	assert_eq(int(s.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), 1, "毒蕈拿得回來")
+	s.add_flag(ForestExplore.FLAG_MUSHROOMS, -1)
 	# 蕈採滿了、車還沒停穩：不會聽到慘叫，目標指引指向阿展
 	s.add_flag(ForestExplore.FLAG_MUSHROOMS, 5)
 	await _frames(2)
@@ -284,7 +294,9 @@ func test_bottom_route_treant_fells_the_tree_and_sera_shouts_duck() -> void:
 	assert_true(absf(rail.site.dead_tree.rotation.x - RailSite.tree_fall_angle()) < 0.05, "枯木搭在棧橋上")
 	assert_false(rail.tree_chop.active)
 	assert_true(rail.hold_use.enabled and rail.hold_use.position.distance_to(RailEvent.TREE_FOOT) < 0.01, "從枯木腳下踩上去")
+	treant.set_physics_process(true)
 	rail.hold_use.use(player)
+	assert_false(treant.is_physics_processing(), "演的時候敵人不動")
 	await _frames(70)
 	assert_true(player.global_position.distance_to(RailSite.stand_spot()) < 0.1, "諾恩站在橋面上、車頭旁邊（%s）" % str(player.global_position))
 	assert_true(hud.bark_keys().has("BARK_SERA_DUCK"), "「諾恩，低頭！」")
@@ -292,6 +304,7 @@ func test_bottom_route_treant_fells_the_tree_and_sera_shouts_duck() -> void:
 	await _frames(300)
 	assert_eq(rail.final_step, 0)
 	assert_eq(str(s.state.get_flag(RailEvent.FLAG_ROUTE, "")), "bottom")
+	assert_true(treant.is_physics_processing(), "演完放開")
 	assert_true(player.global_position.y < 0.5, "回到地面（y＝%.2f）" % player.global_position.y)
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	runner.advance()
@@ -432,6 +445,23 @@ func test_added_lines_follow_what_the_player_did_before() -> void:
 			r.advance()
 	assert_true(seen.has("DLG_CH1_RETURN_WIPE_RECEIPT"), "拿到收據：他看著那張紙")
 	# 祭壇：禁藥
-	assert_eq(RuinedAltar.chaos_bark(st), "BARK_SERA_CHAOS")
+	assert_eq(RuinedAltar.chaos_bark(st), "BARK_SERA_CHAOS", "沒救過車（舊存檔）：原本那一句")
+	st.set_flag(RailEvent.FLAG_SAVED, true)
+	st.set_flag(RailEvent.FLAG_PROMISE, "medicine")
+	assert_eq(RuinedAltar.chaos_bark(st), "BARK_SERA_CHAOS_DUCK", "上次她喊低頭：這裡也喊")
 	st.set_flag(RailEvent.FLAG_PROMISE, "warn_me")
 	assert_eq(RuinedAltar.chaos_bark(st), "BARK_SERA_CHAOS_WAIT", "說好先說一聲的：這裡也說「我等你」")
+
+
+## 泥灘的樹人站得夠遠：跟阿展說話、伸手試、放毒蕈的地方牠都還沒發現人（敵人 14 m 內才發現）；坡頂的狼在絞盤旁才會過來
+func test_rail_enemies_keep_out_of_the_way_until_the_player_goes_to_them() -> void:
+	var treant: Array = ForestExplore.PACKS["rail_mud"][0]
+	var wolf: Array = ForestExplore.PACKS["rail_top"][0]
+	var treant_at := Vector3(float(treant[1]), 0, float(treant[2]))
+	var wolf_at := Vector3(float(wolf[1]), 0, float(wolf[2]))
+	var aggro: float = EnemyBrain.new().aggro_range
+	for spot: Vector3 in [RailSite.AZHAN_SEAT, RailSite.REACH_SPOT, RailSite.WEIGH_SPOT, RailSite.SERA_SHOT]:
+		assert_true(spot.distance_to(treant_at) > aggro + 0.3, "樹人離 %s 夠遠（%.1f m）" % [str(spot), spot.distance_to(treant_at)])
+		assert_true(spot.distance_to(wolf_at) > aggro + 0.3, "狼離 %s 夠遠（%.1f m）" % [str(spot), spot.distance_to(wolf_at)])
+	assert_true(RailSite.WINCH.distance_to(wolf_at) < aggro, "到絞盤旁狼就過來")
+	assert_true(RailSite.DEAD_TREE.distance_to(treant_at) < float(CombatTuning.num("spore_treant.leash", 16.0)) - 2.0, "樹人引得到枯木旁（%.1f m）" % RailSite.DEAD_TREE.distance_to(treant_at))

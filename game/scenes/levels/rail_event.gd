@@ -53,12 +53,17 @@ var winch_use: Interactable
 var tree_chop: Choppable
 var shield_use: Interactable
 var hold_use: Interactable
+var weigh_use: Interactable
+## 最後那一下的鏡頭（等信號、藥瓶飛、阿展拉煞車都從阿展這一邊看；畫面暗下去停車的時候收掉）
+var final_camera: FinisherCamera
 ## 最後那一下演到哪：0＝沒在演、1＝暗下去擺位置、2＝席菈舉弩（等信號或等低頭）、3＝藥瓶在飛、4＝阿展拉煞車、5＝暗下去停車
 var final_step: int = 0
 var final_route: String = ""
 var _final_t: float = 0.0
 var _vial: MeshInstance3D
 var _tree_hinted: bool = false
+## 最後那一下演的時候先停住的敵人（演完放開）
+var _paused_foes: Array[Node] = []
 
 
 static func create(p_level: StoryLevel, p_player: PlayerController, p_hud: Hud, p_sera: Sera, p_explore: ForestExplore) -> RailEvent:
@@ -77,7 +82,8 @@ func _ready() -> void:
 	site = RailSite.new()
 	level.add_child(site)
 	var st: GameState = Game.session.state
-	azhan = Npc.create("Azhan", "azhan", RailSite.AZHAN_SEAT, -90.0)
+	# 面向西邊（玩家走過來的方向；車在他背後——他在數身邊木箱裡的杯子）
+	azhan = Npc.create("Azhan", "azhan", RailSite.AZHAN_SEAT, 90.0)
 	azhan.doll_colors(Color(0.5, 0.42, 0.3), Color(0.3, 0.42, 0.36))
 	azhan.pose = "sit"
 	level.add_child(azhan)
@@ -86,6 +92,7 @@ func _ready() -> void:
 	winch_use = _use("WinchCrank", RailSite.WINCH + Vector3(0, 0, 1.0), "HINT_RAIL_WINCH", 2.4, func(_by: PlayerController) -> void: start_final("top"))
 	shield_use = _use("ShieldPlace", RailSite.REACH_SPOT + Vector3(0, 0, 0.9), "HINT_RAIL_SHIELD", 2.2, _on_shield_used)
 	hold_use = _use("CartHold", TREE_FOOT, "HINT_RAIL_HOLD", 2.4, func(_by: PlayerController) -> void: start_final("bottom"))
+	weigh_use = _use("CartWeigh", RailSite.WEIGH_SPOT, "HINT_RAIL_WEIGH", 1.8, _on_weigh_used)
 	vine_knot = Choppable.create("VineKnot", RailSite.WINCH)
 	vine_knot.chopped.connect(_on_vine_chopped)
 	level.add_child(vine_knot)
@@ -119,6 +126,10 @@ func _ready() -> void:
 
 
 func _demo(demo: String) -> void:
+	if demo == "talk":
+		# `--rail=talk`：進場就開始阿展那段話（配 `--talk-skip=N`）
+		get_tree().create_timer(0.3).timeout.connect(func() -> void: Game.start_dialogue(MEET_DIALOGUE))
+		return
 	Game.session.set_flag(FLAG_MET, true)
 	if demo == "met":
 		return
@@ -184,6 +195,7 @@ func _physics_process(delta: float) -> void:
 	tree_chop.active = working and rescue.ramp == ""
 	shield_use.enabled = working and rescue.ramp == "" and int(st.items.get(SHIELD_ITEM, 0)) > 0
 	hold_use.enabled = working and rescue.ramp != ""
+	weigh_use.enabled = working and int(st.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)) > 0
 	hold_use.position = TREE_FOOT if rescue.ramp == "tree" else RailSite.REACH_SPOT
 	rescue.has_plug = int(st.items.get(PLUG_ITEM, 0)) > 0
 	if open and not met:
@@ -216,13 +228,26 @@ func _on_reach_used(by: PlayerController) -> void:
 	get_tree().create_timer(1.3, false, true).timeout.connect(func() -> void:
 		if sera.joined:
 			hud.show_bark(sera, "BARK_SERA_RAIL_MUSHROOM", 4.2, Sera.NAME_KEY)
-		var t: Tween = site.cart.create_tween()
-		t.tween_property(site.cart, "position:y", site.cart.position.y - 0.06, 0.35)
-		t.tween_interval(1.1)
-		t.tween_property(site.cart, "position:y", site.cart.position.y, 0.3))
+		_dip_cart())
 	get_tree().create_timer(4.6, false, true).timeout.connect(func() -> void:
 		hud.show_center_lines("CH1_RAIL_WAYS_LINE1", "CH1_RAIL_WAYS_LINE2", 8.0, Hud.CENTER_LINE2_COLOR))
 	Game.session.autosave()
+
+
+## 車往下沉一點、再浮回來（放一朵毒蕈上去的重量）
+func _dip_cart() -> void:
+	var y: float = RailSite.cart_spot(false).y
+	var t: Tween = site.cart.create_tween()
+	t.tween_property(site.cart, "position:y", y - 0.06, 0.35)
+	t.tween_interval(1.1)
+	t.tween_property(site.cart, "position:y", y, 0.3)
+
+
+## 自己放一朵採到的毒蕈上去試（劇本：玩家可以自己放一次，看上坡的繩與下坡的泥）：只是看，毒蕈拿得回來
+func _on_weigh_used(by: PlayerController) -> void:
+	by.gesture("reach", site.cart.global_position)
+	_dip_cart()
+	hud.show_banner("CH1_RAIL_WEIGH", 3.6)
 
 
 # ---------------------------------------------------------------- 坡頂放繩
@@ -294,6 +319,11 @@ func start_final(route: String) -> void:
 	final_step = 1
 	_final_t = 0.0
 	level.lock_for_cutscene(true)
+	# 演的這幾秒敵人不動（坡頂的狼、泥灘的樹人不會趁他定在原地的時候咬他）
+	for e: Node in get_tree().get_nodes_in_group("enemies"):
+		if e.is_physics_processing():
+			e.set_physics_process(false)
+			_paused_foes.append(e)
 	hud.dim_blink(DIM.x, DIM.y, DIM.z, _pose_for_final)
 
 
@@ -336,6 +366,7 @@ func _tick_final(delta: float) -> void:
 			if _final_t >= DIM.x + DIM.y + DIM.z:
 				final_step = 2
 				_final_t = 0.0
+				final_camera = FinisherCamera.play_shot(level, RailSite.FINAL_EYE, RailSite.FINAL_AIM, 600.0)
 				sera.puppet().play_action("shoot")
 				if promise_is_signal():
 					hud.show_bark(sera, "BARK_SERA_WAIT", 4.0, Sera.NAME_KEY)
@@ -372,6 +403,10 @@ func _tick_final(delta: float) -> void:
 			if _final_t >= DIM.x + DIM.y + DIM.z:
 				final_step = 0
 				level.lock_for_cutscene(false)
+				for e: Node in _paused_foes:
+					if is_instance_valid(e):
+						e.set_physics_process(true)
+				_paused_foes.clear()
 				hud.show_banner("CH1_RAIL_SAVED", 3.0)
 				Game.start_dialogue(SAVED_DIALOGUE)
 
@@ -402,6 +437,9 @@ func _fire() -> void:
 
 ## 畫面黑的那一刻：車停回主軌、三個人站到車旁邊；記下走的是哪一條
 func _park() -> void:
+	if final_camera != null and is_instance_valid(final_camera):
+		final_camera.hold_sec = 0.0
+	final_camera = null
 	Game.session.set_flag(FLAG_ROUTE, final_route)
 	_settle()
 	player.stand_up()

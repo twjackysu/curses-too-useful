@@ -535,7 +535,7 @@ func test_shielding_sera_brings_the_chaos_brew_and_one_cut_shatters_the_core() -
 	assert_eq(golem.puppet().action, "kneel", "單膝跪地的動作，跪多久播多久")
 	assert_eq(golem.weakpoint_exposed_to(player.global_position), "kneel", "這時候砍牠算砍在破綻上")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_BLOCKED_LINE1", "CH1_BLOCKED_LINE2"]))
-	assert_true(hud.bark_keys().has("BARK_SERA_CHAOS"))
+	assert_true(hud.bark_keys().has("BARK_SERA_CHAOS_DUCK"), "斷軌那一次她喊低頭自己射的（skip_to_altar 當成救過車）：這裡也喊「諾恩，低頭」")
 	assert_false(golem.phases.core_open, "禁藥還在路上")
 	assert_false(golem.is_core_marked())
 	# 她舉弩、射出禁藥、砸中。禁藥飛的樣子跟平常的藥瓶不一樣（D-306）：圓底燒瓶、會變色、繞著轉的光點、拋得高、飛得慢

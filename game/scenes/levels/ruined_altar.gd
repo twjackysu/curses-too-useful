@@ -517,9 +517,12 @@ func _on_gaze_started() -> void:
 
 
 ## 禁藥射出去之前席菈喊的那一句（增補稿）：斷軌那一次是玩家給信號的（說好「先說一聲」），她在這裡也說同一句「我等你」——
-## 這一次不用等，凝視擋住的那一刻就是信號；其他的照樣喊「諾恩，低頭！」的那一種（全部接住）
+## 這一次不用等，凝視擋住的那一刻就是信號；那一次是她喊「低頭」自己射的，這裡也喊「諾恩，低頭！」。
+## 上一次是個車扣，這一次是比她整個人還大的魔像
 static func chaos_bark(state: GameState) -> String:
-	return "BARK_SERA_CHAOS_WAIT" if str(state.get_flag(RailEvent.FLAG_PROMISE, "")) == "warn_me" else "BARK_SERA_CHAOS"
+	if not bool(state.get_flag(RailEvent.FLAG_SAVED, false)):
+		return "BARK_SERA_CHAOS"
+	return "BARK_SERA_CHAOS_WAIT" if str(state.get_flag(RailEvent.FLAG_PROMISE, "")) == "warn_me" else "BARK_SERA_CHAOS_DUCK"
 
 
 ## 凝視打出去：擋住了＝席菈把禁藥射出來；沒擋住＝她被石化，等魔像下一次凝視

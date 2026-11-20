@@ -21,7 +21,7 @@ const CART_HOME_X: float = 46.4
 const CART_LEN: float = 1.7
 ## 阿展坐的地方（木軌盡頭旁邊的一截圓木上，面向車）、他站起來拉煞車的地方
 const AZHAN_SEAT: Vector3 = Vector3(49.0, 0.0, -41.2)
-const AZHAN_BRAKE: Vector3 = Vector3(47.6, 0.0, -42.0)
+const AZHAN_BRAKE: Vector3 = Vector3(49.2, 0.0, -42.3)
 ## 伸手搆拉桿的地方（斷口邊上）
 const REACH_SPOT: Vector3 = Vector3(49.8, 0.0, -43.0)
 ## 坡頂：絞盤、掛繩的桅杆（頂上的滑輪多高）
@@ -36,6 +36,13 @@ const STAND_X: float = 53.3
 const SHIELD_SPOT: Vector3 = Vector3(51.2, 0.72, -43.0)
 ## 最後那一下席菈站的地方（阿展這一邊，看得到車扣）
 const SERA_SHOT: Vector3 = Vector3(50.4, 0.0, -40.4)
+## 最後那一下的鏡頭（從阿展這一邊看過去：左邊阿展、中間的車、右邊舉弩的席菈）：鏡頭在哪、看著哪
+const FINAL_EYE: Vector3 = Vector3(46.6, 2.5, -38.4)
+const FINAL_AIM: Vector3 = Vector3(53.6, 1.9, -42.7)
+## 自己放一朵毒蕈到車架上試（斷口邊上、伸手的地方旁邊）
+const WEIGH_SPOT: Vector3 = Vector3(49.0, 0.0, -43.0)
+## 泥灘那一片黑泥多大（空地本身比它大：樹人站在遠端）
+const MUD_RADIUS: float = 4.6
 
 var cart: Node3D
 var buckle: Node3D
@@ -422,7 +429,7 @@ func park_cart() -> void:
 
 ## 坡底的泥灘：一片發亮的黑泥
 func _build_mud() -> void:
-	var mud: MeshInstance3D = _cyl(self, "Mud", Vector2(ForestMap.RAIL_MUD.z - 0.3, ForestMap.RAIL_MUD.z), 0.05, ForestMap.at(ForestMap.RAIL_MUD) + Vector3(0, 0.02, 0), _mat(Color(0.07, 0.065, 0.06), 0.12, 0.25))
+	var mud: MeshInstance3D = _cyl(self, "Mud", Vector2(MUD_RADIUS - 0.3, MUD_RADIUS), 0.05, ForestMap.at(ForestMap.RAIL_MUD) + Vector3(0, 0.02, 0), _mat(Color(0.07, 0.065, 0.06), 0.12, 0.25))
 	(mud.mesh as CylinderMesh).radial_segments = 28
 	for i: int in 5:
 		var a: float = float(i) * 1.9
@@ -437,8 +444,9 @@ func _build_camp() -> void:
 	seat.material_override = SlopeClutter.log_material(ForestScenery.CAMP_LOG_RADIUS)
 	seat.position = AZHAN_SEAT + Vector3(0, 0.25, 0)
 	add_child(seat)
-	_lantern(self, "CampLantern", Vector3(48.2, 2.3, -40.3), 3.6, 10.0)
-	_beam(self, "CampLanternPost", Vector3(48.2, 0, -40.3), Vector3(48.2, 2.2, -40.3), 0.05, _dark)
+	# 提燈立在軌道的另一邊（最後那一下的鏡頭在阿展這一邊：立在這邊會擋在鏡頭前面）
+	_lantern(self, "CampLantern", Vector3(47.8, 2.3, -44.7), 3.6, 10.0)
+	_beam(self, "CampLanternPost", Vector3(47.8, 0, -44.7), Vector3(47.8, 2.2, -44.7), 0.05, _dark)
 	var props: Array = [["quaternius/Crate_Wooden", Vector3(46.2, 0, -40.2), 0.4], ["quaternius/Rope_1", Vector3(47.3, 0, -39.8), 1.2],
 		["quaternius/Bucket_Wooden_1", Vector3(50.6, 0, -41.0), 0.0], ["quaternius/Barrel", Vector3(45.2, 0, -40.6), 0.0]]
 	for spec: Array in props:
