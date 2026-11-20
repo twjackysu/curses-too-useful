@@ -15,7 +15,7 @@ extends Node3D
 ## 走路或跑步時，每隻腳落地的那一刻發一次（腳步聲照這個播）
 signal footfall
 
-const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave", "fumble",
+const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave", "fumble", "reload", "swap",
 	"roar", "gaze", "kneel", "flinch", "punch", "hammer", "collapse"]
 const WALK_MIN_SPEED: float = 0.3
 ## 這個速度以上用跑的動作。諾恩平常移動 3.4 m/s 是小跑：以前用「走路」的動作加速到 1.6 倍，腿還是跟不上，
@@ -33,6 +33,8 @@ const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "r
 	"nod": 0.9, "bow": 1.4, "point": 1.3, "chest": 1.4, "shrug": 1.3, "fist": 1.1, "wave": 1.5,
 	# 席菈走到瘴氣邊上慌張地找防毒面具（social_actions 的 fumble）
 	"fumble": 1.2,
+	# 席菈站著裝下一瓶（向她要過之後，冷卻的最後一段）與換一瓶（social_actions 的 reload、swap；Sera.RELOAD_*）
+	"reload": 1.6, "swap": 0.8,
 	# 怪物（魔像、樹人）自己的動作（tools/blender/common.py 的 monster_actions）：吼、凝視、跪照那一段要多久縮放播（play_action 的 seconds），
 	# 直拳與兩手砸停在舉到頂（MONSTER_APEX）等前兆走完（pause_at）
 	"roar": 2.2, "gaze": 2.0, "kneel": 2.0, "flinch": 0.5, "punch": 1.25, "hammer": 1.5,
@@ -612,8 +614,8 @@ func _pose(speed_t: float) -> void:
 			_pose_attack(action_time / float(ACTION_TIME["attack"]))
 		"shoot":
 			_pose_shoot(action_time / float(ACTION_TIME["shoot"]))
-		"reach", "give", "point", "wave", "chest", "shrug", "fist":
-			_pose_reach(action_time / float(ACTION_TIME[action]), action in ["give", "shrug"])
+		"reach", "give", "point", "wave", "chest", "shrug", "fist", "reload", "swap":
+			_pose_reach(action_time / float(ACTION_TIME[action]), action in ["give", "shrug", "reload", "swap"])
 		"nod", "bow":
 			var k: float = sin(PI * action_time / float(ACTION_TIME[action]))
 			_rot("spine", Vector3((-0.35 if action == "bow" else -0.05) * k, 0, 0))

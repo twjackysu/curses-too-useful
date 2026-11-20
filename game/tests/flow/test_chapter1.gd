@@ -524,17 +524,27 @@ func test_after_the_first_reversal_sera_and_noen_talk_once() -> void:
 	assert_eq(s.state.get_flag(CorruptForest.FLAG_GATE_TALK), true)
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(runner.current_text(), "DLG_CH1_GATE_001")
+	# 跟在後面離他 4～6 m：開口時走近到講話的距離（走進瘴氣的邊上會先停下來找面具），到了就站著
+	assert_true(level.sera.global_position.distance_to(player.global_position) > Sera.TALK_FAR, "對話開始時她還在後面")
+	frames = 0
+	while (level.sera.is_fumbling() or level.sera.global_position.distance_to(player.global_position) > Sera.TALK_GAP) and frames < 300:
+		await tree.physics_frame
+		frames += 1
+	await tree.physics_frame
+	var near: float = level.sera.global_position.distance_to(player.global_position)
+	assert_true(near > Sera.TALK_NEAR and near <= Sera.TALK_GAP + 0.1, "走近到講話的距離（%.2f m，%d 幀）" % [near, frames])
 	var before: Vector3 = level.sera.global_position
 	for i: int in 20:
 		await tree.physics_frame
-	assert_true(level.sera.global_position.distance_to(before) < 0.05, "講話的時候席菈站著")
-	# 貼在他肩膀旁邊（0.25 m，平常這麼近她不轉）：對話中照樣轉過去面向他
+	assert_true(level.sera.global_position.distance_to(before) < 0.05, "到了就站著")
+	# 貼在他肩膀旁邊（0.25 m，同框時兩人的肩膀疊在一起）：往後退一步，再近也轉過去面向他
 	level.sera.global_position = player.global_position + Vector3(0.2, 0.0, 0.15)
-	for i: int in 40:
+	for i: int in 70:
 		await tree.physics_frame
 	var to_noen: Vector3 = player.global_position - level.sera.global_position
 	to_noen.y = 0.0
-	assert_true((-level.sera.global_basis.z).dot(to_noen.normalized()) > 0.9, "對話中再近也面向他")
+	assert_true(to_noen.length() >= Sera.TALK_NEAR, "退到 %.1f m 以外（%.2f）" % [Sera.TALK_NEAR, to_noen.length()])
+	assert_true((-level.sera.global_basis.z).dot(to_noen.normalized()) > 0.9, "對話中面向他")
 	var hud: Hud = level.get_node("Hud") as Hud
 	assert_true(player.status_effects.has("poison"), "身上還有毒")
 	assert_true(hud.status.visible and hud.combat.visible, "對話中左下的狀態列與生命條照樣看得到（講的就是「你的血在回」）")
@@ -556,6 +566,8 @@ func test_after_the_first_reversal_sera_and_noen_talk_once() -> void:
 
 func test_sera_starts_in_view_and_follows_behind_noen() -> void:
 	_new_game_joined()
+	# 這裡只看跟著走（走進瘴氣反轉之後的那段話講過了：對話中她會走近到講話的距離）
+	_session().set_flag(CorruptForest.FLAG_GATE_TALK, true)
 	var level: CorruptForest = _load_level()
 	await tree.physics_frame
 	var player: PlayerController = level.get_node("Player") as PlayerController
@@ -643,10 +655,30 @@ func test_norn_can_ask_sera_for_a_blinding_smoke_vial() -> void:
 		await tree.physics_frame
 	assert_eq(sera.vials_fired, 1, "只射要的那一瓶")
 	assert_true(_has_digit(hud.hint_text()) and not hud.bark_keys().has("BARK_SERA_READY"), "還在裝：%s" % hud.hint_text())
-	sera.brain.ask_left = 0.05
-	for i: int in 6:
+	assert_false(sera.loaded_vial().visible, "射出去之後弩上是空的")
+	# 裝下一瓶：冷卻的最後一段她停下來（諾恩走遠了也不跟）、播裝填的動作，塞進去的那一刻弩上那一瓶亮起來，扳緊的那一刻剛好裝好
+	sera.brain.ask_left = float(Puppet.ACTION_TIME["reload"]) * Sera.RELOAD_CLICK_AT + 0.03
+	player.global_position = sera.global_position + Vector3(0, 0, -9)
+	var stood := Vector3.INF
+	var reloading: int = 0
+	var filled_early: bool = false
+	frames = 0
+	while not hud.bark_keys().has("BARK_SERA_READY") and frames < 160:
 		await tree.physics_frame
+		frames += 1
+		if sera.puppet().current_state() == "reload":
+			reloading += 1
+			if not stood.is_finite():
+				stood = sera.global_position
+		filled_early = filled_early or (sera.loaded_vial().visible and sera.brain.ask_left > 0.0)
 	assert_true(hud.bark_keys().has("BARK_SERA_READY"), "裝好了她喊一聲")
+	assert_true(reloading >= 60, "喊之前一直在播裝填的動作（%d 幀）" % reloading)
+	assert_true(sera.puppet().current_state() == "reload", "扳緊之後還有一小段放下來")
+	assert_true(stood.is_finite() and Vector2(sera.global_position.x - stood.x, sera.global_position.z - stood.z).length() < 0.05, "裝的時候站著不動（諾恩在 9 m 外也不跟）")
+	assert_true(filled_early, "塞進去的那一刻（喊之前）弩上那一瓶就亮了")
+	assert_true(sera.loaded_vial().visible and sera.loaded_vial().is_visible_in_tree(), "裝好了弩上有一瓶")
+	var slot_mat: StandardMaterial3D = sera.loaded_vial().mesh.surface_get_material(0) as StandardMaterial3D
+	assert_true(slot_mat.albedo_color.is_equal_approx(Sera.vial_color(Sera.ASK_SOURCE)), "弩上那一瓶是煙霧彈的黃色")
 	assert_true(_playing(sera, "vial_load"), "裝好的那一刻喀一聲")
 	assert_false(_has_digit(hud.hint_text()), "提示改回按哪個鍵：%s" % hud.hint_text())
 	assert_true(sera.ask(), "可以再要一瓶")
@@ -1523,10 +1555,18 @@ func test_campfire_rest_tells_seras_past_and_unlocks_the_double_brew() -> void:
 	assert_true(sera.switch_pick(), "有第二瓶可以換")
 	await tree.physics_frame
 	assert_true(hud.hint_text().contains(tr("VIAL_DEADLY_RED")), "換成紅的那一瓶：%s" % hud.hint_text())
+	assert_eq(sera.puppet().current_state(), "swap", "她低頭撥一下藥匣")
+	assert_true(hud.bark_keys().has("BARK_SERA_SWAP_RED"), "喊出換成哪一瓶")
+	for i: int in int(float(Puppet.ACTION_TIME["swap"]) * 60.0) + 2:
+		await tree.physics_frame
+	var slot_mat: StandardMaterial3D = sera.loaded_vial().mesh.surface_get_material(0) as StandardMaterial3D
+	assert_true(sera.loaded_vial().visible and slot_mat.albedo_color.is_equal_approx(Sera.vial_color(ForestExplore.SERA_VIALS[1])), "弩上那一瓶換成紅的")
+	assert_true(sera.vial_color(ForestExplore.SERA_VIALS[1]) != Sera.vial_color(ForestExplore.DUO_SOURCE), "兩瓶的顏色不一樣")
 	var before: int = sera.vials_fired
 	assert_true(sera.ask())
 	assert_true(hud.bark_keys().has("BARK_SERA_ASK_RED"), "她回的是紅的那一瓶的話")
 	assert_true(sera.switch_pick(), "舉弩的時候換回來")
+	assert_true(sera.puppet().current_state() != "swap", "答應了要射就不撥（照樣舉弩射出去）")
 	frames = 0
 	while sera.vials_fired == before and frames < 120:
 		await tree.physics_frame

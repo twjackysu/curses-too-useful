@@ -205,6 +205,9 @@ VIAL_BLIND_SMOKE,[Blinding Smoke],【致盲煙霧彈】
 VIAL_DOUBLE_BREW,[Double Brew],【雙重調合】
 VIAL_DEADLY_RED,[Deadly Red],【劇毒大紅水】
 BARK_SERA_ASK_RED,"The red one? S-sure... here!",紅、紅的那瓶？……好，給你！
+BARK_SERA_SWAP_SMOKE,"Smoke one, loaded!",換、換成煙霧彈了！
+BARK_SERA_SWAP_RED,"Switching to the red one!",換紅的那瓶！
+BARK_SERA_SWAP_DUO,"Double Brew, ready to go!",雙重調合，裝上去了！
 HINT_ASK_SERA_WAIT,{ask_sera} Sera is loading the next vial… {sec},{ask_sera} 席菈在裝下一瓶…… {sec}
 CH1_MISFIRE_LINE1,Paralyzed → Faster attacks　Defense zero → Less damage taken,麻痺 → 出手加速　防禦歸零 → 受傷減少
 CH1_MISFIRE_LINE2,"You attack 150% faster, every cut hits that much harder, and you take 80% less damage. Cut them down!",出手快 150%、每一刀也重 150%，受到的傷害少 80%。趁現在砍！

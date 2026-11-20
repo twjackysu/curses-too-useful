@@ -54,6 +54,24 @@ const BREW_COLOR: Color = Color(1.0, 0.35, 0.82)
 const BREW_CLICK_SEC: float = 1.0
 const BREW_CLICK_DB: float = -14.0
 const BREW_LIGHT: Vector2 = Vector2(0.4, 2.6)
+## 向她要過一瓶之後裝下一瓶（D-309）：冷卻（brain.ask_left）剩這麼多秒時停下來、播站著裝填的動作（Puppet "reload"，1.6 秒）——
+## 左手從腰上的小袋子拿一瓶、塞到弩上、往胸口一拉扳緊弓弦。扳緊的那一刻（動作的 RELOAD_CLICK_AT）剛好是冷卻結束、「喀」一聲、她喊「裝好了」。
+## 塞進去的那一刻（RELOAD_INSERT_AT）弩上那一瓶亮起來（之前是空的）
+const RELOAD_CLICK_AT: float = 0.78
+const RELOAD_INSERT_AT: float = 0.54
+## 弩上裝著的那一瓶（玩家按鍵會要到的那一瓶）：在手掛點的座標裡擺在哪（−Y＝往指尖、−Z＝大拇指那一側＝弩身的上面）、多大
+const SLOT_OFFSET: Vector3 = Vector3(0.0, -0.1, -0.075)
+const SLOT_RADIUS: float = 0.034
+## 換一瓶（玩家按換的按鍵）：站著或走著都停下來撥一下藥匣（Puppet "swap"，0.8 秒）；撥到這個比例的時候弩上那一瓶換顏色、彈一下
+const SWAP_AT: float = 0.45
+## 對話中跟諾恩保持講話的距離（D-309）：比 TALK_NEAR 近（戰後跑到他肩膀旁邊，同框時兩人的肩膀疊在一起）就往後退到 TALK_NEAR＋TALK_BACK_EXTRA，
+## 比 TALK_FAR 遠（跟在後面 4 m）就走近到 TALK_GAP。退的時候面向他、不邁步（只有半步）；走近用走的
+const TALK_NEAR: float = 1.2
+const TALK_BACK_EXTRA: float = 0.3
+const TALK_FAR: float = 3.0
+const TALK_GAP: float = 2.2
+const TALK_BACK_SPEED: float = 1.3
+const TALK_WALK_SPEED: float = 2.0
 
 ## 面具戴上／拿下來的那一刻（關卡接這個讓她喊一句）
 signal mask_changed(on: bool)
@@ -121,6 +139,15 @@ var _brew_glow: Node3D
 var _brew_light: OmniLight3D
 var _brew_vial: MeshInstance3D
 var _brew_sparks: CPUParticles3D
+## 弩上裝著的那一瓶（顏色＝ask_choice()）；射出去之後是空的，裝填的動作塞進去才又滿
+var _slot: MeshInstance3D
+var _slot_mat: StandardMaterial3D
+var _slot_source: String = ""
+var slot_full: bool = true
+var _reload_started: bool = false
+var _swap_pending: bool = false
+## 對話中正在調整跟諾恩的距離：-1＝往後退、1＝走近、0＝站著
+var _talk_step: int = 0
 var target: PlayerController
 var vials_fired: int = 0
 var last_vial: SeraVial
@@ -172,6 +199,7 @@ func _physics_process(delta: float) -> void:
 	var dist: float = to.length()
 	_update_mask(delta)
 	_update_brew(delta)
+	_update_slot()
 	if fumble_left > 0.0 and stoned_left <= 0.0:
 		velocity = Vector3(0.0, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, 0.0)
 		move_and_slide()
@@ -196,11 +224,20 @@ func _physics_process(delta: float) -> void:
 		_hesitate(delta)
 		return
 	var locked: bool = Game.is_player_locked() or not joined
-	var speed: float = 0.0 if locked else brain.follow_speed(dist)
+	# 裝填、換一瓶的時候站著不動（動作是整個人的：走著播會在地上滑）
+	var speed: float = 0.0 if locked or is_handling() else brain.follow_speed(dist)
 	var dir: Vector3 = to / dist if dist > 0.01 else Vector3.ZERO
+	var anim_speed: float = speed
+	match _talk_spacing(dist):
+		-1:
+			speed = -TALK_BACK_SPEED
+			anim_speed = 0.0
+		1:
+			speed = TALK_WALK_SPEED
+			anim_speed = speed
 	velocity = Vector3(dir.x * speed, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, dir.z * speed)
 	move_and_slide()
-	_puppet.set_move_speed(speed)
+	_puppet.set_move_speed(anim_speed)
 	# 平常離他 0.3 m 以內就不轉（貼在旁邊時不要一直打轉）；對話中再近也轉過去面向他（戰後那段話她跑到他肩膀旁邊）
 	var talking: bool = Game.is_in_dialogue()
 	if not talking:
@@ -226,9 +263,46 @@ func _physics_process(delta: float) -> void:
 		fire()
 	elif brain.is_aiming() and not was_aiming:
 		_puppet.play_action("shoot")
+	_tick_reload()
 	if was_loading and brain.ask_left <= 0.0:
 		Sfx.play_at(self, "vial_load", global_position + Vector3.UP * 1.1, -6.0, 0.04)
+		slot_full = true
 		reloaded.emit()
+
+
+## 對話中這一幀要不要調整跟諾恩的距離（-1 退、1 走近、0 不動）。只在跟著他的時候（關卡叫她站在別的地方 hold_at 就不管）
+func _talk_spacing(dist: float) -> int:
+	if not joined or not Game.is_in_dialogue() or not _talk_point.is_finite() or stoned_left > 0.0:
+		_talk_step = 0
+		return 0
+	if _talk_step == 0:
+		_talk_step = -1 if dist < TALK_NEAR else (1 if dist > TALK_FAR else 0)
+	elif _talk_step == -1 and dist >= TALK_NEAR + TALK_BACK_EXTRA:
+		_talk_step = 0
+	elif _talk_step == 1 and dist <= TALK_GAP:
+		_talk_step = 0
+	return _talk_step
+
+
+## 手上正在裝填或換一瓶（站著不動）
+func is_handling() -> bool:
+	var st: String = _puppet.current_state()
+	return st == "reload" or st == "swap"
+
+
+## 冷卻剩 RELOAD 動作扳緊之前的那一段時開始裝；塞進去的那一刻弩上那一瓶亮起來。換一瓶撥到一半換顏色
+func _tick_reload() -> void:
+	var reload_lead: float = float(Puppet.ACTION_TIME["reload"]) * RELOAD_CLICK_AT
+	if brain.ask_left > 0.3 and not _reload_started and brain.ask_left <= reload_lead and not brain.is_aiming() and _special_in < 0.0 and fumble_left <= 0.0:
+		_reload_started = true
+		_puppet.play_action("reload", brain.ask_left / RELOAD_CLICK_AT)
+	var st: String = _puppet.current_state()
+	if st == "reload" and not slot_full and _puppet.action_time >= float(Puppet.ACTION_TIME["reload"]) * RELOAD_INSERT_AT:
+		slot_full = true
+		_pop_slot()
+	if _swap_pending and (st != "swap" or _puppet.action_time >= float(Puppet.ACTION_TIME["swap"]) * SWAP_AT):
+		_swap_pending = false
+		_pop_slot()
 
 
 ## 裝填禁藥：站定了（跑到後面、沒在舉弩、沒被石化）就跪下去裝；手弩上那一管照裝到幾成越來越亮。
@@ -429,6 +503,7 @@ func ask() -> bool:
 	var ok: bool = brain.request()
 	if ok:
 		_asked_source = ask_choice()
+		_reload_started = false
 	_asked = _asked or ok
 	asked.emit(ok)
 	return ok
@@ -444,6 +519,10 @@ func switch_pick() -> bool:
 	if ask_extra == "" or not ask_enabled:
 		return false
 	ask_pick = 1 - ask_pick
+	# 撥一下藥匣：手上空著才撥（正在裝、正在舉弩、剛答應要射就只換左上那一行，裝填塞進去的就是新的那一瓶）
+	if not is_handling() and not brain.is_aiming() and not _asked and _special_in < 0.0 and fumble_left <= 0.0 and stoned_left <= 0.0:
+		_puppet.play_action("swap")
+		_swap_pending = slot_full
 	pick_changed.emit(ask_choice())
 	return true
 
@@ -451,6 +530,8 @@ func switch_pick() -> bool:
 ## 擊發：從弩口生一瓶藥飛向諾恩。玩家要的那一瓶射按下去時選的那一瓶，她自己射的是 vial_source（有 vial_cycle 就輪到下一種）。
 func fire() -> SeraVial:
 	var vial: SeraVial = _launch((_asked_source if _asked_source != "" else ask_choice()) if _asked else vial_source)
+	if _asked:
+		slot_full = false
 	if not _asked and not vial_cycle.is_empty():
 		_cycle_i = (_cycle_i + 1) % vial_cycle.size()
 		vial_source = vial_cycle[_cycle_i]
@@ -587,6 +668,64 @@ func _build_mask() -> void:
 		can.add_child(lens)
 	for n: Node in _mask.find_children("*", "GeometryInstance3D", true, false):
 		(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## 弩上裝著的那一瓶：一顆小圓瓶（顏色＝現在按鍵會要到的那一瓶，自己微微發光：暗的森林裡看得出顏色）。
+## 還不能向她要（ask_enabled 沒開）、手弩收著、正在裝禁藥的時候不畫
+func _build_slot() -> void:
+	if _crossbow == null:
+		return
+	_slot = MeshInstance3D.new()
+	_slot.name = "LoadedVial"
+	var bulb := SphereMesh.new()
+	bulb.radius = SLOT_RADIUS
+	bulb.height = SLOT_RADIUS * 2.4
+	_slot_mat = StandardMaterial3D.new()
+	_slot_mat.emission_enabled = true
+	_slot_mat.emission_energy_multiplier = 0.9
+	_slot_mat.roughness = 0.25
+	bulb.material = _slot_mat
+	_slot.mesh = bulb
+	_slot.position = SLOT_OFFSET
+	_slot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_slot.visible = false
+	_crossbow.add_child(_slot)
+
+
+func loaded_vial() -> MeshInstance3D:
+	return _slot
+
+
+func _update_slot() -> void:
+	if _slot == null:
+		_build_slot()
+	if _slot == null:
+		return
+	# 沒有在冷卻＝弩上裝著（測試、讀檔直接把冷卻歸零也一樣）
+	if brain.ask_left <= 0.0:
+		slot_full = true
+	_slot.visible = ask_enabled and slot_full and not holstered and brew < 0.0 and not _swap_pending
+	var want: String = ask_choice()
+	if want != _slot_source:
+		_slot_source = want
+		var c: Color = vial_color(want)
+		_slot_mat.albedo_color = c
+		_slot_mat.emission = c
+
+
+## 一瓶藥的顏色（statuses.json 的來源寫的 color；沒寫是 SeraVial 預設的紫）
+static func vial_color(source_id: String) -> Color:
+	var tint: String = str(StatusRules.load_default().source(source_id).get("color", ""))
+	return Color.html(tint) if Color.html_is_valid(tint) else SeraVial.LIQUID
+
+
+## 弩上那一瓶彈一下（塞進去、換了一瓶）
+func _pop_slot() -> void:
+	if _slot == null:
+		return
+	_slot.scale = Vector3.ONE * 0.3
+	var t: Tween = create_tween()
+	t.tween_property(_slot, "scale", Vector3.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## 右手的手弩：有 Tripo 的模型用模型，沒有就用程式拼一把（木頭弩身＋黃銅弓臂＋一管紫色的藥）。

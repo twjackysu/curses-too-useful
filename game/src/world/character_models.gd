@@ -44,6 +44,9 @@ const ANIM_MAP: Dictionary = {
 	"fumble": ["fumble"],
 	# 席菈跪著裝填禁藥（Boss 戰狂暴之後；Puppet.pose）
 	"brew": ["brew"],
+	# 席菈站著裝下一瓶、換一瓶（一次性的動作）
+	"reload": ["reload"],
+	"swap": ["swap"],
 	"idle_carry": ["idle_carry"],
 	"walk_carry": ["walk_carry"],
 	"run_carry": ["run_carry"],

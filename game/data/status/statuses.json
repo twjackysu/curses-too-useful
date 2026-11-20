@@ -122,13 +122,14 @@
 			"duration": 12.0
 		},
 		"sera_blind_smoke": {
-			"_doc": "按鍵向席菈要的【致盲煙霧彈】（劇本節點 3）：致盲 → 鷹眼（每一刀都算砍在破綻上）。color＝藥瓶與煙的顏色（沒寫是紫的）；smoke＝砸開時腳邊冒一圈煙；name＝玩家向她要的時候左上那一行寫的藥名（翻譯 key）；ask_bark＝要這一瓶時她回的那一句（沒寫是 BARK_SERA_ASK）。",
+			"_doc": "按鍵向席菈要的【致盲煙霧彈】（劇本節點 3）：致盲 → 鷹眼（每一刀都算砍在破綻上）。color＝藥瓶與煙的顏色（沒寫是紫的）；smoke＝砸開時腳邊冒一圈煙；name＝玩家向她要的時候左上那一行寫的藥名（翻譯 key）；ask_bark＝要這一瓶時她回的那一句（沒寫是 BARK_SERA_ASK）；swap_bark＝玩家換成這一瓶、她撥一下藥匣時喊的那一句（沒寫就不喊）。",
 			"status": "blind",
 			"rate": 1.0,
 			"duration": 8.0,
 			"color": "#f2e27a",
 			"smoke": true,
-			"name": "VIAL_BLIND_SMOKE"
+			"name": "VIAL_BLIND_SMOKE",
+			"swap_bark": "BARK_SERA_SWAP_SMOKE"
 		},
 		"vent_gas": {
 			"_doc": "毒氣噴發口：比瘴氣濃，站在上面每 0.25 秒刷新一次。",
@@ -216,6 +217,7 @@
 			"color": "#e0503c",
 			"name": "VIAL_DEADLY_RED",
 			"ask_bark": "BARK_SERA_ASK_RED",
+			"swap_bark": "BARK_SERA_SWAP_RED",
 			"also": "sera_weak_vial_poison"
 		},
 		"sera_weak_vial_poison": {
@@ -231,6 +233,7 @@
 			"color": "#f2e27a",
 			"smoke": true,
 			"name": "VIAL_DOUBLE_BREW",
+			"swap_bark": "BARK_SERA_SWAP_DUO",
 			"also": "sera_duo_smoke_paralysis"
 		},
 		"sera_duo_smoke_paralysis": {

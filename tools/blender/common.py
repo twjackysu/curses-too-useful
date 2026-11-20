@@ -662,7 +662,7 @@ def social_actions(a):
     """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、倒在地上（down_back 仰躺、down_front 趴著）、坐在地上（sit_ground：撐起上身）、
     伸手摸（reach）、遞東西（give），
     對話的手勢（nod 點頭、bow 鞠躬、point 指、chest 左手按胸口、shrug 攤手、fist 握拳、wave 左手揮手）、慌張地找面具（fumble）、
-    跪著裝填禁藥（brew），
+    跪著裝填禁藥（brew）、站著裝下一瓶（reload）與換一瓶（swap），
     扛東西（idle_carry、walk_carry、run_carry：左手扶著扛在左肩上的東西，腳照平常走）。
     角度的意思跟 standard_actions 一樣：arm_pose 的 hang 離垂直往外、swing 往前擺、elbow 手肘往前彎、twist 整條手臂繞垂直軸（正＝往左前帶）。"""
     bones = a.arm.data.bones
@@ -938,6 +938,40 @@ def social_actions(a):
         a.arm_pose("Right", f, hang=14, swing=30, elbow=52, twist=26)
         a.arm_pose("Left", f, hang=12, swing=32 + 5 * pump, elbow=58 + 12 * pump, twist=-30)
 
+    # 席菈站著裝下一瓶（玩家向她要過之後，冷卻的最後一段；Sera.RELOAD_*）與換一瓶（玩家按換的按鍵）：
+    # 右手把手弩收到胸前橫著拿（跟 brew 同一個拿法，站著所以上身只往前一點）、低頭看手上。
+    # reload：左手先到左腰的小袋子拿一瓶（頭往左下看）→ 拿到弩上、往下一按（塞進去）→ 往胸口一拉（扳緊弓弦，「喀」在這裡：t≈0.78）→ 放下。
+    # swap：左手到弩上撥兩下（轉藥匣）就放下
+    def mix(p, q, k):
+        return tuple(x + (y - x) * k for x, y in zip(p, q))
+    left_rest, right_rest = (9, -3, 14, 0), (13, 12, 38, 0)
+    held = (14, 30, 52, 26)          # 右手：手弩橫在胸前
+    on_bow = (12, 32, 58, -30)       # 左手：放在弩上
+    pouch_at = (22, -6, 44, 4)       # 左手：左腰的小袋子
+
+    def reload(f, t):
+        up = keys(t, [(0, 0), (0.16, 1), (0.86, 1), (1, 0)])
+        pouch = keys(t, [(0, 0), (0.08, 0), (0.22, 1), (0.32, 1), (0.44, 0), (1, 0)])
+        load = keys(t, [(0, 0), (0.32, 0), (0.46, 1), (0.84, 1), (0.96, 0), (1, 0)])
+        push = keys(t, [(0, 0), (0.48, 0), (0.54, 1), (0.6, 0), (1, 0)])
+        cock = keys(t, [(0, 0), (0.62, 0), (0.74, 1), (0.8, 1), (0.88, 0), (1, 0)])
+        stand(f, spine=-5 * up - 3 * pouch, chest=-4 * up, head=-20 * up - 6 * pouch + 4 * cock, head_z=10 * pouch)
+        right = mix(right_rest, held, up)
+        a.arm_pose("Right", f, hang=right[0], swing=right[1] + 4 * cock, elbow=right[2] - 6 * cock, twist=right[3])
+        left = mix(mix(left_rest, pouch_at, pouch), on_bow, load)
+        a.arm_pose("Left", f, hang=left[0], swing=left[1] + (4 * push - 12 * cock) * load,
+                   elbow=left[2] + (12 * push + 30 * cock) * load, twist=left[3])
+
+    def swap(f, t):
+        up = keys(t, [(0, 0), (0.25, 1), (0.72, 1), (1, 0)])
+        touch = keys(t, [(0, 0), (0.15, 0), (0.36, 1), (0.64, 1), (0.84, 0), (1, 0)])
+        flick = math.sin((t - 0.36) / 0.28 * math.tau) * touch if 0.36 <= t <= 0.64 else 0.0
+        stand(f, spine=-3 * up, chest=-3 * up, head=-16 * up)
+        right = mix(right_rest, held, up)
+        a.arm_pose("Right", f, hang=right[0], swing=right[1], elbow=right[2], twist=right[3] - 6 * flick)
+        left = mix(left_rest, on_bow, touch)
+        a.arm_pose("Left", f, hang=left[0], swing=left[1], elbow=left[2] + 6 * flick, twist=left[3] + 14 * flick)
+
     def carried(base, dip):
         # 扛重的東西（魔像核心）：左手舉過肩、手肘往後折，手腕在左肩上面約 19 cm、往前 6 cm（諾恩的模型上量的），扶著扛在肩上的東西；
         # 被壓著：上身往右（離開重物那一邊）歪、頭往右偏、背微微駝，膝蓋多彎一點、骨盆低一點（dip＝走路時每一步再往下沉多少）
@@ -973,6 +1007,8 @@ def social_actions(a):
     a.action("wave", 36, wave, step=1)
     a.action("fumble", 29, fumble, step=1)
     a.action("brew", 48, brew, step=2)
+    a.action("reload", 38, reload, step=1)
+    a.action("swap", 19, swap, step=1)
     a.action("down_back", 96, down_back, step=8)
     a.action("down_front", 96, down_front, step=8)
     a.action("sit_ground", 96, sit_ground, step=8)

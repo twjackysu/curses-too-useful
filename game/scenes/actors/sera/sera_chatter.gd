@@ -48,9 +48,13 @@ func _on_asked(ok: bool) -> void:
 	hud.show_bark(sera, line if ok else "BARK_SERA_RELOADING", 2.2, Sera.NAME_KEY)
 
 
-## 換了要哪一瓶：左上那一行下一幀就改；這裡響一聲小小的「喀」（按了有感覺）
-func _on_pick_changed(_source: String) -> void:
+## 換了要哪一瓶：左上那一行下一幀就改；這裡響一聲小小的「喀」（按了有感覺）。
+## 弩上裝著東西的時候她撥一下藥匣、喊出換成哪一瓶（來源的 swap_bark）；正在裝下一瓶就不喊（左上寫著還要幾秒）
+func _on_pick_changed(source: String) -> void:
 	Sfx.play_flat(self, "ui_tick", -8.0)
+	var line: String = str(StatusRules.load_default().source(source).get("swap_bark", ""))
+	if line != "" and sera.slot_full and sera.brain.ask_left <= 0.0:
+		hud.show_bark(sera, line, 1.6, Sera.NAME_KEY)
 
 
 ## 下一瓶裝好了：她喊一聲（打架的時候不會去看左上那一行）。

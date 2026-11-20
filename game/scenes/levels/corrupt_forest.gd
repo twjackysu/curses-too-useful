@@ -86,6 +86,10 @@ func _ready() -> void:
 	if args.has("explore"):
 		for flag: String in [FLAG_JOINED, FLAG_REVERSAL, FLAG_GATE_TALK, FLAG_MISFIRE, FLAG_SLIMES, FLAG_AFTER_TALK]:
 			Game.session.set_flag(flag, true)
+	# 截圖用：`--cleared` 直接從三隻史萊姆都倒了、戰後那段話還沒講開始（進場約一秒半那段話開始；配 `--talk-skip=N`）
+	if args.has("cleared"):
+		for flag: String in [FLAG_JOINED, FLAG_REVERSAL, FLAG_GATE_TALK, FLAG_MISFIRE, FLAG_SLIMES]:
+			Game.session.set_flag(flag, true)
 	# 截圖用：`--explore --scream` 再跳到採滿五朵、聽到慘叫之後（配 `--at=0,-74`：往北走幾步就到祭壇路口，換到祭壇那一關）
 	if args.has("scream"):
 		Game.session.add_flag(ForestExplore.FLAG_MUSHROOMS, ForestExplore.MUSHROOM_NEED)
@@ -131,6 +135,19 @@ func _ready() -> void:
 		get_tree().create_timer(1.5).timeout.connect(func() -> void:
 			sera.global_position = MIASMA_POS + Vector3(-1.2, 0.0, MIASMA_RADIUS + 0.6)
 			sera.rotation.y = PI
+			App.burst_start_in(1))
+	# `--burst-on=reload`：進場 1.5 秒後當成剛射出向她要的那一瓶、冷卻只剩裝填那一段——她停下來裝下一瓶（1.6 秒）；從那一刻開始拍。
+	# `--burst-on=swap`：同時給她第二瓶（劇毒大紅水）、按一次換的按鍵——她低頭撥一下藥匣，弩上那一瓶變紅（0.8 秒）。都配 `--joined`
+	if burst_on == "reload" or burst_on == "swap":
+		get_tree().create_timer(1.5).timeout.connect(func() -> void:
+			sera.vial_source = Sera.VIAL_SOURCE
+			sera.ask_enabled = true
+			if burst_on == "reload":
+				sera.slot_full = false
+				sera.brain.ask_left = float(Puppet.ACTION_TIME["reload"]) * Sera.RELOAD_CLICK_AT + 0.02
+			else:
+				sera.ask_extra = "sera_weak_vial"
+				sera.switch_pick()
 			App.burst_start_in(1))
 	# `--burst-on=combo`：進場 1.5 秒後連砍三下（一下收招就接下一下），從第一下開始拍
 	if burst_on == "combo":
