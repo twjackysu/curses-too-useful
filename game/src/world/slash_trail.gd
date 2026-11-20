@@ -10,6 +10,9 @@ const SHADER: Shader = preload("res://src/world/slash_trail.gdshader")
 const RUST_TINT: Color = Color(0.55, 0.1, 0.05)
 const RUST_CORE: Color = Color(0.9, 0.36, 0.18)
 const RUST_STRENGTH: float = 0.9
+## 拿【不祥的裂刃】（PlayerController.WEAPONS 的 trail）：暗紫帶一點病態的亮紫（反轉中一樣是金色）
+const SPLIT_TINT: Color = Color(0.4, 0.07, 0.55)
+const SPLIT_CORE: Color = Color(0.82, 0.45, 1.0)
 ## 身上有反轉中的狀態：金色（亮到會泛光）
 const GOLD_TINT: Color = Color(1.0, 0.72, 0.25)
 const GOLD_CORE: Color = Color(1.0, 0.95, 0.75)
@@ -60,16 +63,16 @@ func _ready() -> void:
 	visible = false
 
 
-## 開始記這一刀。gold＝金色（不然是鏽色）；big＝收尾的那一刀（更長、留得更久）。
-func begin(gold: bool, big: bool) -> void:
+## 開始記這一刀。gold＝金色（不然是這把劍自己的顏色 tint／core，預設鏽色）；big＝收尾的那一刀（更長、留得更久）。
+func begin(gold: bool, big: bool, tint: Color = RUST_TINT, core: Color = RUST_CORE) -> void:
 	_hands.clear()
 	_tips.clear()
 	_ages.clear()
 	_span = SPAN_BIG if big else SPAN
 	_life = LIFE_BIG if big else LIFE
 	recording = true
-	_mat.set_shader_parameter("tint", GOLD_TINT if gold else RUST_TINT)
-	_mat.set_shader_parameter("core", GOLD_CORE if gold else RUST_CORE)
+	_mat.set_shader_parameter("tint", GOLD_TINT if gold else tint)
+	_mat.set_shader_parameter("core", GOLD_CORE if gold else core)
 	_mat.set_shader_parameter("strength", strength_for(gold, big))
 
 

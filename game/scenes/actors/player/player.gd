@@ -84,11 +84,13 @@ var _dodge_dir: Vector3 = Vector3.ZERO
 ## 諾恩的武器【瘴氣生鏽鐵劍】（docs/story/chapter-1.md）：Tripo 的模型，建置時由 scripts/gen_props.sh 擺成
 ## 跟 KayKit 雙手劍一樣的大小與原點；Tripo 的檔不在就退回 KayKit 那把（在 git 裡）。握在右手、劍尖朝下垂在身邊。
 const SWORD_MODELS: Array[String] = ["tripo/weapon_rusty_miasma_sword", "tripo/weapon_longsword", "kaykit/sword_2handed"]
-## 可以拿的武器：模型（照順序找第一個有的）、砍中時給自己的狀態（statuses.json 的來源）、傷害倍率（tuning.json 的 key，沒寫＝1）。
+## 可以拿的武器：模型（照順序找第一個有的）、砍中時給自己的狀態（statuses.json 的來源）、傷害倍率（tuning.json 的 key，沒寫＝1）、
+## 劍光的顏色（[外圈, 中間]，沒寫＝鏽色；反轉中一律金色）。
 ## 拿哪一把記在劇情旗標 WEAPON_FLAG（存檔跟著走）；換武器叫 equip()。
 const WEAPONS: Dictionary = {
 	"rusty_sword": {"models": SWORD_MODELS, "on_hit": "rusty_sword_cut"},
-	"split_blade": {"models": ["tripo/weapon_ominous_split_blade", "tripo/weapon_longsword", "kaykit/sword_2handed"], "on_hit": "split_blade_cut", "damage": "noen.split_blade_damage_mult"},
+	"split_blade": {"models": ["tripo/weapon_ominous_split_blade", "tripo/weapon_longsword", "kaykit/sword_2handed"], "on_hit": "split_blade_cut", "damage": "noen.split_blade_damage_mult",
+		"trail": [SlashTrail.SPLIT_TINT, SlashTrail.SPLIT_CORE]},
 }
 const DEFAULT_WEAPON: String = "rusty_sword"
 const WEAPON_FLAG: String = "noen.weapon"
@@ -456,7 +458,7 @@ func _physics_process(delta: float) -> void:
 		var to_p: Vector3 = _talk_point - global_position
 		if Vector2(to_p.x, to_p.z).length() > 0.05:
 			_body.rotation.y = lerp_angle(_body.rotation.y, atan2(-to_p.x, -to_p.z), clampf(TALK_TURN_SPEED * delta, 0.0, 1.0))
-	elif lock_target != null and _dodge_left <= 0.0 and not sprinting:
+	elif lock_target != null and _dodge_left <= 0.0 and not sprinting and not talking:
 		var to_t: Vector3 = lock_target.global_position - global_position
 		_body.rotation.y = lerp_angle(_body.rotation.y, atan2(-to_t.x, -to_t.z), clampf(TURN_SPEED * delta, 0.0, 1.0))
 	elif swing_holds_facing():
@@ -1213,7 +1215,8 @@ func _update_trail() -> void:
 	var swinging: bool = not _trails.is_empty() and t >= window.x and t < window.y
 	if swinging and not _trailing:
 		_trail_i = (_trail_i + 1) % _trails.size()
-		_trails[_trail_i].begin(has_reversed_status(), is_finisher())
+		var colors: Array = (WEAPONS[weapon_id] as Dictionary).get("trail", [SlashTrail.RUST_TINT, SlashTrail.RUST_CORE])
+		_trails[_trail_i].begin(has_reversed_status(), is_finisher(), colors[0] as Color, colors[1] as Color)
 		# 劍劃過空氣的那一聲（沒砍到東西也有）；收尾的那一刀比較低沉、比較大聲
 		var swish: AudioStreamPlayer3D = Sfx.play_at(self, "slash", global_position + Vector3.UP * 1.2, -4.0 if is_finisher() else -9.0, 0.08)
 		if swish != null and is_finisher():

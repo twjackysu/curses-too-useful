@@ -46,6 +46,7 @@ const ANIM_MAP: Dictionary = {
 	"brew": ["brew"],
 	# 席菈站著裝下一瓶、換一瓶（一次性的動作）
 	"reload": ["reload"],
+	"lift_blade": ["lift_blade"],
 	"swap": ["swap"],
 	"idle_carry": ["idle_carry"],
 	"walk_carry": ["walk_carry"],

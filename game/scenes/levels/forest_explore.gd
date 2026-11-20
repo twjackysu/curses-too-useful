@@ -80,6 +80,25 @@ const CHEST_MODEL: String = "tripo/prop_cursed_chest"
 const CHEST_SOURCE: String = "curse_weakness"
 const CHEST_WEAPON: String = "split_blade"
 const FLAG_CHEST: String = "ch1.chest_opened"
+## 打開寶箱（D-310）：蓋子（建置時從模型拆出來的節點 Lid，轉軸在背面那一條邊）繞 Z 軸掀開多少弧度、要多久；
+## 時間軸（秒，從按下互動算）：蓋子彈開 → 箱子裡噴出紫黑的瘴氣、中詛咒 → 諾恩彎腰伸進去、抓住劍的那一刻劍換到手上
+## （原本的鐵劍先收到背上）→ 站起來把劍舉到面前看的那一段切到特寫的鏡頭（FinisherCamera）→ 鏡頭回來才出那兩行字。
+## 整段 Puppet 的 lift_blade（2.2 秒）不能動
+const CHEST_LID_OPEN: float = 1.85
+const CHEST_LID_SEC: float = 0.45
+const CHEST_LID_AT: float = 0.12
+const CHEST_EQUIP_AT: float = 0.55
+const CHEST_CLOSEUP_AT: float = 1.0
+const CHEST_CLOSEUP_SEC: float = 1.1
+const CHEST_LINES_AT: float = 2.5
+const CHEST_ACTION: String = "lift_blade"
+## 特寫的鏡位：(往他前面多遠, 往他左手邊多遠, 多高)；看著的地方同一套
+const CLOSEUP_EYE: Vector3 = Vector3(1.55, 0.25, 1.3)
+const CLOSEUP_AIM: Vector3 = Vector3(0.2, -0.1, 1.5)
+## 箱子裡那一層發光的紫泥（蓋子掀開才看得到）：在箱身裡面多高、多大（模型的箱身內側約 0.66×0.84 m）
+const CHEST_INSIDE_Y: float = 0.36
+const CHEST_INSIDE_SIZE: Vector2 = Vector2(0.6, 0.78)
+const CHEST_INSIDE_COLOR: Color = Color(0.55, 0.2, 0.85)
 ## 教學戰打完、講完話之前，往北走到這條線就過不去（不然可以拖著史萊姆跑進後面的森林）
 const NORTH_GATE_Z: float = -24.5
 const GATE_BARK_EVERY: float = 6.0
@@ -496,8 +515,9 @@ func _build_swamp() -> void:
 	if look == null:
 		look = _stand_in_chest()
 	look.name = "Look"
-	# 正面朝著沼澤中間（玩家來的方向）
-	look.rotation.y = atan2(ForestMap.SWAMP.x - CHEST_POS.x, ForestMap.SWAMP.y - CHEST_POS.z) + PI
+	# 正面（有鎖頭的那一面，模型的 +X）朝著沼澤中間（玩家來的方向）；蓋子往後掀
+	look.rotation.y = atan2(-(ForestMap.SWAMP.y - CHEST_POS.z), ForestMap.SWAMP.x - CHEST_POS.x)
+	_prepare_chest(look)
 	chest.add_child(look)
 	chest.add_child(_blocker(0.6, 0.8))
 	# 寶箱的光用病黃綠（紫的話整個融進紫霧裡，從沼澤邊看不出那裡有東西）
@@ -511,44 +531,186 @@ func _build_swamp() -> void:
 	glow.position = Vector3(0, 1.0, 0)
 	chest.add_child(glow)
 	chest.add_child(_sparkles(Color(0.9, 1.0, 0.55)))
+	chest.add_child(_chest_puff())
+	# 蓋子掀開之後從箱子裡往上照的紫光
+	var inside_light := OmniLight3D.new()
+	inside_light.name = "InsideLight"
+	inside_light.light_color = CHEST_INSIDE_COLOR
+	inside_light.light_energy = 1.2
+	inside_light.omni_range = 3.0
+	inside_light.shadow_enabled = false
+	inside_light.position = Vector3(0, 0.7, 0)
+	chest.add_child(inside_light)
 	chest.used.connect(_on_chest_opened)
 	chest.enabled = not bool(Game.session.state.get_flag(FLAG_CHEST, false))
 	_show_chest_opened(not chest.enabled)
+	inside_light.visible = not chest.enabled
+	_swing_lid(not chest.enabled, false)
 	level.add_child(chest)
 
 
 ## 打開詛咒寶箱（劇本）：中【衰弱詛咒】（對諾恩是砍得更重）、拿到【不祥的裂刃】、右上角可選的那一項完成、存檔。
+## 看得到的部分照 CHEST_* 的時間軸演（蓋子掀開、彎腰拿劍、舉起來的特寫）；劇情旗標與詛咒在按下的那一刻就定了
 func _on_chest_opened(by: PlayerController) -> void:
 	if not chest.enabled:
 		return
 	chest.enabled = false
 	_show_chest_opened(true)
 	by.status_effects.apply_source(CHEST_SOURCE)
-	by.equip(CHEST_WEAPON)
 	Game.session.set_flag(FLAG_CHEST, true)
-	hud.show_center_lines("CH1_CHEST_LINE1", "CH1_CHEST_LINE2", 8.0)
 	if sera.joined:
 		hud.show_bark(sera, "BARK_SERA_CHEST", 3.4, Sera.NAME_KEY)
 	Sfx.play_at(level, CHEST_SFX, chest.global_position + Vector3.UP * 0.5, -2.0, 0.02)
+	Game.session.set_flag(PlayerController.WEAPON_FLAG, CHEST_WEAPON)
 	Game.session.autosave()
+	if level is StoryLevel:
+		(level as StoryLevel).lock_for_cutscene(true)
+	by.peaceful = true  # 鐵劍先收到背上，空著手伸進箱子
+	by.gesture(CHEST_ACTION, chest.global_position)
+	_after(CHEST_LID_AT, _swing_lid.bind(true))
+	_after(CHEST_EQUIP_AT, func() -> void:
+		by.equip(CHEST_WEAPON)
+		by.peaceful = false)
+	_after(CHEST_CLOSEUP_AT, _blade_closeup.bind(by))
+	_after(float(Puppet.ACTION_TIME[CHEST_ACTION]), func() -> void:
+		if level is StoryLevel:
+			(level as StoryLevel).lock_for_cutscene(false))
+	_after(CHEST_LINES_AT, func() -> void:
+		hud.show_center_lines("CH1_CHEST_LINE1", "CH1_CHEST_LINE2", 8.0))
 
 
-## 開過的寶箱：紫光與光點收掉（模型是一整塊，蓋子掀不開）
+## 舉起裂刃的特寫：鏡頭在他正前方偏左一點、比臉低一點往上看著他與立在右肩前面的劍（從右前方拍，舉劍的手臂會擋住臉；
+## 從左前方拍，臉轉向劍、只看得到側後方）。FinisherCamera：停著的時候是過場、之後滑回玩家的鏡頭
+func _blade_closeup(by: PlayerController) -> void:
+	var to_chest: Vector3 = chest.global_position - by.global_position
+	var front: Vector3 = Vector3(to_chest.x, 0.0, to_chest.z).normalized() if Vector2(to_chest.x, to_chest.z).length() > 0.1 else by.facing()
+	var left: Vector3 = Vector3.UP.cross(front).normalized()
+	var at: Vector3 = by.global_position
+	var cam: FinisherCamera = FinisherCamera.play_shot(level, at + front * CLOSEUP_EYE.x + left * CLOSEUP_EYE.y + Vector3.UP * CLOSEUP_EYE.z,
+		at + front * CLOSEUP_AIM.x + left * CLOSEUP_AIM.y + Vector3.UP * CLOSEUP_AIM.z, CHEST_CLOSEUP_SEC)
+	if cam != null:
+		cam.name = "BladeCloseup"
+		# 特寫的時候 HUD 整個收起來（跟粉碎那一刀的側面鏡頭一樣）
+		hud.cinematic = true
+		cam.tree_exiting.connect(func() -> void: hud.cinematic = false)
+
+
+## 蓋子掀開／蓋著（opened＝掀開）。animate＝false 直接擺好（讀檔進來的時候寶箱已經開過）
+func _swing_lid(opened: bool, animate: bool = true) -> void:
+	var lid: Node3D = chest_lid()
+	if lid == null:
+		return
+	var to: float = CHEST_LID_OPEN if opened else 0.0
+	if not animate:
+		lid.rotation.z = to
+		return
+	var t: Tween = lid.create_tween()
+	# 先往上一頂、喀一下，再整個彈開
+	t.tween_property(lid, "rotation:z", 0.12, 0.06)
+	t.tween_property(lid, "rotation:z", 0.04, 0.05)
+	t.tween_property(lid, "rotation:z", to, CHEST_LID_SEC).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var puff: CPUParticles3D = chest.get_node("Puff") as CPUParticles3D
+	puff.restart()
+	var flash: OmniLight3D = chest.get_node("InsideLight") as OmniLight3D
+	flash.visible = true
+	flash.light_energy = 4.0
+	lid.create_tween().tween_property(flash, "light_energy", 1.2, 1.2)
+
+
+## 寶箱的蓋子（模型不在、或是沒拆開的舊檔就是 null）
+func chest_lid() -> Node3D:
+	return chest.get_node("Look").find_child("Lid", true, false) as Node3D if chest.has_node("Look") else null
+
+
+## 寶箱的模型：蓋子與箱身不切掉背面（蓋子掀開時看得到它的內側、箱子裡面），箱子裡鋪一層發光的紫泥
+static func _prepare_chest(look: Node3D) -> void:
+	for n: Node in look.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		for i: int in mi.mesh.get_surface_count():
+			var m := mi.get_active_material(i) as BaseMaterial3D
+			if m != null:
+				var two := m.duplicate() as BaseMaterial3D
+				two.cull_mode = BaseMaterial3D.CULL_DISABLED
+				mi.set_surface_override_material(i, two)
+	var inside := MeshInstance3D.new()
+	inside.name = "Inside"
+	var plane := PlaneMesh.new()
+	plane.size = CHEST_INSIDE_SIZE
+	var goo := StandardMaterial3D.new()
+	goo.albedo_color = CHEST_INSIDE_COLOR * 0.4
+	goo.emission_enabled = true
+	goo.emission = CHEST_INSIDE_COLOR
+	goo.emission_energy_multiplier = 1.6
+	plane.material = goo
+	inside.mesh = plane
+	inside.position = Vector3(0, CHEST_INSIDE_Y, 0)
+	look.add_child(inside)
+
+
+## 開過的寶箱：外面的黃綠光與光點收掉、蓋子是掀開的
 func _show_chest_opened(opened: bool) -> void:
 	(chest.get_node("Glow") as OmniLight3D).visible = not opened
 	(chest.get_node("Sparkles") as CPUParticles3D).emitting = not opened
 
 
+## 蓋子掀開時從箱子裡衝出來的紫黑瘴氣
+static func _chest_puff() -> CPUParticles3D:
+	var ps := CPUParticles3D.new()
+	ps.name = "Puff"
+	ps.emitting = false
+	ps.one_shot = true
+	ps.explosiveness = 0.85
+	ps.amount = 22
+	ps.lifetime = 1.3
+	ps.position = Vector3(0, 0.45, 0)
+	ps.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	ps.emission_box_extents = Vector3(0.25, 0.05, 0.3)
+	ps.direction = Vector3.UP
+	ps.spread = 25.0
+	ps.gravity = Vector3(0, 0.6, 0)
+	ps.initial_velocity_min = 1.2
+	ps.initial_velocity_max = 2.4
+	ps.damping_min = 1.5
+	ps.damping_max = 2.5
+	ps.scale_amount_min = 0.8
+	ps.scale_amount_max = 1.6
+	var fade := Gradient.new()
+	fade.offsets = PackedFloat32Array([0.0, 0.15, 1.0])
+	fade.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0.75), Color(1, 1, 1, 0)])
+	ps.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.45, 0.45)
+	quad.material = ParticleLook.material(Color(0.42, 0.16, 0.55))
+	ps.mesh = quad
+	ps.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return ps
+
+
+## 模型不在：木箱＋一片會掀的蓋子（節點 Lid 的原點在背面那一條邊上，跟拆開的模型一樣）
 static func _stand_in_chest() -> Node3D:
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(1.0, 0.7, 0.7)
+	var root := Node3D.new()
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.4, 0.26, 0.2)
+	var body := MeshInstance3D.new()
+	body.name = "Body"
+	var box := BoxMesh.new()
+	box.size = Vector3(0.7, 0.42, 0.9)
 	box.material = wood
-	mesh.mesh = box
-	mesh.position = Vector3(0, 0.35, 0)
-	return mesh
+	body.mesh = box
+	body.position = Vector3(0, 0.21, 0)
+	root.add_child(body)
+	var lid := Node3D.new()
+	lid.name = "Lid"
+	lid.position = Vector3(-0.35, 0.42, 0)
+	var lid_mesh := MeshInstance3D.new()
+	var top := BoxMesh.new()
+	top.size = Vector3(0.7, 0.24, 0.9)
+	top.material = wood
+	lid_mesh.mesh = top
+	lid_mesh.position = Vector3(0.35, 0.12, 0)
+	lid.add_child(lid_mesh)
+	root.add_child(lid)
+	return root
 
 
 # ---------------------------------------------------------------- 野外的敵人

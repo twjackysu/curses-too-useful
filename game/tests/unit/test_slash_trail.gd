@@ -248,3 +248,19 @@ func test_wind_up_reaches_behind_the_shoulder_before_the_swing() -> void:
 			await tree.physics_frame
 	root.queue_free()
 	await tree.process_frame
+
+
+## 劍光的顏色跟著手上的劍：鐵劍是鏽色、【不祥的裂刃】是暗紫；反轉中兩把都是金色
+func test_trail_color_follows_the_weapon() -> void:
+	var trail := SlashTrail.new()
+	tree.root.add_child(trail)
+	var colors: Array = (PlayerController.WEAPONS["split_blade"] as Dictionary)["trail"]
+	trail.begin(false, false, colors[0] as Color, colors[1] as Color)
+	var mat: ShaderMaterial = trail.material_override as ShaderMaterial
+	assert_eq(mat.get_shader_parameter("tint") as Color, SlashTrail.SPLIT_TINT, "裂刃：暗紫")
+	assert_ne(SlashTrail.SPLIT_TINT, SlashTrail.RUST_TINT, "跟鐵劍不一樣")
+	assert_false((PlayerController.WEAPONS["rusty_sword"] as Dictionary).has("trail"), "鐵劍照預設的鏽色")
+	trail.begin(true, false, colors[0] as Color, colors[1] as Color)
+	assert_eq(mat.get_shader_parameter("tint") as Color, SlashTrail.GOLD_TINT, "反轉中一律金色")
+	trail.queue_free()
+	await tree.process_frame

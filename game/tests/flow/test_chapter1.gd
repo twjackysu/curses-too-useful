@@ -1678,19 +1678,40 @@ func test_cursed_chest_in_the_bog_curses_norn_and_hands_him_the_split_blade() ->
 	await tree.physics_frame
 	assert_false(explore.chest.interact_hint().is_empty(), "走近寶箱有提示")
 	var old_weapon: Node3D = player.weapon()
+	var lid: Node3D = explore.chest_lid()
+	assert_not_null(lid, "寶箱的蓋子是自己一個節點（模型拆開了，或替身）")
+	assert_true(absf(lid.rotation.z) < 0.01, "還沒開：蓋子蓋著")
 	explore.chest.use(player)
 	assert_eq(player.status_effects.source_of("weakness"), ForestExplore.CHEST_SOURCE, "中了衰弱詛咒")
 	assert_true(absf(player.status_effects.rate("weakness") - 3.0) < 0.01, "一次三層")
 	assert_true(player.status_effects.damage_dealt_scale() > 1.3, "對諾恩是砍得更重（×%.2f）" % player.status_effects.damage_dealt_scale())
 	assert_true(player.reversal_cue.is_playing(), "反轉的回饋自己播了")
+	# 彎腰伸進箱子：鐵劍先收到背上、整段不能動；抓住的那一刻劍換到手上；舉起來的那一段是特寫的鏡頭；鏡頭回來才出字
+	assert_eq(player.puppet().current_state(), ForestExplore.CHEST_ACTION, "彎腰從箱子裡拿劍")
+	assert_true(player.is_sheathed(), "鐵劍先收到背上")
+	assert_true(_game().call("is_player_locked"), "拿劍的時候不能動")
+	assert_true(hud.center_lines().is_empty(), "字等鏡頭回來才出")
+	assert_true(hud.bark_keys().has("BARK_SERA_CHEST"), "席菈喊一句")
+	assert_true(_playing(level, ForestExplore.CHEST_SFX), "掀開箱蓋的聲音")
+	for i: int in int(ForestExplore.CHEST_CLOSEUP_AT * 60.0) + 6:
+		await tree.physics_frame
+	assert_true(lid.rotation.z > ForestExplore.CHEST_LID_OPEN * 0.9, "蓋子往後掀開了（%.2f）" % lid.rotation.z)
+	assert_false(player.is_sheathed(), "裂刃拿在手上")
+	var closeup: Camera3D = level.get_node_or_null("BladeCloseup") as Camera3D
+	assert_true(closeup != null and closeup.current, "舉起來看的時候是特寫的鏡頭")
+	assert_true(hud.cinematic, "特寫的時候 HUD 收起來")
+	for i: int in int((ForestExplore.CHEST_LINES_AT - ForestExplore.CHEST_CLOSEUP_AT) * 60.0) + 50:
+		await tree.physics_frame
+	assert_false(_game().call("is_player_locked"), "拿完可以動了")
+	assert_false(is_instance_valid(closeup), "特寫的鏡頭收掉了")
+	assert_false(hud.cinematic, "HUD 回來了")
+	assert_true((player.get_node("CameraRig/Pitch/SpringArm3D/Camera3D") as Camera3D).current, "回到玩家的鏡頭")
 	assert_eq(player.weapon_id, ForestExplore.CHEST_WEAPON, "拿到不祥的裂刃")
 	assert_eq(player.on_hit_source, "split_blade_cut")
 	assert_true(player.weapon() != null and player.weapon() != old_weapon and player.puppet().hand("R").has_node("Weapon"), "手上換了一把")
 	assert_true(player.weapon_damage_mult() > 1.0, "裂刃比較痛（×%.2f）" % player.weapon_damage_mult())
 	assert_eq(s.state.get_flag(ForestExplore.FLAG_CHEST), true)
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_CHEST_LINE1", "CH1_CHEST_LINE2"]))
-	assert_true(hud.bark_keys().has("BARK_SERA_CHEST"))
-	assert_true(_playing(level, ForestExplore.CHEST_SFX), "掀開箱蓋的聲音")
 	await tree.physics_frame
 	assert_true(hud.checklist_lines()[2].begins_with(tr("HUD_LIST_DONE").get_slice(" ", 0)), "清單上「異常波動」完成：%s" % hud.checklist_lines()[2])
 	assert_false(explore.chest.enabled, "開過了")

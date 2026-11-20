@@ -84,6 +84,28 @@ static func play(parent: Node3D, attacker: Vector3, victim: Vector3, seconds: fl
 	return cam
 
 
+## 呼叫的人自己擺好的鏡位（eye 看著 aim；拿到裂刃的特寫）：一樣停 seconds 秒、滑回玩家的鏡頭，不看有沒有被擋住、不晃。
+static func play_shot(parent: Node3D, eye: Vector3, aim: Vector3, seconds: float, home_cam: Camera3D = null) -> FinisherCamera:
+	var home: Camera3D = home_cam
+	if home == null:
+		home = parent.get_viewport().get_camera_3d() if parent.is_inside_tree() else null
+	if home == null:
+		return null
+	var cam := FinisherCamera.new()
+	cam.name = "FinisherCamera"
+	cam.hold_sec = seconds
+	cam.shake = 0.0
+	cam._home = home
+	cam._shot = Transform3D(Basis.looking_at(aim - eye, Vector3.UP), eye)
+	cam._aim = aim
+	parent.add_child(cam)
+	cam.global_transform = cam._shot
+	cam.fov = SHOT_FOV
+	cam.current = true
+	cam.add_to_group(Game.CUTSCENE_GROUP)
+	return cam
+
+
 static func _blocked(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3, exclude: Array[RID]) -> Dictionary:
 	var query := PhysicsRayQueryParameters3D.create(from, to, WORLD_MASK)
 	query.exclude = exclude

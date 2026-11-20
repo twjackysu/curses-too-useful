@@ -650,6 +650,8 @@ def release_action(a, frames=9):
 REACH_LEAN = (0.0, 17.0, 11.0)
 REACH_STEP = 0.17
 REACH_ARM = (114.0, 35.0)
+# lift_blade 舉著劍的右手比平常垂著（hang 13、swing 12、elbow 38）多多少：(hang, swing, elbow, twist)
+LIFT_ARM = (6.0, 38.0, 70.0, -20.0)
 # 拿出委託單（give）的右手：胸前（hang, swing, elbow, twist）、舉到對方面前要再加多少、擱到櫃檯上要再加多少；
 # 左手：扶著對摺的下緣、翻開往下拉要再加多少（角度是在莉莉絲的模型上量的，GuildHall.SLIP_* 照這裡的時間軸）
 GIVE_RIGHT = ((8.0, 50.0, 85.0, 14.0), (2.0, 74.0, -110.0, -6.0), (0.0, 10.0, -55.0, 0.0))
@@ -662,7 +664,7 @@ def social_actions(a):
     """人用的動作（怪物不做）：坐著（sit、sit_hunch 縮成一團、sit_drink）、笑（laugh）、累垮（slump）、倒在地上（down_back 仰躺、down_front 趴著）、坐在地上（sit_ground：撐起上身）、
     伸手摸（reach）、遞東西（give），
     對話的手勢（nod 點頭、bow 鞠躬、point 指、chest 左手按胸口、shrug 攤手、fist 握拳、wave 左手揮手）、慌張地找面具（fumble）、
-    跪著裝填禁藥（brew）、站著裝下一瓶（reload）與換一瓶（swap），
+    跪著裝填禁藥（brew）、站著裝下一瓶（reload）與換一瓶（swap）、從寶箱裡拿起劍舉起來看（lift_blade），
     扛東西（idle_carry、walk_carry、run_carry：左手扶著扛在左肩上的東西，腳照平常走）。
     角度的意思跟 standard_actions 一樣：arm_pose 的 hang 離垂直往外、swing 往前擺、elbow 手肘往前彎、twist 整條手臂繞垂直軸（正＝往左前帶）。"""
     bones = a.arm.data.bones
@@ -972,6 +974,24 @@ def social_actions(a):
         left = mix(left_rest, on_bow, touch)
         a.arm_pose("Left", f, hang=left[0], swing=left[1], elbow=left[2] + 6 * flick, twist=left[3] + 14 * flick)
 
+    # 從寶箱裡拿起一把劍、舉起來端詳（諾恩打開詛咒寶箱拿到【不祥的裂刃】；ForestExplore 的特寫鏡頭在舉著的那一段）：
+    # 0～0.2 彎腰、右手往前下方伸進箱子（手在腳前 0.5 m、離地約 0.55 m）→ 停一下抓住 → 0.32～0.55 站起來、把劍往上帶，
+    # 前臂豎起來、劍尖朝上立在右肩前面 → 0.55～0.86 舉著看（頭微微抬、偏向劍，手腕轉一下讓劍身反光）→ 放回平常垂著
+    def lift_blade(f, t):
+        bend = keys(t, [(0, 0), (0.2, 1), (0.32, 1), (0.5, 0), (1, 0)])
+        up = keys(t, [(0, 0), (0.32, 0), (0.55, 1), (0.86, 1), (1, 0)])
+        turn = math.sin((t - 0.58) / 0.26 * math.pi) if 0.58 <= t <= 0.84 else 0.0
+        a.rot("Hips", f, (Z, -6.0 + 4 * bend), (X, 10 * bend))
+        a.move("Hips", f, (0, -0.08 * bend, -0.012 - 0.12 * bend))
+        a.rot("Spine", f, (X, -1.5 - 24 * bend + 3 * up), (Z, 4.0 - 4 * bend))
+        a.rot("Chest", f, (X, -1.0 - 14 * bend + 4 * up), (Z, 6.0 - 6 * bend - 6 * up))
+        a.rot("Head", f, (X, 3.0 - 16 * bend + 10 * up), (Z, -4.0 - 14 * up))
+        a.leg_pose("Left", f, thigh=9 + 30 * bend, knee=10 + 46 * bend, foot=-2 - 14 * bend)
+        a.leg_pose("Right", f, thigh=-5 + 38 * bend, knee=6 + 50 * bend, foot=4 - 16 * bend)
+        a.arm_pose("Left", f, hang=9 + 8 * bend, swing=-3 + 20 * bend - 6 * up, elbow=14 + 16 * bend)
+        a.arm_pose("Right", f, hang=13 - 5 * bend + LIFT_ARM[0] * up, swing=12 + 44 * bend + LIFT_ARM[1] * up,
+                   elbow=38 - 26 * bend + LIFT_ARM[2] * up, twist=LIFT_ARM[3] * up + 14 * turn)
+
     def carried(base, dip):
         # 扛重的東西（魔像核心）：左手舉過肩、手肘往後折，手腕在左肩上面約 19 cm、往前 6 cm（諾恩的模型上量的），扶著扛在肩上的東西；
         # 被壓著：上身往右（離開重物那一邊）歪、頭往右偏、背微微駝，膝蓋多彎一點、骨盆低一點（dip＝走路時每一步再往下沉多少）
@@ -1009,6 +1029,7 @@ def social_actions(a):
     a.action("brew", 48, brew, step=2)
     a.action("reload", 38, reload, step=1)
     a.action("swap", 19, swap, step=1)
+    a.action("lift_blade", 53, lift_blade, step=1)
     a.action("down_back", 96, down_back, step=8)
     a.action("down_front", 96, down_front, step=8)
     a.action("sit_ground", 96, sit_ground, step=8)
