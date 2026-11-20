@@ -86,6 +86,30 @@ def repaint_grass(meshes, below):
     return changed
 
 
+def bury_rim(meshes, start, full):
+    """模型自帶的土丘（樹）：離樹幹 start 公尺起往外慢慢壓低、到 full 公尺整圈埋到地面下——土丘的邊不再是一圈隆起的唇。
+    樹幹的中心取 1.2～2.0 m 高那一段頂點的平均。回傳動了幾個頂點。"""
+    pts = [v.co for o in meshes for v in o.data.vertices if 1.2 < v.co.z < 2.0]
+    if not pts:
+        return 0
+    cx = sum(p.x for p in pts) / len(pts)
+    cy = sum(p.y for p in pts) / len(pts)
+    moved = 0
+    for o in meshes:
+        for v in o.data.vertices:
+            if v.co.z > 1.2:
+                continue
+            r = ((v.co.x - cx) ** 2 + (v.co.y - cy) ** 2) ** 0.5
+            t = min(max((r - start) / (full - start), 0.0), 1.0)
+            f = t * t * (3.0 - 2.0 * t)
+            target = min(v.co.z, -0.05)
+            if f > 0.0 and target < v.co.z:
+                v.co.z += (target - v.co.z) * f
+                moved += 1
+        o.data.update()
+    return moved
+
+
 def sky_mask(meshes):
     """每個頂點往正上方看不看得到天空（上面沒有自己的面擋住）：寫進頂點色 Sky 的 R（1＝看得到，0＝被擋住）。
     夜光毒蕈用（glow_mushroom.gdshader）：蕈傘的頂與邊緣看得到天空，蕈柄、蕈褶在傘底下——光看法線分不出傘的側邊與蕈柄。
@@ -256,6 +280,7 @@ def main():
     ap.add_argument("--height", type=float, default=1.0)
     ap.add_argument("--turn", type=float, default=0.0, help="物件繞上下軸多轉幾度")
     ap.add_argument("--sink", type=float, default=0.0, help="物件往下沉幾公尺")
+    ap.add_argument("--bury-rim", default="", help="起:滿（公尺）：離樹幹這麼遠起把土丘往下壓、到「滿」整圈埋進地面")
     ap.add_argument("--sky-mask", action="store_true", help="頂點色 Sky 記每一點往上看不看得到天空（夜光毒蕈分蕈傘與蕈柄）")
     ap.add_argument("--moss-below", type=float, default=0.0, help="這個高度（公尺）以下的黃綠色草皮改塗成地面的苔色")
     ap.add_argument("--keep-below", type=float, default=0.0, help="只留這個高度比例（0～1）以下的部分")
@@ -336,6 +361,9 @@ def main():
     if args.sink != 0.0:
         for o in meshes:
             o.data.transform(Matrix.Translation((0, 0, -args.sink)))
+    if args.bury_rim:
+        start, full = (float(x) for x in args.bury_rim.split(":"))
+        note += f"、土丘的邊壓進地面 {bury_rim(meshes, start, full)} 個頂點"
     if args.sky_mask:
         note += f"、頂點色 Sky：{sky_mask(meshes) * 100:.0f}% 在傘底下"
     if args.kind == "prop" and (args.lid_above > 0.0 or args.pick):
