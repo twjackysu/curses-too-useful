@@ -37,6 +37,8 @@ const VIAL_SEC: float = 0.42
 const BRAKE_SEC: float = 1.3
 ## 等信號最多等這麼久（玩家沒按也會繼續：不卡住）
 const SIGNAL_MAX: float = 12.0
+## 藤長回來的時候席菈提醒去踩網：隔這麼久才再喊一次
+const VINE_BARK_EVERY: float = 9.0
 
 var level: StoryLevel
 var player: PlayerController
@@ -62,6 +64,7 @@ var final_route: String = ""
 var _final_t: float = 0.0
 var _vial: MeshInstance3D
 var _tree_hinted: bool = false
+var _vine_bark_in: float = 0.0
 ## 最後那一下演的時候先停住的敵人（演完放開）
 var _paused_foes: Array[Node] = []
 
@@ -204,9 +207,13 @@ func _physics_process(delta: float) -> void:
 			hud.show_center_lines("CH1_RAIL_HEARD_LINE1", "CH1_RAIL_HEARD_LINE2", 6.0)
 		if player.global_position.distance_to(azhan.global_position) < COUNT_DIST and st.grant_once("ch1.azhan_count_bark"):
 			hud.show_bark(azhan, "BARK_AZHAN_COUNT", 3.6, AZHAN_KEY)
+	_vine_bark_in = maxf(_vine_bark_in - delta, 0.0)
 	if working and rescue.tick(delta):
 		site.show_vines(0)
-		hud.show_bark(sera, "BARK_SERA_VINES_BACK", 3.4, Sera.NAME_KEY)
+		# 自動攻擊會一直砍、一直長回來：這一句隔一陣子才再喊
+		if _vine_bark_in <= 0.0 and sera.joined:
+			_vine_bark_in = VINE_BARK_EVERY
+			hud.show_bark(sera, "BARK_SERA_VINES_BACK", 3.4, Sera.NAME_KEY)
 	if busy:
 		_tick_final(delta)
 
