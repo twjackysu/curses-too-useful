@@ -4,6 +4,7 @@ extends Control
 ## 從場景裡的 Label3D 搬到畫面下方中央，鍵名用 GlyphLine（手把模式是按鈕圖示）。
 ## 來源：`interact_prompts` 群組裡的節點，實作 `interact_hint() -> Dictionary`：
 ##   {} ＝不顯示；{"fmt": 已翻譯、保留 {key} 的字串, "action": InputMap 動作, "progress": 0..1 按住進度（-1＝沒有進度條）}
+##   過場中（玩家不能動）平常都不顯示；過場自己在等玩家按的那一個（斷軌的最後一下等信號）多給 "in_cutscene": true
 ## 純顯示：每幀讀，不改任何東西。
 
 const FADE_SPEED: float = 8.0
@@ -77,12 +78,13 @@ func refresh(delta: float) -> void:
 
 
 func _active_hint() -> Dictionary:
-	if not is_inside_tree() or Game.is_player_locked():
+	if not is_inside_tree():
 		return {}
+	var locked: bool = Game.is_player_locked()
 	for n: Node in get_tree().get_nodes_in_group("interact_prompts"):
 		if n.has_method("interact_hint"):
 			var h: Variant = n.call("interact_hint")
-			if h is Dictionary and not (h as Dictionary).is_empty():
+			if h is Dictionary and not (h as Dictionary).is_empty() and (not locked or bool((h as Dictionary).get("in_cutscene", false))):
 				return h as Dictionary
 	return {}
 

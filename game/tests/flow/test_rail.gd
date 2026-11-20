@@ -257,6 +257,9 @@ func test_top_route_cut_vines_fast_then_sera_waits_for_the_signal() -> void:
 	assert_true(rail.azhan.global_position.distance_to(RailSite.AZHAN_PULL) < 0.1, "阿展站到斷口邊上")
 	assert_true(hud.bark_keys().has("BARK_SERA_WAIT"), "「我等你。」")
 	assert_true(str(rail.interact_hint().get("fmt", "")).contains("{key}"), "畫面下方：給她信號")
+	var prompt: InteractPrompt = level.find_child("InteractPrompt", true, false) as InteractPrompt
+	prompt.refresh(0.0)
+	assert_true(prompt.is_shown(), "演的時候（不能動）這一行提示照樣顯示得出來")
 	assert_true(level.sera.global_position.distance_to(RailSite.SERA_SHOT) < 1.0, "她在阿展這一邊")
 	await _frames(120)
 	assert_eq(rail.final_step, 2, "不給信號她不射")

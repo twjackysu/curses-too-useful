@@ -82,6 +82,8 @@ var _pulling: bool = false
 var _hauled: bool = false
 ## 模型不在的時候搖把照時間轉（有模型就照 crank 動作播到哪）
 var _crank_t: float = 0.0
+## 等信號最多等多久（平常 SIGNAL_MAX；連拍用的開發旗標縮短）
+var _signal_max: float = SIGNAL_MAX
 var _tree_hinted: bool = false
 var _vine_bark_in: float = 0.0
 ## 最後那一下演的時候先停住的敵人（演完放開）
@@ -142,7 +144,8 @@ func _ready() -> void:
 	Game.dialogue_ended.connect(_on_dialogue_ended)
 	# 截圖／連拍用（配 `--explore --at=…`）：`--rail=met` 跟阿展講過了、`--rail=tried` 兩條走法開放了、`--rail=rope`／`--rail=tree`／
 	# `--rail=shield` 那一條準備好了、`--rail=final-top`／`--rail=final-bottom` 進場 1.5 秒後演最後那一下、`--rail=saved` 車停穩了；
-	# `--rail=cut` 進場 1.5 秒後連砍三股藤（繩落下來）、`--rail=fell` 枯木被震倒——都從那一刻開始連拍
+	# `--rail=cut` 進場 1.5 秒後連砍三股藤（繩落下來）、`--rail=fell` 枯木被震倒——都從那一刻開始連拍；
+	# `--rail=final-top-signal`／`final-bottom-signal` 是等信號的版本
 	var demo: String = str(Game.level_args().get("rail", ""))
 	if demo != "":
 		_demo(demo)
@@ -157,12 +160,12 @@ func _demo(demo: String) -> void:
 	if demo == "met":
 		return
 	Game.session.set_flag(FLAG_TRIED, true)
-	if demo in ["rope", "final-top"]:
+	if demo in ["rope", "final-top", "final-top-signal"]:
 		rescue.rope_free = true
 		Game.session.set_flag(FLAG_ROPE, true)
 		site.show_vines(RailRescue.VINES)
 		site.show_rope_free(true)
-	if demo in ["tree", "final-bottom"]:
+	if demo in ["tree", "final-bottom", "final-bottom-signal"]:
 		rescue.ramp = "tree"
 		Game.session.set_flag(FLAG_RAMP, "tree")
 		site.topple(false)
@@ -171,9 +174,15 @@ func _demo(demo: String) -> void:
 		Game.session.set_flag(FLAG_RAMP, "shield")
 		site.place_shield()
 	if demo.begins_with("final-"):
+		var route: String = demo.trim_prefix("final-")
+		if route.ends_with("-signal"):
+			# `--rail=final-bottom-signal`：說好「先說一聲」的版本（她舉著弩等信號）；沒有人按，等 2.5 秒就當作給了
+			route = route.trim_suffix("-signal")
+			Game.session.set_flag(FLAG_PROMISE, "warn_me")
+			_signal_max = 2.5
 		get_tree().create_timer(1.5).timeout.connect(func() -> void:
 			App.burst_start_in(1)
-			start_final(demo.trim_prefix("final-")))
+			start_final(route))
 	if demo == "cut":
 		for i: int in RailRescue.VINES:
 			get_tree().create_timer(1.5 + 0.25 * float(i)).timeout.connect(func() -> void:
@@ -421,10 +430,10 @@ func promise_is_signal() -> bool:
 	return str(Game.session.state.get_flag(FLAG_PROMISE, "")) == "warn_me"
 
 
-## 等信號的時候畫面下方的提示（InteractPrompt 問的）
+## 等信號的時候畫面下方的提示（InteractPrompt 問的；這時候是過場、玩家不能動，所以要 in_cutscene 才顯示得出來）
 func interact_hint() -> Dictionary:
 	if final_step == 2 and promise_is_signal():
-		return {"fmt": tr("HINT_RAIL_SIGNAL"), "action": Interactable.ACTION, "progress": -1.0}
+		return {"fmt": tr("HINT_RAIL_SIGNAL"), "action": Interactable.ACTION, "progress": -1.0, "in_cutscene": true}
 	return {}
 
 
@@ -466,7 +475,7 @@ func _tick_final(delta: float) -> void:
 					player.puppet().head = "down"
 		2:
 			if promise_is_signal():
-				if Input.is_action_just_pressed(Interactable.ACTION) or _final_t >= SIGNAL_MAX:
+				if Input.is_action_just_pressed(Interactable.ACTION) or _final_t >= _signal_max:
 					_fire()
 			elif _final_t >= DUCK_SEC:
 				_fire()
