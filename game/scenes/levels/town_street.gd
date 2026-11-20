@@ -14,6 +14,20 @@ const FLAG_LEDGER: String = "ch1.ledger"
 const FLAG_LEFT: String = "ch1.town_left"
 const TOWN_FLAGS: PackedStringArray = [FLAG_BASKET, FLAG_LEFT]
 const PHARMACY_DIALOGUE: String = "ch1_town_pharmacy"
+## 街尾的商人：先問要不要試戴（ch1_town_ring）→ 戴上、打開裝備面板 → 關掉之後問買不買（ch1_town_ring_buy）
+const RING_DIALOGUE: String = "ch1_town_ring"
+const RING_BUY_DIALOGUE: String = "ch1_town_ring_buy"
+const RING_ID: String = "pain_ring"
+## 對話裡選的（講完由這一關照著做、然後清掉）：要試戴、要買
+const FLAG_RING_TRY: String = "ch1.ring_try"
+const FLAG_RING_BUY: String = "ch1.ring_buy"
+## 試戴過戒指（右上角的清單）
+const FLAG_RING_TRIED: String = "ch1.ring_tried"
+const MERCHANT_KEY: String = "SPK_MERCHANT"
+const MERCHANT_POS: Vector3 = TownScenery.MERCHANT_STALL + Vector3(0.2, 0, 1.15)
+## 攤子上那只戒指（模型 0.07 m 高：放大一點才看得到）
+const RING_ON_STALL: Vector3 = TownScenery.MERCHANT_STALL + Vector3(0.1, 0.97, -0.2)
+const RING_SHOW_SCALE: float = 2.2
 const PHARMACIST_KEY: String = "SPK_PHARMACIST"
 const APPRENTICE_KEY: String = "SPK_APPRENTICE"
 ## 從公會大門出來站的地方；朝東（yaw −90°：0＝朝 −Z）
@@ -37,6 +51,9 @@ var scenery: TownScenery
 var sera: Sera
 var pharmacist: Npc
 var apprentice: Npc
+var merchant: Npc
+var merchant_use: Interactable
+var ring_prop: Node3D
 var talk_camera: TalkCamera
 var card: ChapterCard
 var _leaving: bool = false
@@ -75,13 +92,24 @@ func _ready() -> void:
 		_player.yaw = deg_to_rad(float(str(args["cam-yaw"])))
 	_player.snap_camera()
 	_spawn_cast()
+	_build_interactables()
+	Game.dialogue_ended.connect(_on_dialogue_ended)
+	# 開局的零錢寫進旗標（對話的條件「錢夠不夠」讀旗標）
+	if s.in_story():
+		Gear.new(s.state).ensure_coins()
 	Ambience.play(self, MURMUR_SFX, MURMUR_DB, "StreetMurmur")
 	var talk_skip: int = int(str(args.get("talk-skip", "0")))
 	if talk_skip > 0:
 		Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
 			for i: int in talk_skip:
 				skip_line.call_deferred(r))
-	if stage() == STAGE_BASKET:
+	# 截圖用：`--demo=ring` 站到商人攤前、試戴戒指（裝備面板打開）
+	if str(args.get("demo", "")) == "ring":
+		_player.global_position = TownScenery.MERCHANT_STALL + Vector3(-0.6, 0.05, -2.2)
+		_player.yaw = deg_to_rad(160.0)
+		_player.snap_camera()
+		get_tree().create_timer(0.3).timeout.connect(try_on_ring)
+	elif stage() == STAGE_BASKET:
 		_hud.show_center_lines("CH1_TOWN_LINE1", "CH1_TOWN_LINE2", 5.5, Hud.CENTER_LINE2_COLOR)
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
 
@@ -105,6 +133,14 @@ func _spawn_cast() -> void:
 	apprentice = Npc.create("Apprentice", "town_apprentice", APPRENTICE_POS, 20.0)
 	apprentice.doll_colors(Color(0.72, 0.62, 0.44), Color(0.45, 0.3, 0.2))
 	add_child(apprentice)
+	merchant = Npc.create("Merchant", "black_market_merchant", MERCHANT_POS, 0.0)
+	add_child(merchant)
+	ring_prop = PropModels.instance(Gear.load_data()["accessories"][RING_ID]["model"])
+	if ring_prop != null:
+		ring_prop.name = "RingOnStall"
+		ring_prop.position = RING_ON_STALL
+		ring_prop.scale = Vector3.ONE * RING_SHOW_SCALE
+		add_child(ring_prop)
 	if not _flag(FLAG_LEFT):
 		sera = Sera.new()
 		sera.name = "Sera"
@@ -182,7 +218,57 @@ func _speaker_node(key: String) -> Node3D:
 			return apprentice
 		Sera.NAME_KEY:
 			return sera
+		MERCHANT_KEY:
+			return merchant
 	return null
+
+
+func _build_interactables() -> void:
+	merchant_use = Interactable.create("TalkMerchant", TownScenery.MERCHANT_STALL + Vector3(0, 0, -1.2), "HINT_TALK_MERCHANT", 2.4)
+	merchant_use.used.connect(func(_by: PlayerController) -> void: talk_merchant())
+	add_child(merchant_use)
+	_refresh_interactables()
+
+
+func _refresh_interactables() -> void:
+	merchant_use.enabled = Game.session.in_story() and not _leaving
+	if ring_prop != null:
+		ring_prop.visible = not Gear.new(Game.session.state).owns(RING_ID)
+
+
+## 跟街尾的商人說話（互動鍵；測試直接叫）
+func talk_merchant() -> bool:
+	return _talk(RING_DIALOGUE, ["SPK_NOEN", MERCHANT_KEY])
+
+
+func _on_dialogue_ended(dialogue_id: String) -> void:
+	var g := Gear.new(Game.session.state)
+	match dialogue_id:
+		RING_DIALOGUE:
+			if _flag(FLAG_RING_TRY):
+				Game.session.set_flag(FLAG_RING_TRY, false)
+				try_on_ring()
+		RING_BUY_DIALOGUE:
+			if _flag(FLAG_RING_BUY):
+				g.buy(RING_ID)
+			elif g.is_trial():
+				g.unequip_accessory()
+			Game.session.set_flag(FLAG_RING_BUY, false)
+			Game.session.set_flag(FLAG_RING_TRIED, true)
+			Game.session.autosave()
+	_refresh_interactables()
+
+
+## 試戴：戴上（還不是自己的）、馬上給一次詛咒、打開裝備面板；面板關掉之後商人問買不買
+func try_on_ring() -> void:
+	var g := Gear.new(Game.session.state)
+	if not g.equip_accessory(RING_ID, true):
+		return
+	_player.refresh_accessory_curse()
+	var panel: GearPanel = _hud.gear_panel
+	panel.player = _player
+	panel.closed.connect(func() -> void: _talk(RING_BUY_DIALOGUE, ["SPK_NOEN", MERCHANT_KEY]), CONNECT_ONE_SHOT)
+	panel.open()
 
 
 func _mark(node_name: String, at: Vector3) -> void:

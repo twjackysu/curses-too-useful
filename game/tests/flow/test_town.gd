@@ -209,3 +209,66 @@ func test_skipping_straight_to_the_forest_counts_the_street_as_done() -> void:
 	var s: GameSession = _session()
 	TownStreet.skip_town(s)
 	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera")
+
+
+func test_trying_on_the_ring_opens_the_gear_panel_then_buying_keeps_it() -> void:
+	_new_game_at_town()
+	var s: GameSession = _session()
+	var level: TownStreet = _load_level()
+	await _frames(1)
+	var start: int = Gear.new(s.state).coins()
+	assert_eq(int(s.state.get_flag(Gear.COINS_FLAG, -1)), start, "開局的零錢寫進旗標")
+	assert_not_null(level.merchant, "街尾的商人")
+	assert_true(level.merchant_use.enabled)
+	assert_true(level.talk_merchant())
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_eq(runner.dialogue_id, TownStreet.RING_DIALOGUE)
+	_finish_dialogue(0)
+	# 試戴：戴上、身上馬上有刺痛、裝備面板打開
+	var g := Gear.new(s.state)
+	assert_eq(g.accessory(), TownStreet.RING_ID)
+	assert_true(g.is_trial())
+	var player: PlayerController = _player()
+	assert_true(player.status_effects.has("ache"), "戴上的那一刻就刺痛")
+	var panel: GearPanel = (level.get_node("Hud") as Hud).gear_panel
+	assert_true(panel.is_open(), "裝備面板打開")
+	assert_eq(panel.text_of("AccessoryName"), tr("GEAR_PAIN_RING") + "　" + tr("GEAR_TRIAL"))
+	await _frames(30)
+	assert_true(panel.text_of("AccessoryActual") != tr("GEAR_ACTUAL_WAIT"), "寫著實際每秒回多少")
+	# 關掉面板：商人問買不買
+	panel.close()
+	assert_true(bool(_game().call("is_in_dialogue")))
+	runner = _game().get("dialogue") as DialogueRunner
+	assert_eq(runner.dialogue_id, TownStreet.RING_BUY_DIALOGUE)
+	var guard: int = 0
+	while runner.visible_choices.is_empty() and guard < 10:
+		guard += 1
+		runner.advance()
+	assert_eq(runner.visible_choices.size(), 2, "錢夠：買／還給他")
+	_finish_dialogue(0)
+	assert_true(g.owns(TownStreet.RING_ID), "買下來了")
+	assert_false(g.is_trial())
+	assert_eq(g.accessory(), TownStreet.RING_ID, "繼續戴著")
+	assert_eq(g.coins(), start - 5)
+	assert_true(bool(s.state.get_flag(TownStreet.FLAG_RING_TRIED, false)), "右上角的清單：試戴過")
+	assert_false(level.ring_prop != null and level.ring_prop.visible, "攤子上的戒指不見了")
+
+
+func test_giving_the_ring_back_takes_it_off() -> void:
+	_new_game_at_town()
+	var s: GameSession = _session()
+	var level: TownStreet = _load_level()
+	await _frames(1)
+	level.talk_merchant()
+	_finish_dialogue(0)
+	(level.get_node("Hud") as Hud).gear_panel.close()
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	var guard: int = 0
+	while runner.visible_choices.is_empty() and guard < 10:
+		guard += 1
+		runner.advance()
+	_finish_dialogue(1)
+	var g := Gear.new(s.state)
+	assert_eq(g.accessory(), "", "還回去了")
+	assert_false(g.owns(TownStreet.RING_ID))
+	assert_eq(g.coins(), int(g.data["start_coins"]), "沒花錢")

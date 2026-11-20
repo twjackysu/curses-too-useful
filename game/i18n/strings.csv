@@ -396,8 +396,8 @@ GEAR_SLOT_WEAPON,Weapon,武器
 GEAR_SLOT_ACCESSORY,Accessory,飾品
 GEAR_EMPTY,(none),（沒有）
 GEAR_TRIAL,(trying it on),（試戴中）
-GEAR_ON_HIT,Every hit gives you: {curse} → flipped: {boon},每砍中一刀給自己：{curse} → 反轉：{boon}
-GEAR_WORN,While worn: {curse} → flipped: {boon},戴著的時候：{curse} → 反轉：{boon}
+GEAR_ON_HIT,Every hit you land gives you: {boon},每砍中一刀給自己：{boon}
+GEAR_WORN,While worn: {boon},戴著的時候：{boon}
 GEAR_ACTUAL_HEAL,Right now: +{n} HP per second,實際：每秒回血 +{n}
 GEAR_ACTUAL_HURT,Right now: −{n} HP per second,實際：每秒扣血 −{n}
 GEAR_ACTUAL_WAIT,Right now: kicking in…,實際：生效中……
@@ -409,3 +409,23 @@ GEAR_SPLIT_BLADE,Ominous Split Blade,【不祥的裂刃】
 GEAR_SPLIT_BLADE_DESC,Cursed. It drains the wielder with every cut.,受詛咒的刀。每砍一刀都在吸拿的人。
 GEAR_PAIN_RING,Rusty Ring of Ache,【生鏽的痛覺戒指】
 GEAR_PAIN_RING_DESC,Makes every wound sting. Cheaper than its own box.,戴著會讓傷口一直作痛。便宜到比空盒還便宜。
+SPK_MERCHANT,Street-end Peddler,街尾的商人
+HINT_TALK_MERCHANT,{key} Talk to the peddler,{key} 跟商人說話
+DLG_CH1_RING_001,Bargain bin! A ring that makes every wound sting — took it in for less than the empty box.,便宜貨！戴著會讓傷口一直作痛的戒指——收來的時候比空盒還便宜。
+DLG_CH1_RING_002,"Nobody wears it more than a minute. Hurts, apparently.",沒有人戴超過一分鐘。聽說很痛。
+DLG_CH1_RING_003,Five coppers. Want to try it on first?,五枚銅幣。要不要先戴戴看？
+DLG_CH1_RING_CHOICE_TRY,Let me try it on.,戴戴看。
+DLG_CH1_RING_CHOICE_NO,Maybe later.,下次吧。
+DLG_CH1_RING_TRY,Go on. Open your gear and see for yourself.,戴吧。打開裝備自己看。
+DLG_CH1_RING_NO,Suit yourself. It'll still be here — nobody else wants it.,隨你。反正也沒別人要。
+DLG_CH1_RINGBUY_001,"Well? Hurts, doesn't it?",怎麼樣？很痛吧？
+DLG_CH1_RINGBUY_002,...It doesn't hurt. I'm actually healing.,……不痛。反而在回血。
+DLG_CH1_RINGBUY_003,"Huh!? ...Never mind, I don't want to know.",哈！？……算了，我不想知道。
+DLG_CH1_RINGBUY_004,Five coppers. Yours or mine?,五枚銅幣。要還是不要？
+DLG_CH1_RINGBUY_CHOICE_BUY,I'll take it. (5 coppers),我買了。（五枚銅幣）
+DLG_CH1_RINGBUY_CHOICE_POOR,...I'm a little short.,……錢不太夠。
+DLG_CH1_RINGBUY_CHOICE_BACK,I'll give it back.,還給你。
+DLG_CH1_RINGBUY_BUY,Sold. Don't bring it back crying.,成交。痛了可別拿回來哭。
+DLG_CH1_RINGBUY_POOR,Then hand it over. Come back when you've got coin.,那先還我。有錢再來。
+DLG_CH1_RINGBUY_BACK,Figured. Nobody keeps it.,我就知道。沒人留著它。
+Q_CH1_LIST_RING,Try on the cursed ring at the street end,試戴街尾的詛咒戒指

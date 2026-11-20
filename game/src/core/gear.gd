@@ -60,6 +60,12 @@ func coins() -> int:
 	return int(state.get_flag(COINS_FLAG, int(data.get("start_coins", 0))))
 
 
+## 把開局的零錢寫進旗標（對話的條件「錢夠不夠」是讀旗標的；已經有就不動）
+func ensure_coins() -> void:
+	if state.get_flag(COINS_FLAG) == null:
+		state.set_flag(COINS_FLAG, coins())
+
+
 func add_coins(amount: int) -> void:
 	state.set_flag(COINS_FLAG, maxi(coins() + amount, 0))
 

@@ -43,7 +43,7 @@ func _ready() -> void:
 	_panel.custom_minimum_size = Vector2(PANEL_W, 0)
 	_panel.anchor_left = 1.0
 	_panel.anchor_right = 1.0
-	_panel.anchor_top = 0.12
+	_panel.anchor_top = 0.17
 	_panel.offset_left = -PANEL_W - 48.0
 	_panel.offset_right = -48.0
 	add_child(_panel)
@@ -193,7 +193,7 @@ func _owns_any(g: Gear) -> bool:
 	return false
 
 
-## 「戴著時：刺痛 → 反轉：痛覺回饋」：詛咒是紅字的名字、反轉之後的名字（諾恩身上一律反轉）
+## 「戴著的時候：刺痛 → 回血」：每一種狀態反轉之後的寫法（諾恩身上一律反轉；reversed_key 本身就寫成「原本 → 變成」）
 func _curse_line(rules: StatusRules, source_id: String, prefix_key: String) -> String:
 	var names: PackedStringArray = []
 	var flipped: PackedStringArray = []
@@ -210,7 +210,7 @@ func _curse_line(rules: StatusRules, source_id: String, prefix_key: String) -> S
 		src = str(s.get("also", ""))
 	if names.is_empty():
 		return ""
-	return tr(prefix_key).format({"curse": "、".join(names), "boon": "、".join(flipped)})
+	return tr(prefix_key).format({"boon": "、".join(flipped)})
 
 
 ## 戴著的飾品實際上每秒回多少血（身上那個狀態現在的強度；諾恩沒有反轉時是扣血）

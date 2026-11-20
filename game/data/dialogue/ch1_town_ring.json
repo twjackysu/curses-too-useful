@@ -1,0 +1,49 @@
+{
+  "id": "ch1_town_ring",
+  "start": "m00",
+  "nodes": {
+    "m00": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RING_001",
+      "emote": "sparkle",
+      "act": "point",
+      "shot": "two",
+      "next": "m01"
+    },
+    "m01": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RING_002",
+      "act": "shrug",
+      "next": "ask"
+    },
+    "ask": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RING_003",
+      "choices": [
+        {
+          "text": "DLG_CH1_RING_CHOICE_TRY",
+          "next": "try",
+          "do": {
+            "set": {
+              "ch1.ring_try": true
+            }
+          }
+        },
+        {
+          "text": "DLG_CH1_RING_CHOICE_NO",
+          "next": "no"
+        }
+      ]
+    },
+    "try": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RING_TRY",
+      "act": "nod"
+    },
+    "no": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RING_NO",
+      "emote": "gloom"
+    }
+  }
+}

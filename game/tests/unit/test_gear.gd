@@ -83,7 +83,7 @@ func test_panel_shows_the_slots_and_toggles_the_ring() -> void:
 	s.state.items["pain_ring"] = 1
 	assert_eq(panel.toggle_accessory(), "pain_ring", "戴上")
 	assert_eq(panel.text_of("AccessoryName"), tr("GEAR_PAIN_RING"))
-	assert_true(panel.text_of("AccessoryCurse").contains(tr("STATUS_ACHE")), "寫著詛咒")
+	assert_true(panel.text_of("AccessoryCurse").contains(tr("STATUS_ACHE_REVERSED")), "寫著詛咒反轉成什麼")
 	assert_eq(panel.toggle_accessory(), "", "拿下")
 	panel.close()
 	assert_false(bool(_game().call("is_player_locked")))

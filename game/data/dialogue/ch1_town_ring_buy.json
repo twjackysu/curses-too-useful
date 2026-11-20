@@ -1,0 +1,72 @@
+{
+  "id": "ch1_town_ring_buy",
+  "start": "b00",
+  "nodes": {
+    "b00": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RINGBUY_001",
+      "emote": "question",
+      "next": "b01"
+    },
+    "b01": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_RINGBUY_002",
+      "emote": "sparkle",
+      "act": "fist",
+      "shot": "two",
+      "next": "b02"
+    },
+    "b02": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RINGBUY_003",
+      "emote": "shock",
+      "next": "ask"
+    },
+    "ask": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RINGBUY_004",
+      "choices": [
+        {
+          "text": "DLG_CH1_RINGBUY_CHOICE_BUY",
+          "next": "buy",
+          "if": {
+            "flag": "noen.coins",
+            "gte": 5
+          },
+          "do": {
+            "set": {
+              "ch1.ring_buy": true
+            }
+          }
+        },
+        {
+          "text": "DLG_CH1_RINGBUY_CHOICE_POOR",
+          "next": "poor",
+          "if": {
+            "flag": "noen.coins",
+            "lt": 5
+          }
+        },
+        {
+          "text": "DLG_CH1_RINGBUY_CHOICE_BACK",
+          "next": "back"
+        }
+      ]
+    },
+    "buy": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RINGBUY_BUY",
+      "act": "nod"
+    },
+    "poor": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RINGBUY_POOR",
+      "emote": "gloom"
+    },
+    "back": {
+      "speaker": "SPK_MERCHANT",
+      "text": "DLG_CH1_RINGBUY_BACK",
+      "act": "shrug"
+    }
+  }
+}

@@ -55,6 +55,13 @@
       "hint": "Q_CH1_HINT_MOVE",
       "checkpoint": "ch1_town",
       "marker": "node:Pharmacy",
+      "checklist": [
+        {
+          "text": "Q_CH1_LIST_RING",
+          "flag": "ch1.ring_tried",
+          "optional": true
+        }
+      ],
       "done_when": {
         "flag": "ch1.basket_delivered"
       }
@@ -65,6 +72,13 @@
       "hint": "Q_CH1_HINT_MOVE",
       "checkpoint": "ch1_town_gate",
       "marker": "node:EastGate",
+      "checklist": [
+        {
+          "text": "Q_CH1_LIST_RING",
+          "flag": "ch1.ring_tried",
+          "optional": true
+        }
+      ],
       "done_when": {
         "flag": "ch1.town_left"
       }
