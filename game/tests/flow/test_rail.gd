@@ -349,43 +349,78 @@ func test_chopping_the_tree_or_wedging_the_shield_also_works_and_survives_reload
 	assert_eq(rail.rescue.ramp, "tree", "砍了三刀倒了")
 
 
-## 「會走的金光」：狼徑那一群的第一隻嘴邊有一點金光；打倒牠，金屬掉在地上；撿起來 → 齒痕往毒沼去。地上成對的齒痕一直都在。
-## 那一群已經打倒的存檔讀進來：金屬在狼徑的空地上
-func test_glint_wolf_drops_the_metal_and_tooth_marks_lead_to_the_chest() -> void:
+## 「會走的金光」：野果灌木旁一隻嘴邊發金光的狼，不打人。諾恩走近牠才沿著路線小跑；跟丟了牠停下來等；經過路邊的野果停下來聞；
+## 跟到詛咒寶箱前面，牠把金屬吐在地上、不見 → 撿起來看。地上成對的齒痕沿著同一條路線
+func test_glint_wolf_leads_norn_to_the_cursed_chest() -> void:
 	var level: CorruptForest = _load_exploring()
 	var s: GameSession = _session()
 	var explore: ForestExplore = level.explore
 	var hud: Hud = level.get_node("Hud") as Hud
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	level.sera.set_physics_process(false)
 	await _frames(2)
 	var marks: MultiMeshInstance3D = level.get_node("GlintMarks") as MultiMeshInstance3D
 	var spots: Array[Vector3] = ForestExplore.glint_spots()
 	assert_true(spots.size() >= 16 and spots.size() % 2 == 0 and marks.multimesh.instance_count == spots.size(), "成對的齒痕（%d 個）" % spots.size())
-	assert_true(spots[0].distance_to(ForestMap.at(ForestMap.WOLVES)) < 8.0, "從狼徑開始")
-	assert_true(spots[spots.size() - 1].distance_to(ForestExplore.CHEST_POS) < 6.0, "最後一對在寶箱附近（%.1f m）" % spots[spots.size() - 1].distance_to(ForestExplore.CHEST_POS))
-	for p: Vector3 in spots:
-		assert_eq(ForestMap.keep_inside(p), p, "齒痕在走得到的地方")
-	var wolf: EnemyActor = explore.glint_wolf
-	assert_true(wolf is MiasmaWolf and wolf.get_node_or_null("Glint") is OmniLight3D, "齒間卡著金屬的狼：嘴邊一點金光")
-	assert_true(explore.glint_shard == null)
-	var died_at: Vector3 = wolf.global_position
-	wolf.health.apply_damage(99999.0, {})
-	await _frames(3)
-	assert_not_null(explore.glint_shard, "打倒牠：金屬掉在地上")
-	assert_true(explore.glint_shard.global_position.distance_to(died_at) < 1.5)
-	explore.glint_shard.use(level.get_node("Player") as PlayerController)
+	assert_true(spots[spots.size() - 1].distance_to(ForestExplore.CHEST_POS) < 6.0, "最後一對在寶箱附近")
+	for p: Vector3 in spots + ForestExplore.GLINT_TRAIL:
+		assert_eq(ForestMap.keep_inside(p), p, "齒痕與路線在走得到的地方")
+	var wolf: GlintWolf = explore.glint_wolf
+	assert_true(wolf != null and wolf.get_node_or_null("Glint") is OmniLight3D, "嘴邊一點金光")
+	assert_false(wolf.is_in_group("enemies"), "不是敵人（不咬人、自動攻擊不會去砍牠）")
+	assert_true(wolf.global_position.distance_to(ForestExplore.BUSH_SPOTS[2]) < 3.0, "一開始在狼徑旁的野果灌木邊")
+	var start: Vector3 = wolf.global_position
+	await _frames(30)
+	assert_true(wolf.global_position.distance_to(start) < 0.01 and not wolf.started, "諾恩還很遠：牠不動")
+	# 走近：牠開始跑。一路跟著（每幀把諾恩放在牠後面幾公尺）
+	var sniffed: bool = false
+	var frames: int = 0
+	while explore.glint_shard == null and frames < 2400:
+		player.global_position = wolf.global_position + Vector3(0, 0.05, 5.0) if is_instance_valid(wolf) else player.global_position
+		await tree.physics_frame
+		frames += 1
+		if is_instance_valid(wolf) and wolf.is_sniffing():
+			sniffed = true
+			assert_true(wolf.global_position.distance_to(ForestExplore.GLINT_BUSH) < 3.0, "停在路邊那叢野果旁聞")
+	assert_true(sniffed, "經過野果灌木停下來聞（讓人跟得上）")
+	assert_not_null(explore.glint_shard, "跟到底：金屬吐在地上（%d 幀）" % frames)
+	assert_true(explore.glint_shard.global_position.distance_to(ForestExplore.CHEST_POS) < 3.0, "就在詛咒寶箱前面")
+	await _frames(int(GlintWolf.FLEE_SEC * 60.0) + 5)
+	assert_false(is_instance_valid(wolf), "牠鑽進霧裡不見了")
+	explore.glint_shard.use(player)
 	assert_true(bool(s.state.get_flag(ForestExplore.FLAG_GLINT, false)))
-	assert_eq(hud.center_lines(), PackedStringArray(["CH1_GLINT_LINE1", "CH1_GLINT_LINE2"]), "齒痕往毒沼去")
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_GLINT_LINE1", "CH1_GLINT_LINE2"]))
 	await _frames(2)
 	assert_true(explore.glint_shard == null, "撿走了")
-	# 那一群打倒了、金屬還沒撿的存檔
+
+
+## 跟丟了牠停下來等；路上砍牠一下，金屬掉在原地、牠跑掉。撿過金屬的存檔沒有這隻狼
+func test_glint_wolf_waits_when_lost_and_drops_the_metal_when_hit() -> void:
+	var level: CorruptForest = _load_exploring()
+	var explore: ForestExplore = level.explore
+	var player: PlayerController = level.get_node("Player") as PlayerController
+	level.sera.set_physics_process(false)
+	await _frames(2)
+	var wolf: GlintWolf = explore.glint_wolf
+	player.global_position = wolf.global_position + Vector3(0, 0.05, 6.0)
+	await _frames(60)
+	assert_true(wolf.started and wolf.global_position.distance_to(ForestExplore.GLINT_TRAIL[0]) > 2.0, "走近：牠跑起來了")
+	player.global_position = ForestMap.at(ForestMap.GLADE) + Vector3(0, 0.05, 0)
+	await _frames(5)
+	var waiting_at: Vector3 = wolf.global_position
+	await _frames(60)
+	assert_true(wolf.global_position.distance_to(waiting_at) < 0.01, "諾恩離太遠：牠停下來等")
+	assert_true(wolf.is_in_group("damageable"), "砍得到")
+	wolf.health.apply_damage(10.0, {})
+	assert_not_null(explore.glint_shard, "被砍到：金屬掉在原地")
+	assert_true(explore.glint_shard.global_position.distance_to(waiting_at) < 1.0)
+	assert_true(wolf.gone)
 	level.free()
-	s.set_flag(ForestExplore.FLAG_GLINT, false)
-	s.set_flag(ForestExplore.pack_flag(ForestExplore.GLINT_PACK), true)
+	_session().set_flag(ForestExplore.FLAG_GLINT, true)
 	_level = (load(LEVEL) as PackedScene).instantiate() as CorruptForest
 	tree.root.add_child(_level)
 	await _frames(2)
-	assert_not_null(_level.explore.glint_shard, "讀檔：金屬在狼徑的空地上")
-	assert_true(_level.explore.glint_shard.global_position.distance_to(ForestMap.at(ForestMap.WOLVES)) < 4.0)
+	assert_true(_level.explore.glint_wolf == null and _level.get_node_or_null("GlintWolf") == null, "撿過金屬：沒有這隻狼")
 
 
 ## 增補稿在別的段落加的幾句（照旗標換台詞）：公會的止血棉與「你剛剛用哪隻手？」、試戴過戒指的人在瘴氣裡那一句、

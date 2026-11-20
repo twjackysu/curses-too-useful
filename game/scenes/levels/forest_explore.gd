@@ -60,13 +60,15 @@ const PACKS: Dictionary = {
 	"rail_top": [["wolf", 68.2, -32.6]],
 	"rail_mud": [["treant", 60.8, -52.9]],
 }
-## 「會走的金光」（增補稿，阿展說的）：狼徑那一群的第一隻，齒間卡著一截發光的金屬（嘴邊一點金光）。打倒牠，金屬掉在地上
-## （GlintShard，走近撿起來看）；地上成對的發光齒痕（GlintMarks）從狼徑一路到毒沼的詛咒寶箱，走丟了照著找
-const GLINT_PACK: String = "wolves"
+## 「會走的金光」（增補稿，阿展說的；GlintWolf）：齒間卡著一截發光金屬的狼，不打人——諾恩走近牠就沿著 GLINT_TRAIL 小跑，
+## 經過野果灌木（GLINT_SNIFF 的那幾個點）停下來聞、離太遠回頭等，走到詛咒寶箱前面把金屬吐在地上（GlintShard，走近撿起來看）。
+## 路上砍牠一下金屬就掉在原地。地上成對的發光齒痕（GlintMarks）沿著同一條路線，走丟了照著找
 const FLAG_GLINT: String = "ch1.glint_found"
-const GLINT_COLOR: Color = Color(1.0, 0.8, 0.3)
-## 齒痕沿著這幾個點走（最後一段到寶箱前面）、每隔幾公尺一對
-const GLINT_TRAIL: Array[Vector3] = [Vector3(26.0, 0, -47.5), Vector3(33.5, 0, -56.0), Vector3(40.5, 0, -64.5), Vector3(44.4, 0, -68.3)]
+const GLINT_COLOR: Color = GlintWolf.GLINT_COLOR
+## 路線：狼徑旁的野果灌木邊（牠一開始在這裡聞）→ 往毒沼的路上 → 路邊另一叢野果（GLINT_BUSH）→ 毒沼 → 寶箱前面；齒痕每隔幾公尺一對
+const GLINT_TRAIL: Array[Vector3] = [Vector3(28.4, 0, -39.4), Vector3(31.5, 0, -48.0), Vector3(33.5, 0, -56.0), Vector3(40.5, 0, -64.5), Vector3(44.4, 0, -68.3)]
+const GLINT_SNIFF: PackedInt32Array = [2]
+const GLINT_BUSH: Vector3 = Vector3(35.3, 0, -55.2)
 const GLINT_STEP: float = 2.6
 ## 營火（劇本的營火休息事件）：休息＝補滿血、存檔、之後從這裡重來；第一次休息席菈講她的過去（對話 ch1_campfire），
 ## 講完解鎖連攜（旗標 sera.duo_unlocked）：向她要的煙霧彈換成多調一份麻痺的 DUO_SOURCE
@@ -150,8 +152,8 @@ var _regrow: PackedFloat32Array = []
 ## 每一叢被吃掉的那一顆果子（長回來之前看不到；null＝都還在）
 var _eaten: Array[Node3D] = []
 var _gate_bark_in: float = 0.0
-## 齒間卡著金屬的那隻狼、掉在地上的那截金屬（還沒掉＝null）
-var glint_wolf: EnemyActor
+## 齒間卡著金屬的那隻狼（撿到金屬之後就沒有了）、掉在地上的那截金屬（還沒掉＝null）
+var glint_wolf: GlintWolf
 var glint_shard: Interactable
 ## 走到祭壇路口之後的地點卡（播完換到祭壇那一關；測試叫 card.finish()）
 var card: ChapterCard
@@ -791,9 +793,6 @@ func _tick_packs() -> void:
 				_burst_on = ""
 				App.burst_start_in(1)
 				break
-	if glint_shard == null and glint_wolf != null and (not is_instance_valid(glint_wolf) or glint_wolf.health.is_dead()):
-		_drop_glint(glint_wolf.global_position if is_instance_valid(glint_wolf) else ForestMap.at(ForestMap.WOLVES))
-		glint_wolf = null
 	for pack_id: String in packs.keys():
 		if pack_alive(pack_id) == 0:
 			packs.erase(pack_id)
@@ -805,40 +804,15 @@ func _tick_packs() -> void:
 
 func _build_glint() -> void:
 	level.add_child(glint_marks())
+	# 路邊讓牠停下來聞的那一叢野果（擺設，不能吃）
+	var bush: Node3D = ForestScenery.small_prop(ForestScenery.BUSH_MODEL, GLINT_BUSH, 2.4, false)
+	bush.name = "GlintBush"
+	level.add_child(bush)
 	if bool(Game.session.state.get_flag(FLAG_GLINT, false)):
 		return
-	var wolves: Array = packs.get(GLINT_PACK, []) as Array
-	if wolves.is_empty():
-		# 那一群已經打倒了（讀檔）：金屬掉在狼徑的空地上
-		_drop_glint(ForestMap.at(ForestMap.WOLVES) + Vector3(1.5, 0, -1.0))
-		return
-	glint_wolf = wolves[0] as EnemyActor
-	var glint := OmniLight3D.new()
-	glint.name = "Glint"
-	glint.light_color = GLINT_COLOR
-	glint.light_energy = 2.2
-	glint.omni_range = 4.5
-	glint.shadow_enabled = false
-	glint.light_volumetric_fog_energy = 3.0
-	glint.position = Vector3(0, 0.75, -0.75)
-	glint_wolf.add_child(glint)
-	glint.add_child(_glint_mesh(0.07))
-
-
-static func _glint_mesh(size: float) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.name = "Metal"
-	var box := BoxMesh.new()
-	box.size = Vector3(size * 3.2, size, size)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = GLINT_COLOR
-	mat.emission_enabled = true
-	mat.emission = GLINT_COLOR
-	mat.emission_energy_multiplier = 3.0
-	box.material = mat
-	mi.mesh = box
-	mi.rotation = Vector3(0.2, 0.5, 0.3)
-	return mi
+	glint_wolf = GlintWolf.create(GLINT_TRAIL, GLINT_SNIFF, player)
+	glint_wolf.dropped.connect(_drop_glint)
+	level.add_child(glint_wolf)
 
 
 ## 齒痕的位置（兩個一對、垂直於前進的方向；純函式）
@@ -887,7 +861,7 @@ static func glint_marks() -> MultiMeshInstance3D:
 
 func _drop_glint(at: Vector3) -> void:
 	glint_shard = Interactable.create("GlintShard", Vector3(at.x, 0.0, at.z), "HINT_PICK_GLINT", 2.2)
-	var metal: MeshInstance3D = _glint_mesh(0.09)
+	var metal: MeshInstance3D = GlintWolf.metal_mesh(0.09)
 	metal.position = Vector3(0, 0.12, 0)
 	glint_shard.add_child(metal)
 	glint_shard.add_child(_sparkles(GLINT_COLOR))
