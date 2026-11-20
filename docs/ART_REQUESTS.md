@@ -23,6 +23,7 @@ loop 自己的美術待辦（不是給 Jacky 的需求單）。來源優先順�
 | 怪物 | `boss_plague_golem`（雙足骨架；48140 面，收件檢查的上限另外開到 52000） | **在遊戲裡**（`PlagueGolem`，3.6 m） |
 | 武器 | `weapon_rusty_miasma_sword`、`weapon_alchemy_crossbow`、`weapon_ominous_split_blade` | **在遊戲裡**（諾恩右手的兩把、席菈右手） |
 | 武器 | `weapon_longsword`、`weapon_shortsword`、`weapon_axe`、`weapon_hammer`、`weapon_bow`、`weapon_staff`（都已擺正） | 還沒 |
+| 森林（佇列） | `prop_corrupt_tree_tall`、`prop_corrupt_tree_low`（高瘦、矮胖傘狀的樹） | **11/20 排進佇列、還沒產**（約 40 點）：`gen_props.sh` 已經有轉檔的那一行，`ForestScenery.TREE_MODELS` 照位置混著種（`tree_kind`）；產出來先看有沒有自帶的土丘（有的話照 `prop_corrupt_tree` 加 `--moss-below`／`--bury-rim`）、高度與隨風擺 |
 | 森林 | `prop_corrupt_tree`、`prop_glow_toxic_mushroom`、`prop_rotten_fruit_bush`、`prop_campfire_v2`、`prop_cursed_chest`、`prop_poison_vent`（只留底座）、`prop_paralysis_web_v2` | **都在遊戲裡**（腐敗之森） |
 | 祭壇 | `prop_ruined_altar`（顏色貼圖是灰的：顏色用 `ruin_stone.gdshader` 照形狀算，不重產） | **在遊戲裡**（廢棄祭壇，放大 1.7 倍） |
 | 飾品 | `prop_cursed_ring`（還沒擺正） | 還沒（⑤） |
