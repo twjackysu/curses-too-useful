@@ -100,7 +100,7 @@ static func scene_for(character_id: String) -> PackedScene:
 	var p: String = path_for(character_id)
 	if not ResourceLoader.exists(p):
 		return null
-	return load(p) as PackedScene
+	return SceneCache.scene(p)
 
 
 ## AnimationPlayer 裡對應 Puppet 狀態的動作名稱；沒有回傳空字串。

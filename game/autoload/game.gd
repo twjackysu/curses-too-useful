@@ -121,6 +121,8 @@ func go_to_level(level_id: String, instant: bool = false) -> void:
 	if not change_scenes:
 		fade.clear()
 		return
+	# 上一關用的模型場景不一直留著（同一關裡的第二棵樹、第二隻史萊姆照舊共用：SceneCache）
+	SceneCache.forget()
 	if instant:
 		fade.clear()
 		if get_tree().change_scene_to_file(path) != OK:
@@ -278,6 +280,7 @@ func back_to_title() -> void:
 	dialogue = null
 	last_level_request = TITLE_REQUEST
 	if change_scenes:
+		SceneCache.forget()
 		_change_after_fade(TITLE_SCENE, TITLE_REQUEST)
 	else:
 		fade.clear()

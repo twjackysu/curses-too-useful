@@ -9,6 +9,8 @@ const TEST_DIRS: PackedStringArray = ["res://tests/unit", "res://tests/flow"]
 const SKIP_DIRS: PackedStringArray = ["res://.godot", "res://addons"]
 ## 測試中存的設定寫到這裡（跑完刪掉），不動玩家真的 user://settings.cfg
 const TEST_SETTINGS: String = "user://settings_tests.cfg"
+## 跑完印最慢的幾個測試
+const SLOWEST: int = 8
 
 
 func _initialize() -> void:
@@ -39,6 +41,9 @@ func _run() -> void:
 	var only: String = OS.get_environment("TEST_FILTER")
 	# TEST_NAME=campfire 再只跑函式名稱含這段字的
 	var only_name: String = OS.get_environment("TEST_NAME")
+	# 每個測試花多久（真實時間）：跑完印最慢的幾個，check.sh 變慢時先看這裡
+	var took: Dictionary = {}
+	var started_all: int = Time.get_ticks_msec()
 	for path: String in test_files:
 		if not path.get_file().begins_with("test_"):
 			continue
@@ -63,9 +68,11 @@ func _run() -> void:
 			root.get_node("Settings").set("auto_attack", false)
 			# 上一個測試播完章節卡（Game 的黑幕蓋著）也不影響下一個：玩家不會被當成在過場裡
 			(root.get_node("Game").get("fade") as ScreenFade).clear()
+			var started: int = Time.get_ticks_msec()
 			case.before_each()
 			await case.call(name)
 			case.after_each()
+			took[case.current_test] = Time.get_ticks_msec() - started
 			if case.failures.is_empty():
 				passed += 1
 				print("  ok   %s" % case.current_test)
@@ -75,6 +82,7 @@ func _run() -> void:
 				print("  FAIL %s" % case.current_test)
 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SETTINGS))
+	_print_slowest(took, Time.get_ticks_msec() - started_all)
 	print("[tests] 通過 %d 個測試，問題 %d 個" % [passed, problems.size()])
 	for p: String in problems:
 		printerr("  - " + p)
@@ -103,3 +111,11 @@ func _collect(dir_path: String, ext: String, out: PackedStringArray) -> void:
 	for file: String in dir.get_files():
 		if file.ends_with(ext):
 			out.append(dir_path.path_join(file))
+
+
+func _print_slowest(took: Dictionary, total_ms: int) -> void:
+	var names: Array = took.keys()
+	names.sort_custom(func(a: Variant, b: Variant) -> bool: return int(took[a]) > int(took[b]))
+	print("[tests] 測試共 %.1f 秒；最慢的：" % (float(total_ms) / 1000.0))
+	for i: int in mini(SLOWEST, names.size()):
+		print("  %6.1f s  %s" % [float(took[names[i]]) / 1000.0, str(names[i])])

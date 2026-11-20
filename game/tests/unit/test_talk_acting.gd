@@ -130,20 +130,21 @@ func test_model_head_nods_on_top_of_the_animation() -> void:
 	var still: Array[Basis] = []
 	var moving: Array[Basis] = []
 	for i: int in 12:
-		await tree.process_frame
+		await tree.physics_frame
 		still.append(head.global_basis)
 	p.talking = true
 	for i: int in 30:
-		await tree.process_frame
+		await tree.physics_frame
 	for i: int in 12:
-		await tree.process_frame
+		await tree.physics_frame
 		moving.append(head.global_basis)
 	var diff_still: float = 0.0
 	var diff_moving: float = 0.0
 	for i: int in 11:
 		diff_still = maxf(diff_still, still[i].get_rotation_quaternion().angle_to(still[i + 1].get_rotation_quaternion()))
 		diff_moving = maxf(diff_moving, moving[i].get_rotation_quaternion().angle_to(moving[i + 1].get_rotation_quaternion()))
-	assert_true(diff_moving > diff_still + 0.004, "講話時頭動得比平常多（%.4f vs %.4f rad／幀）" % [diff_moving, diff_still])
+	# 每隔一個物理幀（1/60 秒）量一次：以前量的是每一個畫面幀，沒有算圖的時候一幀可能不到 1 ms、動得很少，測試時過時不過
+	assert_true(diff_moving > diff_still + 0.004, "講話時頭動得比平常多（%.4f vs %.4f rad／物理幀）" % [diff_moving, diff_still])
 	p.queue_free()
 	await tree.process_frame
 

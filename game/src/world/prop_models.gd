@@ -21,7 +21,7 @@ static func scene_for(name: String) -> PackedScene:
 		p = p.trim_suffix(".gltf") + ".glb"  # 建置時產生的（Tripo 的武器與物件：scripts/gen_props.sh）是單一個 .glb
 		if not ResourceLoader.exists(p):
 			return null
-	return load(p) as PackedScene
+	return SceneCache.scene(p)
 
 
 ## 照順序找第一個有的模型生出來（例：先找 Tripo 產的，沒有就用 KayKit 的）；都沒有回傳 null。
