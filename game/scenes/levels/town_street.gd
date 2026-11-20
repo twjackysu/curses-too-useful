@@ -23,6 +23,14 @@ const FLAG_RING_TRY: String = "ch1.ring_try"
 const FLAG_RING_BUY: String = "ch1.ring_buy"
 ## 試戴過戒指（右上角的清單）
 const FLAG_RING_TRIED: String = "ch1.ring_tried"
+## 籃子送到之後，門邊凳子上的席菈可以說話：她的藥單（ch1_town_sera_list）；講完「抄給我」那一個就拿到三瓶毒藥
+const SERA_LIST_DIALOGUE: String = "ch1_town_sera_list"
+const FLAG_SERA_LIST: String = "ch1.sera_list"
+const SERA_LIST_LINES: PackedStringArray = ["SERA_LIST_LINE_1", "SERA_LIST_LINE_2", "SERA_LIST_LINE_3", "SERA_LIST_LINE_4"]
+## 「那……這三瓶給你」那一句：紙上蓋一個「抄好了」
+const SERA_LIST_GIVE_LINE: String = "DLG_CH1_SLIST_COPY3"
+const LIST_PAPER: Color = Color(0.95, 0.92, 0.84)
+const LIST_INK: Color = Color(0.2, 0.16, 0.24)
 const MERCHANT_KEY: String = "SPK_MERCHANT"
 const MERCHANT_POS: Vector3 = TownScenery.MERCHANT_STALL + Vector3(0.2, 0, 1.15)
 ## 攤子上那只戒指（模型 0.07 m 高：放大一點才看得到）
@@ -39,7 +47,7 @@ const PHARMACIST_POS: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(-0.5, 0, 
 const APPRENTICE_POS: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(-1.9, 0, -0.9)
 ## 席菈：藥房門邊的凳子上（蹲著修面具的扣帶）
 const SERA_SPOT: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(2.4, 0, -0.4)
-const SERA_FACING_DEG: float = -150.0
+const SERA_FACING_DEG: float = 25.0
 ## 籃子還沒送到就走到東門：被叫住、拉回來
 const GATE_STOP_X: float = TownScenery.GATE_X - 1.2
 ## 籃子送到之後諾恩走過這裡（往東），席菈就先走了（從小路去林口）
@@ -53,6 +61,8 @@ var pharmacist: Npc
 var apprentice: Npc
 var merchant: Npc
 var merchant_use: Interactable
+var sera_use: Interactable
+var list_note: PaperNote
 var ring_prop: Node3D
 var talk_camera: TalkCamera
 var card: ChapterCard
@@ -94,6 +104,9 @@ func _ready() -> void:
 	_spawn_cast()
 	_build_interactables()
 	Game.dialogue_ended.connect(_on_dialogue_ended)
+	Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
+		if r.dialogue_id == SERA_LIST_DIALOGUE:
+			r.line_shown.connect(_on_list_line))
 	# 開局的零錢寫進旗標（對話的條件「錢夠不夠」讀旗標）
 	if s.in_story():
 		Gear.new(s.state).ensure_coins()
@@ -103,12 +116,19 @@ func _ready() -> void:
 		Game.dialogue_started.connect(func(r: DialogueRunner) -> void:
 			for i: int in talk_skip:
 				skip_line.call_deferred(r))
-	# 截圖用：`--demo=ring` 站到商人攤前、試戴戒指（裝備面板打開）
+	# 截圖用：`--demo=ring` 站到商人攤前、試戴戒指（裝備面板打開）；`--demo=list` 見下面
 	if str(args.get("demo", "")) == "ring":
 		_player.global_position = TownScenery.MERCHANT_STALL + Vector3(-0.6, 0.05, -2.2)
 		_player.yaw = deg_to_rad(160.0)
 		_player.snap_camera()
 		get_tree().create_timer(0.3).timeout.connect(try_on_ring)
+	elif str(args.get("demo", "")) == "list" and s.in_story():
+		# 截圖用：`--demo=list` 籃子送到了、站到席菈旁邊、她攤開藥單（配 `--talk-skip=N`）
+		s.set_flag(FLAG_BASKET, true)
+		_player.global_position = SERA_SPOT + Vector3(-1.2, 0.05, -1.6)
+		_player.yaw = deg_to_rad(150.0)
+		_player.snap_camera()
+		get_tree().create_timer(0.3).timeout.connect(talk_sera)
 	elif stage() == STAGE_BASKET:
 		_hud.show_center_lines("CH1_TOWN_LINE1", "CH1_TOWN_LINE2", 5.5, Hud.CENTER_LINE2_COLOR)
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
@@ -184,6 +204,7 @@ func _physics_process(delta: float) -> void:
 			if sera != null and _player.global_position.x > SERA_GOES_AHEAD_X:
 				sera.queue_free()
 				sera = null
+				_refresh_interactables()
 			if _player.global_position.x > TownScenery.LEAVE_X:
 				_leave()
 
@@ -227,13 +248,31 @@ func _build_interactables() -> void:
 	merchant_use = Interactable.create("TalkMerchant", TownScenery.MERCHANT_STALL + Vector3(0, 0, -1.2), "HINT_TALK_MERCHANT", 2.4)
 	merchant_use.used.connect(func(_by: PlayerController) -> void: talk_merchant())
 	add_child(merchant_use)
+	sera_use = Interactable.create("TalkSera", SERA_SPOT + Vector3(-0.6, 0, -1.0), "HINT_TALK_SERA", 2.2)
+	sera_use.used.connect(func(_by: PlayerController) -> void: talk_sera())
+	add_child(sera_use)
 	_refresh_interactables()
 
 
 func _refresh_interactables() -> void:
 	merchant_use.enabled = Game.session.in_story() and not _leaving
+	sera_use.enabled = Game.session.in_story() and not _leaving and sera != null and is_instance_valid(sera) and _flag(FLAG_BASKET)
 	if ring_prop != null:
 		ring_prop.visible = not Gear.new(Game.session.state).owns(RING_ID)
+
+
+## 跟門邊的席菈說話：她把調藥的記錄攤在膝上（畫面右邊那張紙），一瓶一瓶問（互動鍵；測試直接叫）
+func talk_sera() -> bool:
+	if not _talk(SERA_LIST_DIALOGUE, ["SPK_NOEN", Sera.NAME_KEY]):
+		return false
+	list_note = PaperNote.create("SERA_LIST_TITLE", SERA_LIST_LINES, LIST_PAPER, LIST_INK)
+	_hud.add_child(list_note)
+	return true
+
+
+func _on_list_line(_speaker: String, text_key: String) -> void:
+	if text_key == SERA_LIST_GIVE_LINE and list_note != null and is_instance_valid(list_note):
+		list_note.stamp("SERA_LIST_STAMP")
 
 
 ## 跟街尾的商人說話（互動鍵；測試直接叫）
@@ -244,6 +283,12 @@ func talk_merchant() -> bool:
 func _on_dialogue_ended(dialogue_id: String) -> void:
 	var g := Gear.new(Game.session.state)
 	match dialogue_id:
+		SERA_LIST_DIALOGUE:
+			if list_note != null and is_instance_valid(list_note):
+				list_note.close(0.6)
+			list_note = null
+			if _flag(FLAG_SERA_LIST):
+				Game.session.autosave()
 		RING_DIALOGUE:
 			if _flag(FLAG_RING_TRY):
 				Game.session.set_flag(FLAG_RING_TRY, false)

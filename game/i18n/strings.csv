@@ -429,3 +429,26 @@ DLG_CH1_RINGBUY_BUY,Sold. Don't bring it back crying.,成交。痛了可別拿�
 DLG_CH1_RINGBUY_POOR,Then hand it over. Come back when you've got coin.,那先還我。有錢再來。
 DLG_CH1_RINGBUY_BACK,Figured. Nobody keeps it.,我就知道。沒人留著它。
 Q_CH1_LIST_RING,Try on the cursed ring at the street end,試戴街尾的詛咒戒指
+HINT_TALK_SERA,{key} Talk to Sera,{key} 跟席菈說話
+Q_CH1_LIST_SERA,Ask Sera about her potion notes,聽席菈講她的藥單
+SERA_LIST_TITLE,Sera's brewing notes,席菈的調藥記錄
+SERA_LIST_LINE_1,Crimson Venom Draught — Effect: cures numbness | Side effect: constant poisoning,【劇毒大紅水】療效：退麻　｜副作用：一直中毒
+SERA_LIST_LINE_2,"Chaos Frenzy Tonic — Effect: never tired | Side effect: can't tell friend from foe, a little bleeding",【混亂狂暴藥劑】療效：不會累　｜副作用：分不清敵我、有點流血
+SERA_LIST_LINE_3,Smoke Bomb — Effect: escape | Side effect: you can't see either,【致盲煙霧彈】療效：逃跑　｜副作用：自己也看不到
+SERA_LIST_LINE_4,█████████ (covered by her thumb),～～～～～～～～（被她的手指遮住了）
+SERA_LIST_STAMP,COPIED,抄好了
+DLG_CH1_SLIST_001,"Ah, th-this... these are my brewing notes. Every potion gets two columns.",啊、這個……是我調藥的記錄。每一瓶都有兩欄。
+DLG_CH1_SLIST_002,The left is what it's supposed to do. The right... is the side effects I added later.,左邊是療效。右邊……是我後來補寫的副作用。
+DLG_CH1_SLIST_003,Why's that last line covered?,最下面那行怎麼遮起來了？
+DLG_CH1_SLIST_004,"Th-that one says 'fixed it three times, still poisonous'... You don't need to see it!",那、那行寫的是「修正了三次還是有毒」……不用看啦！
+DLG_CH1_SLIST_ASK,...Which one do you want to hear about?,……要問哪一瓶？
+DLG_CH1_SLIST_CHOICE_RED,What's the Crimson Venom Draught?,【劇毒大紅水】是什麼？
+DLG_CH1_SLIST_CHOICE_CHAOS,And the Chaos Frenzy Tonic?,【混亂狂暴藥劑】呢？
+DLG_CH1_SLIST_CHOICE_COPY,Could you copy the side-effect column for me too?,麻煩把這欄也抄給我。
+DLG_CH1_SLIST_CHOICE_BYE,Let's get going.,走吧。
+DLG_CH1_SLIST_RED,Drink it and you're poisoned for ages... Normal people keel over.,喝了會一直中毒……普通人會倒下的那種。
+DLG_CH1_SLIST_CHAOS,You stop knowing who's who... and bleed a little. Just a little.,會分不清敵我……還有一點點流血。一點點而已。
+DLG_CH1_SLIST_COPY1,...Y-you're sure? The side-effect column?,……你、你確定？是副作用那一欄喔？
+DLG_CH1_SLIST_COPY2,Yeah. I want to know what they'll do to me.,對。我想知道它們會對我做什麼。
+DLG_CH1_SLIST_COPY3,Then... take these three. I labeled them all — the poisonous kind. You'll know when you drink one!,那……這三瓶給你。標籤都寫好了——中毒的那種，喝下去就知道了！
+DLG_CH1_SLIST_BYE,"Mm. Once the straps are fixed, I will take the back path to the forest edge!",嗯。扣帶修好我就從小路先去林口！

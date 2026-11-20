@@ -272,3 +272,45 @@ func test_giving_the_ring_back_takes_it_off() -> void:
 	assert_eq(g.accessory(), "", "還回去了")
 	assert_false(g.owns(TownStreet.RING_ID))
 	assert_eq(g.coins(), int(g.data["start_coins"]), "沒花錢")
+
+
+func test_sera_shows_her_potion_notes_and_gives_three_vials() -> void:
+	_new_game_at_town()
+	var s: GameSession = _session()
+	var level: TownStreet = _load_level()
+	await _frames(1)
+	assert_false(level.sera_use.enabled, "籃子還沒送：還不能跟她聊")
+	s.set_flag(TownStreet.FLAG_BASKET, true)
+	level.call("_refresh_interactables")
+	assert_true(level.sera_use.enabled, "籃子送到了：門邊的她可以說話")
+	assert_true(level.talk_sera())
+	assert_not_null(level.list_note, "她的調藥記錄攤在畫面右邊")
+	assert_eq(level.list_note.title_key, "SERA_LIST_TITLE")
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	var guard: int = 0
+	while runner.visible_choices.is_empty() and guard < 10:
+		guard += 1
+		runner.advance()
+	assert_eq(runner.visible_choices.size(), 4, "兩瓶、抄給我、走吧")
+	var before: int = int(s.state.get_flag("sera.affinity", 0))
+	runner.choose(2)
+	while runner.is_running() and guard < 30:
+		guard += 1
+		if runner.current_text() == TownStreet.SERA_LIST_GIVE_LINE:
+			assert_eq(level.list_note.stamp_key, "SERA_LIST_STAMP", "紙上蓋「抄好了」")
+		runner.advance()
+	assert_false(bool(_game().call("is_in_dialogue")))
+	assert_eq(int(s.state.items.get("sera_poison_vial", 0)), 3, "三瓶免費的毒藥")
+	assert_eq(int(s.state.get_flag("sera.affinity", 0)), before + 10)
+	assert_true(bool(s.state.get_flag(TownStreet.FLAG_SERA_LIST, false)))
+	assert_true(level.list_note == null, "紙收起來了")
+	# 再聊一次：不會再給
+	level.talk_sera()
+	runner = _game().get("dialogue") as DialogueRunner
+	guard = 0
+	while runner.visible_choices.is_empty() and guard < 10:
+		guard += 1
+		runner.advance()
+	assert_eq(runner.visible_choices.size(), 3, "抄過了：沒有那個選項")
+	_finish_dialogue(2)
+	assert_eq(int(s.state.items.get("sera_poison_vial", 0)), 3)

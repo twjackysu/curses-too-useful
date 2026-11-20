@@ -11,11 +11,12 @@ extends RefCounted
 ## 效果：
 ##   {"set": {"k": v, ...}, "add": {"k": n, ...}}
 ##   {"chapter": "ch1"}                    換章節（GameState.chapter；存檔與標題的「繼續」用）
+##   {"give": {"item_id": n, ...}}         給道具（GameState.items；例：席菈的三瓶毒藥）
 ##   （"start_quest" 由 QuestRunner 處理）
 
 const QUEST_DONE: String = "_done"
 const COMPARE_OPS: PackedStringArray = ["eq", "ne", "gte", "lte", "gt", "lt"]
-const EFFECT_KEYS: PackedStringArray = ["set", "add", "start_quest", "chapter"]
+const EFFECT_KEYS: PackedStringArray = ["set", "add", "start_quest", "chapter", "give"]
 
 
 static func check(cond: Dictionary, state: GameState) -> bool:
@@ -63,6 +64,9 @@ static func apply(effects: Dictionary, state: GameState) -> void:
 			state.set_flag(key, total)
 	if effects.has("chapter"):
 		state.chapter = str(effects["chapter"])
+	var gives: Dictionary = effects.get("give", {}) as Dictionary
+	for item: String in gives:
+		state.items[item] = int(state.items.get(item, 0)) + int(gives[item])
 
 
 ## 回傳錯誤訊息；空字串代表格式正確。

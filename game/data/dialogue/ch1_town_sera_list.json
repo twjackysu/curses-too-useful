@@ -1,0 +1,109 @@
+{
+  "id": "ch1_town_sera_list",
+  "start": "s00",
+  "nodes": {
+    "s00": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_SLIST_001",
+      "emote": "sweat",
+      "head": "down",
+      "shot": "two",
+      "next": "s01"
+    },
+    "s01": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_SLIST_002",
+      "act": "point",
+      "next": "s02"
+    },
+    "s02": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_SLIST_003",
+      "emote": "question",
+      "next": "s03"
+    },
+    "s03": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_SLIST_004",
+      "emote": "blush",
+      "act": "chest",
+      "next": "ask"
+    },
+    "ask": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_SLIST_ASK",
+      "head": "down",
+      "choices": [
+        {
+          "text": "DLG_CH1_SLIST_CHOICE_RED",
+          "next": "red"
+        },
+        {
+          "text": "DLG_CH1_SLIST_CHOICE_CHAOS",
+          "next": "chaos"
+        },
+        {
+          "text": "DLG_CH1_SLIST_CHOICE_COPY",
+          "next": "copy",
+          "if": {
+            "not": {
+              "flag": "ch1.sera_list"
+            }
+          }
+        },
+        {
+          "text": "DLG_CH1_SLIST_CHOICE_BYE",
+          "next": "bye"
+        }
+      ]
+    },
+    "red": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_SLIST_RED",
+      "emote": "gloom",
+      "next": "ask"
+    },
+    "chaos": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_SLIST_CHAOS",
+      "emote": "sweat",
+      "next": "ask"
+    },
+    "copy": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_SLIST_COPY1",
+      "emote": "shock",
+      "head": "up",
+      "shot": "two",
+      "next": "copy2"
+    },
+    "copy2": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_SLIST_COPY2",
+      "act": "nod",
+      "next": "copy3"
+    },
+    "copy3": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_SLIST_COPY3",
+      "emote": "sparkle",
+      "act": "fist",
+      "do": {
+        "set": {
+          "ch1.sera_list": true
+        },
+        "add": {
+          "sera.affinity": 10
+        },
+        "give": {
+          "sera_poison_vial": 3
+        }
+      }
+    },
+    "bye": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_SLIST_BYE",
+      "act": "wave"
+    }
+  }
+}

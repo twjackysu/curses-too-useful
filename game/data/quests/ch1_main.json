@@ -74,6 +74,11 @@
       "marker": "node:EastGate",
       "checklist": [
         {
+          "text": "Q_CH1_LIST_SERA",
+          "flag": "ch1.sera_list",
+          "optional": true
+        },
+        {
           "text": "Q_CH1_LIST_RING",
           "flag": "ch1.ring_tried",
           "optional": true
