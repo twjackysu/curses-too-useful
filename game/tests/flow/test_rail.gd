@@ -167,6 +167,7 @@ func test_meeting_azhan_and_trying_the_lever_opens_two_ways() -> void:
 	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_RAIL", "左上的目標也換成車")
 	for m: Interactable in level.explore.mushrooms:
 		assert_false(m.enabled, "採滿了，剩下的不用再採")
+		assert_false((m.get_node("PickupRing") as Node3D).visible, "腳下的光圈也收掉")
 
 
 ## 帶著盾去見阿展：那一句換成盾的版本

@@ -244,6 +244,9 @@ func _physics_process(delta: float) -> void:
 	for m: Interactable in mushrooms:
 		if m != null:
 			m.enabled = open and need_more
+			# 不用再採的：腳下的光圈與光點也收掉（看起來能採、走近卻沒有提示會讓人以為壞了）
+			(m.get_node("PickupRing") as Node3D).visible = need_more
+			(m.get_node("Sparkles") as CPUParticles3D).emitting = need_more
 	_tick_traps(delta)
 	_tick_packs()
 	_tick_sera(st, open)
