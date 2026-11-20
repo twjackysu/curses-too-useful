@@ -119,6 +119,11 @@ func test_street_is_built_with_houses_shops_and_the_east_gate() -> void:
 	assert_true((level.get_node("Sun") as DirectionalLight3D).shadow_enabled)
 	var we: WorldEnvironment = level.get_node("WorldEnvironment") as WorldEnvironment
 	assert_eq(we.environment.background_mode, Environment.BG_SKY, "白天的天空")
+	assert_true(we.environment.ambient_light_sky_contribution < 0.6 and we.environment.ambient_light_color.r > we.environment.ambient_light_color.b, "環境光不全照天空（影子不會一片藍）")
+	for wall: String in ["TownWallN", "TownWallS", "TownWallW"]:
+		assert_not_null(scenery_root.get_node_or_null("EastGateArch/" + wall), "城牆 %s" % wall)
+	var south_wall: MeshInstance3D = scenery_root.get_node("EastGateArch/TownWallS") as MeshInstance3D
+	assert_true(south_wall.position.z - TownScenery.WALL_THICK * 0.5 >= TownScenery.YARD.end.y - 0.01, "城牆在後院的圍籬外面")
 	assert_eq(level.scenery.lamps.size(), 0, "白天壁燈不點")
 	assert_eq(float(_facade(level, "HouseN1").get_shader_parameter("dusk")), 0.0, "白天的窗照舊")
 	assert_true(level.scenery.pot_steam == null and level.get_node_or_null("Scenery/StallLantern") == null, "白天麵攤沒有蒸氣與燈籠（湯還沒煮開）")
@@ -405,6 +410,9 @@ func test_cellar_with_the_lamp_lures_them_out_one_by_one() -> void:
 	var player: PlayerController = _player()
 	assert_true(TownScenery.is_in_cellar(player.global_position))
 	assert_false(player.peaceful, "地下室裡可以出手")
+	var env: Environment = (level.get_node("WorldEnvironment") as WorldEnvironment).environment
+	assert_true(is_equal_approx(env.ambient_light_energy, TownScenery.CELLAR_AMBIENT_ENERGY), "地下室裡環境光很暗（只剩油燈）")
+	assert_eq(env.ambient_light_sky_contribution, 0.0, "不照天空")
 	assert_eq(level.hiding.size(), 3, "三團縮在鐵網後面")
 	assert_true(level.lamp_use.enabled)
 	assert_true(level.valve_use.enabled)
@@ -426,6 +434,7 @@ func test_cellar_with_the_lamp_lures_them_out_one_by_one() -> void:
 		await tree.physics_frame
 	assert_false(level.in_cellar)
 	assert_true(player.peaceful)
+	assert_true(is_equal_approx(env.ambient_light_energy, TownScenery.DAY_AMBIENT_ENERGY), "回到街上：環境光換回來")
 	assert_true(level.talk_vendor())
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(runner.current_text(), "DLG_CH1_NOODLE_REPORT_LAMP")

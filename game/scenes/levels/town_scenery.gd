@@ -6,7 +6,9 @@ extends RefCounted
 ## - 房子是程式拼的盒子＋三角柱的屋頂（town_facade／town_roof 兩個 shader：灰泥、木骨架、窗都是畫的）；街上的小物是 Quaternius 的 CC0
 ##   （scripts/gen_props.sh 的 QUAT）；公會的招牌、佈告欄、門外的樹是 Tripo 的。模型檔不在的就不擺。
 ## - 房子有碰撞（第 1 層：也擋鏡頭——戶外鏡頭退到牆上就往前推，不會看進盒子裡）；走得到的範圍是幾個長方形（WALK），keep_inside 拉回來。
-## - 光：早上，太陽從東南邊斜斜照下來（有影子），天空是程式的 ProceduralSky，淡淡的霧。
+## - 光：早上，太陽從東南邊斜斜照下來（有影子），天空是程式的 ProceduralSky，淡淡的霧。環境光一半是天空、一半是暖色
+##   （全照天空的話影子與石板路一片藍）；地下室另外一套很暗的（set_cellar：天花板擋得住太陽、擋不住環境光）。
+## - 街的四周一圈城牆（房子後面；從房子之間的縫與後院看出去是牆，不是地平線）。
 ##   傍晚（回程）：太陽從西邊低低地照過來，房子的窗一扇一扇亮起來（town_facade 的 dusk）、牆上的壁燈點著（白天不點）。
 
 ## 街的半寬（兩邊房子的正面在 ±STREET_HALF）
@@ -73,6 +75,7 @@ const WOOD_SHADER: Shader = preload("res://src/world/guild_wood.gdshader")
 const FACADE_SHADER: Shader = preload("res://src/world/town_facade.gdshader")
 const ROOF_SHADER: Shader = preload("res://src/world/town_roof.gdshader")
 const GROUND_SHADER: Shader = preload("res://src/world/town_ground.gdshader")
+const WALL_SHADER: Shader = preload("res://src/world/town_wall.gdshader")
 const SIGN_MODEL: String = "tripo/prop_guild_signboard"
 const BOARD_MODEL: String = "tripo/prop_guild_quest_board"
 const TREE_MODEL: String = "tripo/prop_corrupt_tree"
@@ -82,6 +85,18 @@ const AWNING_RED: Color = Color(0.72, 0.3, 0.24)
 const SUN_DIR: Vector3 = Vector3(-0.55, -0.62, -0.56)
 ## 傍晚（回程，TownStreet 的 return_pharmacy 階段）：太陽從西邊低低地照過來
 const DUSK_SUN_DIR: Vector3 = Vector3(0.82, -0.3, -0.36)
+## 環境光：白天天空佔幾成（其餘是 DAY_AMBIENT 這個暖色）、多亮；地下室裡的（不看天空，只有一點暖灰）
+const DAY_SKY_SHARE: float = 0.45
+const DAY_AMBIENT: Color = Color(1.0, 0.9, 0.76)
+const DAY_AMBIENT_ENERGY: float = 0.55
+const DUSK_AMBIENT_ENERGY: float = 0.42
+const CELLAR_AMBIENT: Color = Color(0.5, 0.42, 0.36)
+const CELLAR_AMBIENT_ENERGY: float = 0.3
+## 城牆（房子後面一圈）：內側在街的中線往南北各多遠、西邊到哪、多高
+const WALL_Z: float = 17.5
+const WALL_WEST_X: float = -22.0
+const WALL_HEIGHT: float = 4.4
+const WALL_THICK: float = 1.4
 
 ## 麵攤的鍋；傍晚（回程）鍋煮開了——蒸氣、鍋底的火光，遮雨棚前緣掛出紅燈籠（整個攤子是暖的）
 const POT_POS: Vector3 = NOODLE_STALL + Vector3(-2.4, 0, -0.6)
@@ -101,6 +116,7 @@ var dusk: bool = false
 var lamps: Array[CandleFlame] = []
 ## 麵攤鍋上的蒸氣（傍晚才有）
 var pot_steam: CPUParticles3D
+var _env: Environment
 var _root: Node3D
 ## 每一棟房子（節點名 → 那個節點）：測試看
 var buildings: Dictionary = {}
@@ -186,7 +202,8 @@ func _build_environment(level: Node3D) -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.42 if dusk else 0.55
+	_env = env
+	set_cellar(false)
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.0
@@ -229,11 +246,25 @@ func _build_ground() -> void:
 	mat.shader = GROUND_SHADER
 	mat.set_shader_parameter("street_half", STREET_HALF)
 	mat.set_shader_parameter("gate_x", GATE_X)
+	mat.set_shader_parameter("yard", Vector4(YARD.position.x, YARD.position.y + 1.6, YARD.end.x, YARD.end.y))
+	mat.set_shader_parameter("alley", Vector4(WALK[1].position.x - 1.0, 0.0, WALK[1].end.x + 0.6, YARD.position.y + 1.6))
 	plane.material = mat
 	mi.mesh = plane
 	mi.position = Vector3(25.0, 0, 0)
 	body.add_child(mi)
 	_root.add_child(body)
+
+
+## 在地下室裡嗎：環境光換成很暗的一點暖灰（只剩油燈與梯子口的光）；回到街上換回來。傍晚照舊全照天空（紫色的影子是那時候要的）
+func set_cellar(on: bool) -> void:
+	if on:
+		_env.ambient_light_color = CELLAR_AMBIENT
+		_env.ambient_light_sky_contribution = 0.0
+		_env.ambient_light_energy = CELLAR_AMBIENT_ENERGY
+	else:
+		_env.ambient_light_color = DAY_AMBIENT
+		_env.ambient_light_sky_contribution = 1.0 if dusk else DAY_SKY_SHARE
+		_env.ambient_light_energy = DUSK_AMBIENT_ENERGY if dusk else DAY_AMBIENT_ENERGY
 
 
 ## 一棟房子：盒子（牆）＋三角柱（屋頂，屋脊順著街），南側的轉 180°（正面一律是本地的 +Z）
@@ -579,9 +610,8 @@ func _build_merchant() -> void:
 
 ## 東門：兩座石塔、上面一道木頭的門楣、兩片開到底的門板；門外兩排樹（往森林的路）
 func _build_gate() -> void:
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.62, 0.6, 0.56)
-	stone.roughness = 0.95
+	var stone := ShaderMaterial.new()
+	stone.shader = WALL_SHADER
 	var gate := Node3D.new()
 	gate.name = "EastGateArch"
 	_root.add_child(gate)
@@ -601,10 +631,13 @@ func _build_gate() -> void:
 		cone.position = Vector3(0, 4.3, 0)
 		tower.add_child(cone)
 		_block("TowerBlock%s" % ("N" if side < 0 else "S"), Vector3(2.4, 6.4, 2.4), Vector3(GATE_X, 3.2, side * (GATE_HALF + 1.2)))
-		# 城牆往兩邊接到房子後面
-		_box(gate, "Wall%s" % ("N" if side < 0 else "S"), Vector3(1.4, 4.4, 12.0), Vector3(GATE_X, 2.2, side * (GATE_HALF + 8.4)), stone)
+		# 城牆往兩邊接到房子後面，再沿著房子後面繞到西頭（WALL_Z）：從房子之間的縫、藥房後院看出去是牆
+		var east_len: float = WALL_Z + WALL_THICK - GATE_HALF - 2.4
+		_box(gate, "Wall%s" % ("N" if side < 0 else "S"), Vector3(WALL_THICK, WALL_HEIGHT, east_len), Vector3(GATE_X, WALL_HEIGHT * 0.5, side * (GATE_HALF + 2.4 + east_len * 0.5)), stone)
+		_box(gate, "TownWall%s" % ("N" if side < 0 else "S"), Vector3(GATE_X - WALL_WEST_X, WALL_HEIGHT, WALL_THICK), Vector3((GATE_X + WALL_WEST_X) * 0.5, WALL_HEIGHT * 0.5, side * (WALL_Z + WALL_THICK * 0.5)), stone)
 		_box(gate, "GateLeaf%s" % ("N" if side < 0 else "S"), Vector3(2.6, 4.0, 0.14), Vector3(GATE_X + 1.3, 2.0, side * (GATE_HALF - 0.1)), wood(Color(0.36, 0.22, 0.12), Vector3(0, 1, 0), 0.24))
 	_box(gate, "Lintel", Vector3(1.6, 0.9, GATE_HALF * 2.0 + 0.6), Vector3(GATE_X, 5.4, 0), wood(Color(0.3, 0.19, 0.11), Vector3(0, 0, 1)))
+	_box(gate, "TownWallW", Vector3(WALL_THICK, WALL_HEIGHT, (WALL_Z + WALL_THICK) * 2.0), Vector3(WALL_WEST_X - WALL_THICK * 0.5, WALL_HEIGHT * 0.5, 0), stone)
 	# 門外的路兩邊：森林那邊的樹（遠遠看得到往哪裡走）
 	# 從街上穿過門洞看得到路兩邊的樹（門洞只有 ±GATE_HALF 寬：近的種在路邊、遠的往兩邊散開）
 	for i: int in 10:
@@ -728,7 +761,7 @@ func _build_cellar() -> void:
 	var hatch := OmniLight3D.new()
 	hatch.name = "HatchLight"
 	hatch.light_color = Color(0.9, 0.92, 1.0)
-	hatch.light_energy = 0.8
-	hatch.omni_range = 4.0
+	hatch.light_energy = 1.6
+	hatch.omni_range = 4.5
 	hatch.position = CELLAR_LADDER + Vector3(0, 2.8, 0.5)
 	c.add_child(hatch)

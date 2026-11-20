@@ -128,6 +128,8 @@ const FLAG_CELLAR_DONE: String = "ch1.cellar_done"
 const FLAG_CELLAR_PAID: String = "ch1.cellar_paid"
 const NOODLE_TICKET: String = "noodle_ticket"
 const WARM_PLUG: String = "warm_mud_plug"
+## 地下室牆上那盞油燈多亮（地下室的環境光很暗，TownScenery.set_cellar：看得到東西靠這一盞；提著引黴泥時再亮一半）
+const CELLAR_LAMP_ENERGY: float = 5.0
 ## 下樓／上樓：畫面暗下去、黑著、亮回來
 const STAIRS_DIM: Vector3 = Vector3(0.3, 0.15, 0.35)
 ## 轉錯的那一次：多久之後才能再轉
@@ -286,6 +288,7 @@ func _ready() -> void:
 	elif args.has("cellar"):
 		# 截圖用：`--cellar` 一進來就在麵攤的地下室（`--demo=lure` 再引一團出來）
 		in_cellar = true
+		scenery.set_cellar(true)
 		_player.peaceful = false
 		_player.global_position = TownScenery.CELLAR_IN
 		_player.yaw = deg_to_rad(-60.0)
@@ -945,11 +948,14 @@ func _build_cellar_cast() -> void:
 		lamp.name = "CellarLamp"
 		lamp.position = lamp_at
 		add_child(lamp)
+		# 燈就在燈籠裡面、燈籠的模型是實心的：燈籠自己不投影子，不然整盞燈被它擋住（以前地下室其實只靠環境光）
+		for n: Node in lamp.find_children("*", "MeshInstance3D", true, false):
+			(n as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	lamp_light = OmniLight3D.new()
 	lamp_light.name = "CellarLampLight"
 	lamp_light.light_color = Color(1.0, 0.66, 0.34)
-	lamp_light.light_energy = 1.6
-	lamp_light.omni_range = 7.0
+	lamp_light.light_energy = CELLAR_LAMP_ENERGY
+	lamp_light.omni_range = 9.0
 	lamp_light.shadow_enabled = true
 	lamp_light.position = lamp_at + Vector3(0, 0.25, 0.8)
 	add_child(lamp_light)
@@ -1010,6 +1016,7 @@ func go_down() -> void:
 		return
 	_hud.dim_blink(STAIRS_DIM.x, STAIRS_DIM.y, STAIRS_DIM.z, func() -> void:
 		in_cellar = true
+		scenery.set_cellar(true)
 		_player.peaceful = false
 		_player.global_position = TownScenery.CELLAR_IN
 		_player.yaw = deg_to_rad(-60.0)
@@ -1025,6 +1032,7 @@ func go_up() -> void:
 		return
 	_hud.dim_blink(STAIRS_DIM.x, STAIRS_DIM.y, STAIRS_DIM.z, func() -> void:
 		in_cellar = false
+		scenery.set_cellar(false)
 		_player.peaceful = true
 		_player.global_position = TownScenery.CELLAR_DOOR + Vector3(0, 0.05, 1.6)
 		_player.yaw = deg_to_rad(180.0)
@@ -1051,7 +1059,7 @@ func lure_one() -> void:
 	add_child(lured)
 	lured.set_facing(PI)
 	lured.health.died.connect(_on_lured_died)
-	lamp_light.light_energy = 2.4
+	lamp_light.light_energy = CELLAR_LAMP_ENERGY * 1.5
 	_hud.show_bark(_player, "BARK_NOEN_LURED", 2.2, "SPK_NOEN")
 	_refresh_interactables()
 
@@ -1067,7 +1075,7 @@ func _unhide_one() -> void:
 
 
 func _on_lured_died() -> void:
-	lamp_light.light_energy = 1.6
+	lamp_light.light_energy = CELLAR_LAMP_ENERGY
 	if hiding.is_empty():
 		_finish_cellar("lamp")
 	_refresh_interactables.call_deferred()

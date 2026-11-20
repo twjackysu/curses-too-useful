@@ -219,14 +219,17 @@ jobs:
           shot 54-town-yard 40 --level=town_street --at=8,12 --cam-yaw=180 --locale=zh_TW
           shot 55-town-cellar 70 --level=town_street --cellar --demo=lure --locale=zh_TW
           shot 56-town-gate 40 --level=town_street --delivered --at=44,0 --cam-yaw=-90 --locale=zh_TW
-          # 跟 scripts/shots/rail.txt 同一組：森林的斷軌事件與回程（阿展與卡著的車／阿展那段話／坡頂的絞盤／坡底的泥灘與枯木／車停穩／傍晚的街／藥房交蕈）
+          # 跟 scripts/shots/rail.txt 同一組：森林的斷軌事件與回程（阿展與卡著的車／阿展那段話／坡頂的絞盤／坡底的泥灘與枯木／車停穩／傍晚的街／藥房交蕈／辭工單／麵攤／往公會走）
           shot 60-rail-azhan 40 --level=corrupt_forest --explore --rail=met --at=45.5,-41.2 --cam-yaw=-90 --locale=zh_TW
           shot 61-rail-talk 70 --level=corrupt_forest --explore --rail=talk --at=47.2,-40.9 --cam-yaw=-90 --talk-skip=2 --locale=zh_TW
           shot 62-rail-winch 40 --level=corrupt_forest --explore --rail=tried --at=63.6,-41.4 --cam-yaw=-20 --locale=zh_TW
           shot 63-rail-mud 40 --level=corrupt_forest --explore --rail=tree --at=54.5,-49.5 --cam-yaw=165 --locale=zh_TW
           shot 64-rail-saved 40 --level=corrupt_forest --explore --rail=saved --at=44.6,-40.6 --cam-yaw=-110 --locale=zh_TW
           shot 65-town-dusk 40 --level=town_street --return --at=24,0 --cam-yaw=90 --locale=zh_TW
-          shot 66-town-deliver 80 --level=town_street --return --at=5.5,0.4 --cam-yaw=180 --talk-skip=1 --locale=zh_TW
+          shot 66-town-deliver 80 --level=town_street --return --shield=iou --at=7.6,0.6 --cam-yaw=120 --talk-skip=1 --locale=zh_TW
+          shot 67-town-slip 80 --level=town_street --return --at=7.6,0.6 --cam-yaw=120 --talk-skip=2 --locale=zh_TW
+          shot 68-town-dusk-noodle 40 --level=town_street --return --delivered --noodle --at=14,1.2 --cam-yaw=0 --locale=zh_TW
+          shot 69-town-dusk-guild 40 --level=town_street --return --delivered --at=9,0 --cam-yaw=90 --locale=zh_TW
           ls -la build/screens
           test -n "$(ls build/screens/*.png 2>/dev/null)"
           cd build && python3 -c "import shutil; shutil.make_archive('screens', 'zip', 'screens')"
