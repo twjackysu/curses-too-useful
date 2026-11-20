@@ -64,6 +64,12 @@
 			"max_duration": 12.0,
 			"name_key": "STATUS_PETRIFY",
 			"reversed_key": "STATUS_PETRIFY_REVERSED"
+		},
+		"ache": {
+			"max_duration": 4.0,
+			"max_reversed_rate": 3.0,
+			"name_key": "STATUS_ACHE",
+			"reversed_key": "STATUS_ACHE_REVERSED"
 		}
 	},
 	"sources": {
@@ -279,6 +285,12 @@
 			"status": "bleed",
 			"rate": 5.0,
 			"duration": 5.0
+		},
+		"pain_ring": {
+			"_doc": "街尾商人的【生鏽的痛覺戒指】（增補劇本「席菈的清單與那只戒指」）：戴著就一直刺痛扣血 → 諾恩是每秒回血。戴著的時候每秒刷新一次（Gear.CURSE_REFRESH_SEC）。",
+			"status": "ache",
+			"rate": 2.0,
+			"duration": 3.0
 		}
 	},
 	"items": {

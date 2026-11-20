@@ -1,7 +1,7 @@
 class_name StatusHud
 extends Control
 ## 狀態圖示：生命條上方一列，每種狀態一格。
-## 一格＝原類型的圖示（中毒：瓶子＋骷髏點；麻痺：閃電；防禦歸零：裂開的盾；流血：一滴血；致盲：劃掉的眼睛；緩速：被纏住的靴子；衰弱：垂下來的手臂；疫病：帶刺的病菌；石化：裂開的石頭）＋反轉時右下角一個金色迴轉箭頭＋剩餘秒數，旁邊一行字
+## 一格＝原類型的圖示（中毒：瓶子＋骷髏點；麻痺：閃電；防禦歸零：裂開的盾；流血：一滴血；致盲：劃掉的眼睛；緩速：被纏住的靴子；衰弱：垂下來的手臂；疫病：帶刺的病菌；石化：裂開的石頭；刺痛：冒刺的戒指）＋反轉時右下角一個金色迴轉箭頭＋剩餘秒數，旁邊一行字
 ## 「中毒 → 回血」（反轉，金）／「中毒」（沒反轉，紅）。圖示保留原類型，看得出原本是什麼壞東西。會疊的狀態（流血）圖示右上角有一個小數字＝現在幾層。
 ## **翻面**：狀態剛上身時先是紅的；會反轉的人（StatusEffects.reverses）ReversalCue.CURSE_SEC 秒後翻成金的（跟畫面碎裂同一刻），旁邊彈一圈金光。
 ## 純顯示：refresh(effects) 每幀從玩家的 StatusEffects 讀。
@@ -20,6 +20,7 @@ const COL_BOOT: Color = Color(0.62, 0.78, 0.95)
 const COL_ARM: Color = Color(0.9, 0.72, 0.6)
 const COL_GERM: Color = Color(0.62, 0.86, 0.42)
 const COL_STONE: Color = Color(0.72, 0.73, 0.78)
+const COL_RUST: Color = Color(0.82, 0.5, 0.32)
 
 ## 翻面那一刻彈出去的金圈多久散掉、散到多大（px）
 const PULSE_SEC: float = 0.45
@@ -128,6 +129,8 @@ func _draw() -> void:
 			_draw_plague(Vector2.ZERO)
 		elif str(r["id"]) == "petrify":
 			_draw_stone(Vector2.ZERO)
+		elif str(r["id"]) == "ache":
+			_draw_ring(Vector2.ZERO)
 		if gold:
 			_draw_reverse_mark(Vector2(ICON * 0.34, ICON * 0.34))
 		draw_set_transform(Vector2.ZERO)
@@ -138,6 +141,12 @@ func _draw() -> void:
 		if bool(r["reversed"]) and since_flip >= 0.0 and since_flip < PULSE_SEC:
 			var k: float = since_flip / PULSE_SEC
 			draw_arc(c, ICON * 0.5 + PULSE_GROW * k, 0.0, TAU, 32, Color(COL_REVERSED, (1.0 - k) * 0.9), 3.0 * (1.0 - k) + 1.0)
+
+
+## 刺痛（詛咒戒指）的原圖示：一只生鏽的戒指，上面冒一根刺
+func _draw_ring(c: Vector2) -> void:
+	draw_arc(c + Vector2(0, 2.0), 6.5, 0.0, TAU, 20, COL_RUST, 3.2)
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-2.6, -4.0), c + Vector2(2.6, -4.0), c + Vector2(0.6, -11.0)]), COL_RUST)
 
 
 ## 中毒的原圖示：圓肚瓶＋瓶頸＋肚子上兩點一橫（骷髏的簡筆）

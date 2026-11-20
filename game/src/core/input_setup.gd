@@ -25,6 +25,8 @@ const BINDINGS: Dictionary = {
 	"ask_sera": [Vector2i(0, KEY_Q), Vector2i(2, JOY_BUTTON_LEFT_SHOULDER)],
 	## 換要哪一瓶（可以要的有兩瓶以上的時候）
 	"switch_sera_vial": [Vector2i(0, KEY_E), Vector2i(2, JOY_BUTTON_DPAD_UP)],
+	## 裝備面板（GearPanel）
+	"gear": [Vector2i(0, KEY_TAB), Vector2i(2, JOY_BUTTON_BACK)],
 	"pause": [Vector2i(0, KEY_ESCAPE), Vector2i(2, JOY_BUTTON_START)],
 }
 
@@ -49,6 +51,7 @@ const ACTION_KEYS: Dictionary = {
 	"use_item": "ACT_USE_ITEM",
 	"ask_sera": "ACT_ASK_SERA",
 	"switch_sera_vial": "ACT_SWITCH_SERA_VIAL",
+	"gear": "ACT_GEAR",
 	"pause": "ACT_PAUSE",
 }
 const _MOUSE_BINDABLE: Array[int] = [

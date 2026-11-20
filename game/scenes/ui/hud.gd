@@ -53,6 +53,8 @@ var reversal: ReversalOverlay
 ## 新版：可攜藥劑的數量（生命條右上方）與滿血時的確認框
 var potion: PotionHud
 var potion_confirm: PotionConfirm
+## 裝備面板（按「裝備」鍵開關）
+var gear_panel: GearPanel
 var _potion_player: PlayerController
 var _banner_tween: Tween
 ## 畫面中間的兩行字（第一次反轉：「中毒 → 回血」「落在你身上的異常狀態，全都會反轉成增益。」）
@@ -312,6 +314,8 @@ func _build() -> void:
 	potion_confirm = PotionConfirm.new()
 	add_child(potion_confirm)
 	potion_confirm.decided.connect(_on_potion_decided)
+	gear_panel = GearPanel.new()
+	add_child(gear_panel)
 
 
 ## 對話中左下那一組要往上讓多少：生命條（在畫面底下往上 142 px）的下緣到對話框上緣之間留 TALK_LIFT_GAP
@@ -343,6 +347,7 @@ func _process(delta: float) -> void:
 	if power > 0.0:
 		hint = tr(RELEASE_HINT_KEY).format({"key": InputGlyphs.label_for_action("release", App.last_device), "dmg": int(power)})
 	status.refresh(pc.status_effects if pc != null else null, PlayerController.RELEASE_STATUS, hint)
+	gear_panel.player = pc
 	reversal.refresh(pc.reversal_cue if pc != null else null)
 	# 戰鬥 HUD 的諾恩名字在 size.y-174；狀態一列 34，往上長
 	var view_h: float = get_viewport().get_visible_rect().size.y

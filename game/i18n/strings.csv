@@ -387,3 +387,25 @@ DLG_CH1_TOWN_PH_A,"Two names, then. Come back alive to collect.",好，兩個人
 DLG_CH1_TOWN_PH_B,A-a receipt... with my name on it?,收、收據……寫我的名字？
 DLG_CH1_TOWN_PH_B2,Your first one. Hold on to it.,第一張。拿好，別弄丟了。
 DLG_CH1_TOWN_PH_END,I still need to fix the mask straps... You can look around first — I'll take the back path and wait at the forest edge!,面具的扣帶我再修一下……你先去逛逛也沒關係，我會從小路先去林口等你！
+ACT_GEAR,Equipment,裝備面板
+STATUS_ACHE,Stinging ache,刺痛
+STATUS_ACHE_REVERSED,Ache → Regenerating,刺痛 → 回血
+GEAR_TITLE,Equipment,裝備
+GEAR_COINS,Coppers: {n},銅幣：{n}
+GEAR_SLOT_WEAPON,Weapon,武器
+GEAR_SLOT_ACCESSORY,Accessory,飾品
+GEAR_EMPTY,(none),（沒有）
+GEAR_TRIAL,(trying it on),（試戴中）
+GEAR_ON_HIT,Every hit gives you: {curse} → flipped: {boon},每砍中一刀給自己：{curse} → 反轉：{boon}
+GEAR_WORN,While worn: {curse} → flipped: {boon},戴著的時候：{curse} → 反轉：{boon}
+GEAR_ACTUAL_HEAL,Right now: +{n} HP per second,實際：每秒回血 +{n}
+GEAR_ACTUAL_HURT,Right now: −{n} HP per second,實際：每秒扣血 −{n}
+GEAR_ACTUAL_WAIT,Right now: kicking in…,實際：生效中……
+GEAR_HINT_TOGGLE,{key} Put on / take off,{key} 戴上／拿下
+GEAR_HINT_CLOSE,{key} Close,{key} 關閉
+GEAR_RUSTY_SWORD,Miasma-Rusted Iron Sword,【瘴氣生鏽鐵劍】
+GEAR_RUSTY_SWORD_DESC,Rusted through by miasma. It nicks whoever swings it.,被瘴氣鏽透的鐵劍。揮的人也會被它割到。
+GEAR_SPLIT_BLADE,Ominous Split Blade,【不祥的裂刃】
+GEAR_SPLIT_BLADE_DESC,Cursed. It drains the wielder with every cut.,受詛咒的刀。每砍一刀都在吸拿的人。
+GEAR_PAIN_RING,Rusty Ring of Ache,【生鏽的痛覺戒指】
+GEAR_PAIN_RING_DESC,Makes every wound sting. Cheaper than its own box.,戴著會讓傷口一直作痛。便宜到比空盒還便宜。

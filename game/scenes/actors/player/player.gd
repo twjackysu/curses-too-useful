@@ -95,6 +95,8 @@ const WEAPONS: Dictionary = {
 const DEFAULT_WEAPON: String = "rusty_sword"
 const WEAPON_FLAG: String = "noen.weapon"
 var weapon_id: String = DEFAULT_WEAPON
+## 下一次刷新詛咒飾品的狀態還有幾秒（_tick_accessory_curse）
+var _curse_t: float = 0.0
 ## 扛著重的東西時走多快的倍數（結尾扛著魔像核心回公會：GuildHall.CARRY_PACE）；1＝平常
 var burden: float = 1.0
 ## true＝這一關不能動手（公會大廳）：出手與釋放的按鍵沒有反應，閃避照常；劍收到背上
@@ -367,6 +369,7 @@ func _physics_process(delta: float) -> void:
 	_dodge_cooldown = maxf(_dodge_cooldown - delta, 0.0)
 	if not talking and Game.session.in_story() and Input.is_action_just_pressed("use_item") and not health.is_dead():
 		use_potion()
+	_tick_accessory_curse(delta)
 	var want: String = _wanted_action(delta, talking)
 	# 不用一下一下點：按住出手鍵就接著砍；自動攻擊（設定）開著的話，身邊有活著的敵人就自己出手、對準最近的那一隻
 	_auto_foe = null
@@ -500,6 +503,24 @@ func footfall(grounded: bool) -> bool:
 
 func footstep_surface() -> String:
 	return Footsteps.surface_at(self)
+
+
+## 戴著的詛咒飾品（Gear.accessory_curse）：每 Gear.CURSE_REFRESH_SEC 秒再給自己一次它的狀態（一直都在身上；諾恩是回血）
+func _tick_accessory_curse(delta: float) -> void:
+	_curse_t -= delta
+	if _curse_t > 0.0:
+		return
+	refresh_accessory_curse()
+
+
+## 馬上照現在戴著的飾品給一次（裝備面板戴上的那一刻叫；沒戴就什麼都不做）
+func refresh_accessory_curse() -> void:
+	_curse_t = Gear.CURSE_REFRESH_SEC
+	if not Game.session.in_story() or status_effects == null or health.is_dead():
+		return
+	var src: String = Gear.new(Game.session.state).accessory_curse()
+	if src != "":
+		status_effects.apply_source(src)
 
 
 ## 新版：喝可攜藥劑。回傳 PotionBelt.use 的結果；滿血時發 potion_needs_confirm（confirmed=true 再喝一次）。
