@@ -70,6 +70,8 @@ const BOWL_SCALE: float = 0.42
 const BOWL_SPOTS: Array[Vector3] = [Vector3(-0.32, 0.9, 0.3), Vector3(0.3, 0.9, 0.34)]
 const SOUP_COLOR: Color = Color(0.86, 0.62, 0.3)
 const HICCUP_EVERY: float = 1.7
+## 回程走過街上的人：走到這麼近，他開口一句（一人一次；講什麼照之前做過的事，_return_barks）
+const RETURN_BARK_DIST: float = 6.0
 const FLAG_BASKET: String = "ch1.basket_delivered"
 ## 藥錢記在誰名下：together＝「等我們兩個一起回來收」、receipt＝「給做杯子的人開張收據吧」（結尾用）
 const FLAG_LEDGER: String = "ch1.ledger"
@@ -204,6 +206,8 @@ var basket_mushrooms: Node3D
 var receipt_note: PaperNote
 var pot_blob: Node3D
 var soup_bowls: Array[Node3D] = []
+## 回程誰已經開過口了（節點名）
+var _return_barked: PackedStringArray = []
 var _leaving: bool = false
 var _gate_nag_t: float = 0.0
 
@@ -236,10 +240,11 @@ func _ready() -> void:
 			s.set_flag(FLAG_DELIVERED, true)
 		if args.has("noodle"):
 			s.set_flag(FLAG_CELLAR_WAY, "barrel")
+			s.set_flag(FLAG_CELLAR_DONE, true)
 			s.set_flag(FLAG_NOODLE_BACK, true)
 		if args.has("shield"):
 			s.set_flag(FLAG_SHIELD, str(args["shield"]))
-	scenery = TownScenery.build(self, is_return())
+	scenery = TownScenery.build(self, is_return(), _flag(FLAG_CELLAR_DONE))
 	_mark("Pharmacy", TownScenery.PHARMACY_COUNTER + Vector3(0, 0, -1.4))
 	_mark("EastGate", Vector3(TownScenery.GATE_X, 0, 0))
 	_mark("GuildDoor", TownScenery.GUILD_DOOR + Vector3(0, 0, 1.0))
@@ -635,9 +640,43 @@ func _close_note(note: PaperNote, after: float = 0.0) -> void:
 		note.close(after)
 
 
+## 回程街上的人各講哪一句：商人盯著肩上的核心；倉庫大叔（盾的事辦了／沒辦）；麵攤攤主（湯煮不開／煮開了、帶著麵票就叫他來兌）
+func _return_barks() -> Dictionary[Npc, String]:
+	var st: GameState = Game.session.state
+	var soup: String = "BARK_VENDOR_NO_BOIL"
+	if _flag(FLAG_CELLAR_DONE):
+		soup = "BARK_VENDOR_SOUP_TICKET" if int(st.items.get(NOODLE_TICKET, 0)) > 0 and not _flag(FLAG_NOODLE_BACK) else "BARK_VENDOR_SOUP"
+	return {
+		merchant: "BARK_MERCHANT_CORE",
+		uncle: "BARK_UNCLE_EVENING_THANKS" if _flag(FLAG_SHIELD_DONE) else "BARK_UNCLE_EVENING",
+		vendor: soup,
+	}
+
+
+## 回程：走過街上的人，他轉過來講一句（對話中不講）
+func _tick_return_barks() -> void:
+	if Game.is_in_dialogue():
+		return
+	var lines: Dictionary[Npc, String] = _return_barks()
+	for who: Npc in lines:
+		if str(who.name) in _return_barked or who.global_position.distance_to(_player.global_position) > RETURN_BARK_DIST:
+			continue
+		_return_barked.append(str(who.name))
+		who.face(_player.global_position)
+		_hud.show_bark(who, lines[who], 3.4, _speaker_key(who))
+
+
+func _speaker_key(who: Npc) -> String:
+	for key: String in [MERCHANT_KEY, UNCLE_KEY, VENDOR_KEY]:
+		if _speaker_node(key) == who:
+			return key
+	return ""
+
+
 ## 回程：走到藥房交蕈 → 走回公會大門，換到大廳的結尾。東門不能再出去
 func _tick_return() -> void:
 	_player.global_position.x = minf(_player.global_position.x, GATE_STOP_X)
+	_tick_return_barks()
 	if not _flag(FLAG_DELIVERED):
 		if _player.global_position.distance_to(TownScenery.PHARMACY_COUNTER + Vector3(0, 0.05, -1.2)) < PHARMACY_TALK_DIST:
 			_talk(RETURN_DIALOGUE, ["SPK_NOEN", PHARMACIST_KEY, AZHAN_KEY, APPRENTICE_KEY, Sera.NAME_KEY, CUPS_KEY])

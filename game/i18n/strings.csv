@@ -499,6 +499,12 @@ Q_CH1_LIST_CELLAR,Deal with whatever's in the noodle cellar,處理麵攤地下�
 BARK_NOEN_CELLAR,"Three of them, hugging the warm pipes... My sword can't reach through the mesh.",三團東西抱著暖管……隔著鐵網，劍搆不到。
 BARK_NOEN_LURED,It's following the warmth. Come on out.,跟著熱過來了。出來吧。
 BARK_VENDOR_TEA,This cup's done! Three more!,這杯好了！再來三杯！
+BARK_VENDOR_NO_BOIL,Still won't boil... Whatever's under the stove has been burping all day.,湯還是煮不開……灶底下那個嗝，打了一整天。
+BARK_VENDOR_SOUP,It boils! First proper pot all day!,湯滾了——今天總算煮得開！
+BARK_VENDOR_SOUP_TICKET,It boils! Those two tickets of yours — now's the time!,湯滾了！你那兩張麵票——現在兌正好！
+BARK_MERCHANT_CORE,"...That thing on your shoulder, glowing green. When you want it off your hands, see me first.",……肩上那顆會發綠光的。想脫手的時候，先來找我。
+BARK_UNCLE_EVENING,Back this late? The guild's lamps are still lit. Go on.,這麼晚才回來？公會的燈還亮著，快去吧。
+BARK_UNCLE_EVENING_THANKS,Thanks for the shield business. Guild's lamps are still lit — go on.,盾的事，謝了。公會的燈還亮著，快去吧。
 BARK_NOEN_ROLL,The heat went into the spare pipe — they're rolling after it!,熱水進了備用管——牠們跟著滾過去了！
 BARK_NOEN_CELLAR_DONE,That's the cellar done. Back to the stall.,地下室搞定了。回麵攤說一聲。
 DLG_CH1_NOODLE_001,Third time today the soup won't boil! The surface is so flat you could see your face in it.,湯今天第三次沒煮開！鍋面平得能照出人臉。

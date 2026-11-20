@@ -98,7 +98,7 @@ const WALL_WEST_X: float = -22.0
 const WALL_HEIGHT: float = 4.4
 const WALL_THICK: float = 1.4
 
-## 麵攤的鍋；傍晚（回程）鍋煮開了——蒸氣、鍋底的火光，遮雨棚前緣掛出紅燈籠（整個攤子是暖的）
+## 麵攤的鍋；傍晚（回程）遮雨棚前緣掛出紅燈籠（整個攤子是暖的），鍋煮得開的話（boiling）有蒸氣與鍋底的火光
 const POT_POS: Vector3 = NOODLE_STALL + Vector3(-2.4, 0, -0.6)
 const STALL_LANTERN: Vector3 = NOODLE_STALL + Vector3(1.9, 2.2, 0.75)
 const STALL_LANTERN_COLOR: Color = Color(1.0, 0.42, 0.2)
@@ -112,9 +112,10 @@ const LAMP_COLOR: Color = Color(1.0, 0.68, 0.36)
 
 ## 傍晚的街（第一章的回程）
 var dusk: bool = false
+var boiling: bool = false
 ## 點著的壁燈（傍晚才有；測試看）
 var lamps: Array[CandleFlame] = []
-## 麵攤鍋上的蒸氣（傍晚才有）
+## 麵攤鍋上的蒸氣（傍晚、鍋煮得開才有）
 var pot_steam: CPUParticles3D
 var _env: Environment
 var _root: Node3D
@@ -122,9 +123,11 @@ var _root: Node3D
 var buildings: Dictionary = {}
 
 
-static func build(level: Node3D, p_dusk: bool = false) -> TownScenery:
+## p_dusk＝傍晚（回程）；p_boiling＝麵攤的鍋煮得開（地下室偷暖的黴泥解決了：傍晚鍋上有蒸氣、鍋底有火光）
+static func build(level: Node3D, p_dusk: bool = false, p_boiling: bool = false) -> TownScenery:
 	var s := TownScenery.new()
 	s.dusk = p_dusk
+	s.boiling = p_boiling
 	s._root = Node3D.new()
 	s._root.name = "Scenery"
 	level.add_child(s._root)
@@ -489,6 +492,8 @@ func _build_noodle_stall() -> void:
 	_block("NoodleCartBlock", Vector3(2.6, 1.2, 1.4), s + Vector3(0, 0.6, 0))
 	_prop("quaternius/Cauldron", POT_POS, 0.0)
 	if dusk:
+		_root.add_child(_stall_lantern())
+	if dusk and boiling:
 		pot_steam = steam(0.5, 10)
 		pot_steam.name = "PotSteam"
 		pot_steam.position = POT_POS + Vector3(0, 0.82, 0)
@@ -501,7 +506,6 @@ func _build_noodle_stall() -> void:
 		fire.shadow_enabled = false
 		fire.position = POT_POS + Vector3(0, 0.25, 0.75)
 		_root.add_child(fire)
-		_root.add_child(_stall_lantern())
 	for i: int in 3:
 		_prop("quaternius/Stool", s + Vector3(-1.0 + 1.0 * float(i), 0, 1.5), 15.0 * float(i))
 	var door := _box(_root, "CellarDoor", Vector3(1.4, 0.08, 1.2), CELLAR_DOOR + Vector3(0, 0.4, 0.5), wood(Color(0.3, 0.2, 0.13), Vector3(1, 0, 0), 0.2))

@@ -494,6 +494,7 @@ func test_return_trip_delivers_the_mushrooms_then_walks_back_to_the_guild() -> v
 	s.state.items[TownStreet.SHIELD_ITEM] = 1
 	s.set_flag(TownStreet.FLAG_LEDGER, "receipt")
 	s.set_flag(TownStreet.FLAG_CELLAR_WAY, "lamp")
+	s.set_flag(TownStreet.FLAG_CELLAR_DONE, true)
 	s.state.items[TownStreet.NOODLE_TICKET] = 2
 	var level: TownStreet = _load_level()
 	await _frames(2)
@@ -505,7 +506,7 @@ func test_return_trip_delivers_the_mushrooms_then_walks_back_to_the_guild() -> v
 	assert_eq(float(_facade(level, "HouseN1").get_shader_parameter("dusk")), 1.0, "窗亮起來")
 	assert_false(level.basket.visible, "還沒開口：籃子不在櫃檯上")
 	assert_false(level.shield.visible, "帶回來的盾還在諾恩身上")
-	assert_not_null(level.scenery.pot_steam, "麵攤的鍋煮開了")
+	assert_not_null(level.scenery.pot_steam, "地下室解決了：麵攤的鍋煮開了")
 	assert_not_null(level.get_node_or_null("Scenery/StallLantern/LanternFlame"), "麵攤掛出紅燈籠")
 	assert_true(level.pot_blob == null, "全砍了的：鍋底下沒有那一團")
 	assert_true(player.global_position.distance_to(TownStreet.RETURN_ENTRANCE) < 1.0, "從東門裡面開始")
@@ -518,6 +519,19 @@ func test_return_trip_delivers_the_mushrooms_then_walks_back_to_the_guild() -> v
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_TOWN_RETURN_LINE1", "CH1_TOWN_RETURN_LINE2"]))
 	assert_false(level.merchant_use.enabled or level.board_use.enabled or level.cellar_door_use.enabled or level.uncle_use.enabled, "街上其他的事收起來了")
 	assert_true(level.vendor_use.enabled, "帶著麵票：麵攤可以兌")
+	# 走過街上的人，一人一句（照做過的事換）：商人盯著核心、倉庫大叔、麵攤攤主（帶著麵票：叫他來兌）
+	assert_false(hud.bark_keys().has("BARK_MERCHANT_CORE"), "剛進東門：離商人還遠")
+	player.global_position = TownStreet.MERCHANT_POS + Vector3(0, 0.05, -3.0)
+	await _frames(3)
+	assert_true(hud.bark_keys().has("BARK_MERCHANT_CORE"), "走過街尾的商人：他盯著肩上的核心")
+	assert_false(hud.bark_keys().has("BARK_UNCLE_EVENING"), "還沒走到倉庫")
+	player.global_position = TownStreet.UNCLE_POS + Vector3(0, 0.05, 3.0)
+	await _frames(3)
+	assert_true(hud.bark_keys().has("BARK_UNCLE_EVENING"), "盾的事沒回報：一般的那一句")
+	player.global_position = TownStreet.VENDOR_POS + Vector3(0, 0.05, 3.0)
+	await _frames(3)
+	assert_true(hud.bark_keys().has("BARK_VENDOR_SOUP_TICKET"), "帶著麵票：攤主叫他來兌")
+	assert_eq(level._return_barked.size(), 3, "一人一次")
 	# 東門不能再出去；還沒交蕈走到公會門口不會進去
 	player.global_position = Vector3(TownScenery.LEAVE_X + 1.0, 0.05, 0.0)
 	await _frames(2)
@@ -606,6 +620,7 @@ func test_return_trip_reloaded_keeps_what_was_done_on_the_counter_and_the_stall(
 	for flag: String in [RuinedAltar.FLAG_TALKED, RuinedAltar.FLAG_GOLEM_DOWN, RuinedAltar.FLAG_DONE]:
 		s.set_flag(flag, true)
 	s.set_flag(TownStreet.FLAG_CELLAR_WAY, "barrel")
+	s.set_flag(TownStreet.FLAG_CELLAR_DONE, true)
 	s.set_flag(TownStreet.FLAG_SHIELD, "iou")
 	s.set_flag(TownStreet.FLAG_DELIVERED, true)
 	s.set_flag(TownStreet.FLAG_NOODLE_BACK, true)
@@ -620,6 +635,22 @@ func test_return_trip_reloaded_keeps_what_was_done_on_the_counter_and_the_stall(
 	assert_eq(level.soup_bowls.size(), 2, "兩碗湯已經在攤車上")
 	assert_not_null(level.pot_blob, "鍋底下縮著那一團")
 	assert_true(level.pot_blob.position.distance_to(TownScenery.POT_POS) < 1.2)
+	assert_not_null(level.scenery.pot_steam, "地下室解決了：鍋煮開了")
+	assert_eq(level._return_barks()[level.vendor], "BARK_VENDOR_SOUP", "麵票兌過了：只說湯滾了")
+	s.set_flag(TownStreet.FLAG_NOODLE_BACK, false)
+	s.state.items[TownStreet.NOODLE_TICKET] = 2
+	assert_eq(level._return_barks()[level.vendor], "BARK_VENDOR_SOUP_TICKET", "帶著麵票：叫他來兌")
+	s.set_flag(TownStreet.FLAG_SHIELD_DONE, true)
+	assert_eq(level._return_barks()[level.uncle], "BARK_UNCLE_EVENING_THANKS")
+	s.set_flag(TownStreet.FLAG_CELLAR_DONE, false)
+	assert_eq(level._return_barks()[level.vendor], "BARK_VENDOR_NO_BOIL", "地下室沒解決：湯還是煮不開")
+	# 沒解決的那一種：傍晚的麵攤有紅燈籠、鍋上沒有蒸氣
+	var holder := Node3D.new()
+	tree.root.add_child(holder)
+	var cold: TownScenery = TownScenery.build(holder, true, false)
+	assert_true(cold.pot_steam == null, "煮不開：沒有蒸氣")
+	assert_not_null(holder.get_node_or_null("Scenery/StallLantern"), "燈籠照掛")
+	holder.free()
 	assert_eq(ParticleLook.untextured(level).size(), 0, "蒸氣不是方塊")
 
 
