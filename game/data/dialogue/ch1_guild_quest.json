@@ -41,7 +41,13 @@
         "set": {
           "ch1.quest_taken": true
         }
-      }
+      },
+      "next": "l06"
+    },
+    "l06": {
+      "speaker": "SPK_LILITH",
+      "text": "DLG_CH1_QUEST_007",
+      "act": "point"
     }
   }
 }

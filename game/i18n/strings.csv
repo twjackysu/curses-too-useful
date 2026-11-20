@@ -284,7 +284,7 @@ BARK_ADV_LAUGH_A,Hahaha! All attributes NONE? Never seen that one before!,哈哈
 BARK_ADV_LAUGH_B,Pfft— Even the crystal is screaming at him!,噗——連水晶都在慘叫耶！
 BARK_LILITH_ALARM,Eh...? I-it's not broken... is it?,咦……？水、水晶沒壞吧……？
 BARK_LILITH_SIGH,...Haah.,……唉。
-BARK_SERA_GUILD_GO,I-I'll be at the forest entrance!,我、我在森林口等你！
+BARK_SERA_GUILD_GO,I-I'll be at the apothecary!,我、我在藥房等你！
 DLG_CH1_REG_001,"Welcome to the Alder Adventurers' Guild — dead last in the frontier rankings. New registration, right?",歡迎來到奧爾德冒險者公會——邊境業績最後一名的公會。新人登錄對吧？
 DLG_CH1_REG_002,"Right. Name's Norn. Starting today, I plan to eat by taking requests.",對。我叫諾恩，今天起想靠接委託吃飯。
 DLG_CH1_REG_003,Your form is filled in. Last step: put your hand on the aptitude crystal next to the counter. It shows which path suits you.,表格我幫你填好了。最後一步：把手放到櫃檯旁邊那顆適性測試水晶上，它會顯示你適合走哪一條路。
@@ -301,8 +301,8 @@ DLG_CH1_QUEST_005,I'll take it. I still don't know where today's dinner is comin
 DLG_CH1_QUEST_006,"...Seriously? Fine, it's stamped. Bring back five. And please come back alive — our numbers can't drop any lower.",……真的假的。好，蓋章了，採五朵回來就行。拜託活著回來，我們公會的業績不能再掉了。
 DLG_CH1_ASK_001,U-um...!,那、那個……！
 DLG_CH1_ASK_002,You're the one from the corner just now.,妳是剛剛在角落的那位。
-DLG_CH1_ASK_A,R-really!? Thank you! I-I'll go get my gas mask and my potions — meet me at the forest entrance!,真、真的可以嗎！？謝謝你！我、我回去拿防毒面具跟藥——森林口見！
-DLG_CH1_ASK_B,"Y-you want to try one!? People usually run when they hear that...! I'll get my mask, and you can have all the potions you want — meet me at the forest entrance!",咦、你想試！？大家聽到都是用跑的耶……！我去拿面具，藥要多少有多少——森林口見！
+DLG_CH1_ASK_A,R-really!? Thank you! I'll grab my gas masks at the apothecary — I'll wait for you there!,真、真的可以嗎！？謝謝你！我、我先去藥房拿防毒面具——在那裡等你！
+DLG_CH1_ASK_B,Y-you want to try one!? People usually run when they hear that...! I'll grab the masks at the apothecary — and you can have all the potions you want!,咦、你想試！？大家聽到都是用跑的耶……！我先去藥房拿面具，藥要多少有多少！
 CARD_FOREST_SMALL,Outside Alder,奧爾德近郊
 CARD_FOREST_TITLE,The Corrupt Forest,腐敗之森
 LOADING,Loading…,讀取中……
@@ -358,3 +358,32 @@ SLIP_LINE_2,Reward: ten times a normal request,報酬：一般委託的十倍
 SLIP_LINE_3,Warning: the forest is full of miasma. Most adventurers collapse within ten minutes.,注意：森林裡全是瘴氣，一般冒險者十分鐘內就會中毒倒地。
 SLIP_LINE_4,Posted: half a year ago (no takers),張貼：半年前（無人承接）
 SLIP_STAMP,ACCEPTED,受理
+Q_CH1_OBJ_BASKET,Return the empty basket to the apothecary,把空籃子送回藥房
+Q_CH1_OBJ_EAST_GATE,Head out through the east gate,從東門出發
+CARD_TOWN_SMALL,Outside the guild,公會門外
+CARD_TOWN_TITLE,Tab Street,賒帳街
+CH1_TOWN_LINE1,Tab Street — every shop here runs on credit.,公會門外的賒帳街：每一家都在賒帳。
+CH1_TOWN_LINE2,"First, take Lilith's empty basket back to the apothecary.",先把莉莉絲的空籃子送回藥房。
+BARK_NOEN_BASKET_FIRST,Basket first. The apothecary's back that way.,先把籃子送回藥房。
+SPK_PHARMACIST,Apothecary,藥房老闆娘
+SPK_APPRENTICE,Apprentice,小學徒
+DLG_CH1_QUEST_007,"Oh, and on your way out — return this empty basket to the apothecary outside. The mushrooms go to her, too.",啊，還有——出門順路把這個空籃子送回門外的藥房。毒蕈也是交給她的。
+DLG_CH1_TOWN_PH_001,"Hold still, hold still — let me measure your nose.",別動、別動，我量一下鼻子。
+DLG_CH1_TOWN_PH_002,"Two masks, a big one and a small one. Which one's for whoever walks in front?",兩副面具，一大一小。哪一副是給走在前面的人戴的？
+DLG_CH1_TOWN_PH_003,M-me! I'm the one in front—!,我、我！走前面的是我——！
+DLG_CH1_TOWN_PH_004,"...The small one only fits you, you know.",……小的那副只套得上你自己喔。
+DLG_CH1_TOWN_PH_005,...Th-then he gets the big one.,……那、那他戴大的。
+DLG_CH1_TOWN_PH_006,Lilith sent the basket back with you? Thanks. Take these five thermos cups along.,籃子是莉莉絲要你送回來的吧？謝了。這五只保溫杯你們帶著。
+DLG_CH1_TOWN_PH_007,Nightglow toadstools soak up the impurities in fever medicine. Five people are waiting on it today — one cup each.,夜光毒蕈是拿來吸退燒藥裡的雜毒的。今天有五個人在等藥，一人一杯。
+DLG_CH1_TOWN_PH_008,Doesn't someone usually bring them in?,平常不是有人送嗎？
+DLG_CH1_TOWN_PH_009,"Zhan did. When he brought back the last basket, his right hand couldn't hold anything anymore.",阿展。最後一籃送回來的時候，他的右手已經握不住東西了。
+DLG_CH1_TOWN_PH_010,"And today he went out alone again. Says once he brings his handcart back from the woods, he's officially quitting.",今天他又一個人出門了。說只要把林子裡的手推車拿回來，就算正式辭職。
+DLG_CH1_TOWN_PH_011,Th-these cups... There's a wobbly little 'S' carved into the bottom.,這、這杯子……杯底刻了一個歪歪的「菈」。
+DLG_CH1_TOWN_PH_012,Everyone was scared of my potions. The only thing anyone ever bought from me was thermos cups.,以前大家都怕我的藥。唯一肯跟我買的，就是保溫杯。
+DLG_CH1_TOWN_PH_013,"They're good cups. —So, whose name do I put this medicine money under?",好杯子。——對了，這次的藥錢要記在誰名下？
+DLG_CH1_TOWN_PH_CHOICE_A,We'll come back and collect it together.,等我們兩個一起回來收。
+DLG_CH1_TOWN_PH_CHOICE_B,Write a receipt for the one who made the cups.,給做杯子的人開張收據吧。
+DLG_CH1_TOWN_PH_A,"Two names, then. Come back alive to collect.",好，兩個人的名字。活著回來領。
+DLG_CH1_TOWN_PH_B,A-a receipt... with my name on it?,收、收據……寫我的名字？
+DLG_CH1_TOWN_PH_B2,Your first one. Hold on to it.,第一張。拿好，別弄丟了。
+DLG_CH1_TOWN_PH_END,I still need to fix the mask straps... You can look around first — I'll take the back path and wait at the forest edge!,面具的扣帶我再修一下……你先去逛逛也沒關係，我會從小路先去林口等你！

@@ -100,7 +100,14 @@ func test_quest_follows_the_four_flags_and_continue_restores_it() -> void:
 	assert_eq(s.state.checkpoint, "ch1_guild_leave")
 	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "guild_hall")
 	s.set_flag(GuildHall.FLAG_LEFT, true)
-	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera", "走出大門：腐敗之森")
+	assert_eq(s.quests.stage_of("ch1_main"), "deliver_basket", "走出大門：門外的賒帳街")
+	assert_eq(s.state.checkpoint, "ch1_town")
+	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "town_street")
+	s.set_flag(TownStreet.FLAG_BASKET, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "east_gate", "籃子送到藥房")
+	assert_eq(s.state.checkpoint, "ch1_town_gate")
+	s.set_flag(TownStreet.FLAG_LEFT, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera", "出東門：腐敗之森")
 	assert_eq(s.state.checkpoint, "ch1_forest_gate")
 	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "corrupt_forest", "換關卡")
 	s.set_flag(CorruptForest.FLAG_REVERSAL, true)
@@ -1807,11 +1814,29 @@ func test_walkthrough_from_new_game_to_the_end_of_chapter_one() -> void:
 	player.global_position = GuildScenery.DOOR_POS + Vector3(0, 0.05, -0.8)
 	for i: int in 3:
 		await tree.physics_frame
-	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera", "走出大門")
+	assert_eq(s.quests.stage_of("ch1_main"), "deliver_basket", "走出大門")
 	hall.card.finish()
-	assert_eq(str(_game().get("last_level_request")), "corrupt_forest")
-	# 換到腐敗之森（遊戲裡是 Game 換場景；這裡把大廳放掉、載入森林）
+	assert_eq(str(_game().get("last_level_request")), "town_street")
+	# 門外的賒帳街：走到藥房 → 送籃子那段話（記帳選第一個）→ 從東門出去
 	hall.free()
+	var town: TownStreet = (load("res://scenes/levels/town_street.tscn") as PackedScene).instantiate() as TownStreet
+	_level_node = town
+	tree.root.add_child(town)
+	await tree.physics_frame
+	player = town.get_node("Player") as PlayerController
+	player.global_position = TownScenery.PHARMACY_COUNTER + Vector3(0, 0.05, -2.0)
+	await _until_dialogue(30)
+	_finish_dialogue(0)
+	assert_eq(s.quests.stage_of("ch1_main"), "east_gate", "籃子送到了")
+	assert_eq(str(s.state.get_flag(TownStreet.FLAG_LEDGER, "")), "together")
+	player.global_position = Vector3(TownScenery.LEAVE_X + 0.5, 0.05, 0.0)
+	for i: int in 3:
+		await tree.physics_frame
+	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera", "出東門")
+	town.card.finish()
+	assert_eq(str(_game().get("last_level_request")), "corrupt_forest")
+	# 換到腐敗之森（遊戲裡是 Game 換場景；這裡把街放掉、載入森林）
+	town.free()
 	var level: CorruptForest = _load_level()
 	await tree.physics_frame
 	player = level.get_node("Player") as PlayerController

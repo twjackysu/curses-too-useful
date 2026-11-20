@@ -640,7 +640,7 @@ func _tick_sera_asks() -> void:
 		_talk(SERA_DIALOGUE, ["SPK_NOEN", Sera.NAME_KEY])
 
 
-## 可以出發了：席菈先跑出去；諾恩走到大門就換到腐敗之森
+## 可以出發了：席菈先跑出去（去藥房拿面具）；諾恩走到大門就換到門外的賒帳街（TownStreet）
 func _tick_leave() -> void:
 	if sera != null and is_instance_valid(sera):
 		if not _sera_leaving:
@@ -664,7 +664,7 @@ func _tick_leave() -> void:
 	if p.z > GuildScenery.HALF_L - GuildScenery.WALL_MARGIN - 0.7 and absf(p.x) < GuildScenery.DOOR_SIZE.x * 0.5 + 0.3:
 		_leaving = true
 		Game.session.set_flag(FLAG_LEFT, true)
-		card = ChapterCard.play(self, "CARD_FOREST_SMALL", "CARD_FOREST_TITLE", Game.go_to_checkpoint_level)
+		card = ChapterCard.play(self, "CARD_TOWN_SMALL", "CARD_TOWN_TITLE", Game.go_to_checkpoint_level)
 
 
 ## 結尾：諾恩扛著核心走進來，雷歐還在跟大家說那兩個人回不來了；走近櫃檯，所有人轉過來

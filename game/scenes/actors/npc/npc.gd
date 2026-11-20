@@ -23,6 +23,8 @@ var _speed: float = 0.0
 var _look: Vector3 = Vector3.INF
 var _shape: CollisionShape3D
 var footsteps: Footsteps = Footsteps.new(STEP_DB, STEP_DB)
+## 模型還沒產的人（程式人偶的替身）穿什麼顏色：doll_colors() 設，沒設照 Puppet 的預設
+var _doll: Array[Color] = []
 ## 站著不動時的樣子（Puppet.POSES：""、sit、sit_hunch、sit_drink、sit_laugh、laugh、slump）
 var pose: String = "":
 	set(value):
@@ -41,6 +43,11 @@ static func create(node_name: String, p_character_id: String, at: Vector3, facin
 	return n
 
 
+## 模型還沒產的人（Tripo 佇列裡）：程式人偶的外衣與滾邊的顏色，認得出是不同的人。在加進場景之前叫
+func doll_colors(coat: Color, trim: Color) -> void:
+	_doll = [coat, trim]
+
+
 func _ready() -> void:
 	collision_layer = GuildScenery.PEOPLE_LAYER
 	collision_mask = 0
@@ -55,6 +62,9 @@ func _ready() -> void:
 	puppet.name = "Puppet"
 	puppet.character_id = character_id
 	puppet.pose = pose
+	if _doll.size() == 2:
+		puppet.coat_color = _doll[0]
+		puppet.trim_color = _doll[1]
 	add_child(puppet)
 	puppet.footfall.connect(func() -> void: footsteps.stomp(self))
 	ContactShadow.attach(self, 0.5, 0.5)

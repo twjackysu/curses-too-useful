@@ -50,6 +50,26 @@
       }
     },
     {
+      "id": "deliver_basket",
+      "objective": "Q_CH1_OBJ_BASKET",
+      "hint": "Q_CH1_HINT_MOVE",
+      "checkpoint": "ch1_town",
+      "marker": "node:Pharmacy",
+      "done_when": {
+        "flag": "ch1.basket_delivered"
+      }
+    },
+    {
+      "id": "east_gate",
+      "objective": "Q_CH1_OBJ_EAST_GATE",
+      "hint": "Q_CH1_HINT_MOVE",
+      "checkpoint": "ch1_town_gate",
+      "marker": "node:EastGate",
+      "done_when": {
+        "flag": "ch1.town_left"
+      }
+    },
+    {
       "id": "meet_sera",
       "objective": "Q_CH1_OBJ_SET_OUT",
       "hint": "Q_CH1_HINT_MOVE",

@@ -140,6 +140,7 @@ var _burst_on: String = ""
 ## 把前面的劇情跳過，直接到「剛走進祭壇」（開發旗標 `--level=ruined_altar` 與測試用）。
 static func skip_to_altar(session: GameSession) -> void:
 	GuildHall.skip_opening(session)
+	TownStreet.skip_town(session)
 	for flag: String in [CorruptForest.FLAG_JOINED, CorruptForest.FLAG_REVERSAL, CorruptForest.FLAG_GATE_TALK,
 			CorruptForest.FLAG_MISFIRE, CorruptForest.FLAG_SLIMES, CorruptForest.FLAG_AFTER_TALK]:
 		session.set_flag(flag, true)

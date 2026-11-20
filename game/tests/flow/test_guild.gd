@@ -356,22 +356,22 @@ func test_lilith_hands_over_the_green_request_then_sera_asks_to_come_along() -> 
 	assert_true(outside, "她跑出大門、到門外的街上（不是走到門口就不見）")
 	assert_true(level.sera == null, "席菈出去了")
 	assert_eq(level.sera_exit_step, GuildHall.SERA_EXIT.size(), "走到街上轉進牆後面才消失")
-	# 諾恩走出大門：一張卡，播完換到腐敗之森
+	# 諾恩走出大門：一張卡，播完換到門外的賒帳街
 	assert_eq(str(_game().get("last_level_request")), "")
 	player.global_position = GuildScenery.DOOR_POS + Vector3(0.2, 0.05, -0.8)
 	await _frames(3)
 	assert_eq(s.state.get_flag(GuildHall.FLAG_LEFT), true)
-	assert_eq(s.quests.stage_of("ch1_main"), "meet_sera")
-	assert_eq(s.state.checkpoint, "ch1_forest_gate")
+	assert_eq(s.quests.stage_of("ch1_main"), "deliver_basket")
+	assert_eq(s.state.checkpoint, "ch1_town")
 	assert_not_null(level.card, "換關卡的那張卡")
-	assert_eq(level.card.title_text(), tr("CARD_FOREST_TITLE"))
+	assert_eq(level.card.title_text(), tr("CARD_TOWN_TITLE"))
 	assert_eq(str(_game().get("last_level_request")), "", "卡還沒播完")
 	level.card.finish()
-	assert_eq(str(_game().get("last_level_request")), "corrupt_forest")
-	# 存檔在森林口：按繼續不會回到大廳
+	assert_eq(str(_game().get("last_level_request")), "town_street")
+	# 存檔在門外的街上：按繼續不會回到大廳
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
-	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "corrupt_forest")
+	assert_eq(str(_game().call("level_for_checkpoint", again.state.checkpoint)), "town_street")
 
 
 func test_continue_after_sera_left_starts_at_the_counter_ready_to_go() -> void:

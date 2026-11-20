@@ -20,6 +20,7 @@ const LEVELS: Dictionary = {
 	"corrupt_forest": "res://scenes/levels/corrupt_forest.tscn",
 	"ruined_altar": "res://scenes/levels/ruined_altar.tscn",
 	"guild_hall": "res://scenes/levels/guild_hall.tscn",
+	"town_street": "res://scenes/levels/town_street.tscn",
 	"benchmark": "res://scenes/bench/benchmark.tscn",
 }
 ## 檢查點 -> 關卡 id（沒列的都在 DEFAULT_LEVEL）
@@ -27,6 +28,8 @@ const CHECKPOINT_LEVELS: Dictionary = {
 	"ch1_guild": "guild_hall",
 	"ch1_guild_quest": "guild_hall",
 	"ch1_guild_leave": "guild_hall",
+	"ch1_town": "town_street",
+	"ch1_town_gate": "town_street",
 	"ch1_forest_gate": "corrupt_forest",
 	"ch1_with_sera": "corrupt_forest",
 	"ch1_slimes": "corrupt_forest",

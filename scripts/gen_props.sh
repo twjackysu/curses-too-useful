@@ -37,6 +37,7 @@ declare -A ARGS=(
   [prop_guild_signboard]="--kind prop --height 2.40"
   [prop_guild_counter_v2]="--kind prop --height 1.15"
   [prop_aptitude_crystal]="--kind prop --height 0.60"
+  [prop_cursed_ring]="--kind prop --height 0.07"
 )
 # 有骨架、會走路的四足怪（art-inbox/tripo/<名字>/<名字>_anim.glb）：名字 → 給 tripo_quadruped.py 的參數
 declare -A QUADS=(
@@ -91,7 +92,8 @@ done
 # 一起複製到 game/assets/props/quaternius/（不進 git；PropModels.instance("quaternius/<名字>")）。要多用一樣就在 QUAT 加名字。
 QUAT_SRC="$ROOT/art-inbox/props/Exports/glTF"
 QUAT_DEST="$ROOT/game/assets/props/quaternius"
-QUAT=(Table_Large Bench Stool Barrel Crate_Wooden Chandelier Lantern_Wall Banner_1 Bookcase_2 Mug Table_Plate WeaponStand Shield_Wooden Cabinet Bottle_1 Book_Stack_1 Bag Pouch_Large Bucket_Wooden_1)
+QUAT=(Table_Large Bench Stool Barrel Crate_Wooden Chandelier Lantern_Wall Banner_1 Bookcase_2 Mug Table_Plate WeaponStand Shield_Wooden Cabinet Bottle_1 Book_Stack_1 Bag Pouch_Large Bucket_Wooden_1
+  Stall_Cart_Empty Stall_Empty Cauldron Barrel_Apples FarmCrate_Apple FarmCrate_Carrot Shelf_Small_Bottles Potion_1 Potion_2 Potion_4 SmallBottles_1 Dummy Vase_2 Coin_Pile Rope_1 Barrel_Holder)
 mkdir -p "$QUAT_DEST"
 for name in "${QUAT[@]}"; do
   [[ -s "$QUAT_SRC/$name.gltf" ]] || { echo "[props] Quaternius 沒有 $name，略過"; continue; }

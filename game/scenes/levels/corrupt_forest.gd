@@ -78,9 +78,11 @@ func _ready() -> void:
 	_mark("SlimeGlade", GLADE_POS)
 	var spawn: Marker3D = $Spawn
 	var args: Dictionary = Game.level_args()
-	# 新遊戲是從公會大廳開始的：直接進這一關（開發旗標 `--level=corrupt_forest`、測試）就當成大廳那一段演過了
-	if Game.session.in_story() and Game.session.quests.stage_of(GuildHall.QUEST) in GuildHall.OPENING_STAGES:
+	# 新遊戲是從公會大廳開始的：直接進這一關（開發旗標 `--level=corrupt_forest`、測試）就當成大廳與門外那條街都演過了
+	var st_now: String = Game.session.quests.stage_of(GuildHall.QUEST)
+	if Game.session.in_story() and (st_now in GuildHall.OPENING_STAGES or st_now in TownStreet.TOWN_STAGES):
 		GuildHall.skip_opening(Game.session)
+		TownStreet.skip_town(Game.session)
 	# 截圖用：`--joined` 直接從結伴之後開始（席菈在旁邊）；`--burst-on=vial` 要她射藥，也要加這個
 	if args.has("joined"):
 		Game.session.set_flag(FLAG_JOINED, true)

@@ -1,0 +1,147 @@
+{
+  "id": "ch1_town_pharmacy",
+  "start": "p00",
+  "nodes": {
+    "p00": {
+      "speaker": "SPK_APPRENTICE",
+      "text": "DLG_CH1_TOWN_PH_001",
+      "emote": "sparkle",
+      "act": "point",
+      "shot": "two",
+      "next": "p01"
+    },
+    "p01": {
+      "speaker": "SPK_APPRENTICE",
+      "text": "DLG_CH1_TOWN_PH_002",
+      "emote": "question",
+      "next": "p02"
+    },
+    "p02": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_TOWN_PH_003",
+      "emote": "sweat",
+      "act": "wave",
+      "shot": "two",
+      "next": "p03"
+    },
+    "p03": {
+      "speaker": "SPK_APPRENTICE",
+      "text": "DLG_CH1_TOWN_PH_004",
+      "emote": "gloom",
+      "act": "shrug",
+      "next": "p04"
+    },
+    "p04": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_TOWN_PH_005",
+      "emote": "blush",
+      "head": "down",
+      "next": "p05"
+    },
+    "p05": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TOWN_PH_006",
+      "act": "nod",
+      "next": "p06"
+    },
+    "p06": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TOWN_PH_007",
+      "next": "p07"
+    },
+    "p07": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_TOWN_PH_008",
+      "emote": "question",
+      "next": "p08"
+    },
+    "p08": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TOWN_PH_009",
+      "emote": "gloom",
+      "head": "down",
+      "next": "p09"
+    },
+    "p09": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TOWN_PH_010",
+      "next": "p10"
+    },
+    "p10": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_TOWN_PH_011",
+      "emote": "shock",
+      "act": "chest",
+      "shot": "two",
+      "next": "p11"
+    },
+    "p11": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_TOWN_PH_012",
+      "emote": "gloom",
+      "head": "down",
+      "next": "ask"
+    },
+    "ask": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TOWN_PH_013",
+      "act": "point",
+      "shot": "two",
+      "choices": [
+        {
+          "text": "DLG_CH1_TOWN_PH_CHOICE_A",
+          "next": "a",
+          "do": {
+            "set": {
+              "ch1.ledger": "together"
+            },
+            "add": {
+              "sera.affinity": 5
+            }
+          }
+        },
+        {
+          "text": "DLG_CH1_TOWN_PH_CHOICE_B",
+          "next": "b",
+          "do": {
+            "set": {
+              "ch1.ledger": "receipt"
+            },
+            "add": {
+              "sera.affinity": 10
+            }
+          }
+        }
+      ]
+    },
+    "a": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TOWN_PH_A",
+      "act": "nod",
+      "next": "end"
+    },
+    "b": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_TOWN_PH_B",
+      "emote": "blush",
+      "head": "up",
+      "next": "b2"
+    },
+    "b2": {
+      "speaker": "SPK_PHARMACIST",
+      "text": "DLG_CH1_TOWN_PH_B2",
+      "emote": "sparkle",
+      "next": "end"
+    },
+    "end": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_TOWN_PH_END",
+      "act": "fist",
+      "do": {
+        "set": {
+          "ch1.basket_delivered": true
+        }
+      }
+    }
+  }
+}
