@@ -79,7 +79,6 @@ const FINISH_AIM_HEIGHT: float = 1.8
 const OUTRO_DIST: float = 4.2
 const OUTRO_HEIGHT: float = 1.45
 const OUTRO_AIM: float = 1.3
-const PLAYER_CAMERA: NodePath = ^"CameraRig/Pitch/SpringArm3D/Camera3D"
 ## 滾出來的核心離躺在地上的人至少多遠（節點在胸口附近）
 const CORE_PARTY_GAP: float = 1.6
 ## 戰後那段話講完，核心飛到諾恩肩上要多久
@@ -606,7 +605,7 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 			core.carry_on(_player.get_node("Body") as Node3D, CORE_TAKE_SEC, _player.puppet())
 		# 鏡頭切到兩人的側面停著，一直到換關卡的卡把畫面蓋掉（不晃；HUD 照樣在：「獲得魔像核心」那一行要看得到）
 		outro_camera = FinisherCamera.play(self, sera.global_position, _player.global_position, 60.0,
-			OUTRO_DIST, OUTRO_HEIGHT, OUTRO_AIM, [_player.get_rid(), sera.get_rid()], _player.get_node(PLAYER_CAMERA) as Camera3D)
+			OUTRO_DIST, OUTRO_HEIGHT, OUTRO_AIM, [_player.get_rid(), sera.get_rid()], _player.camera())
 		if outro_camera != null:
 			outro_camera.name = "OutroCamera"
 			outro_camera.shake = 0.0

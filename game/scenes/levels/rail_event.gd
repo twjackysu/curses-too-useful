@@ -6,7 +6,8 @@ extends Node
 ##   坡頂放繩：夠快地砍開纏住絞盤的三股藤（踩網吃麻痺；帶暖泥塞省一股）→ 搖絞盤
 ##   坡底接車：樹人在枯木旁砸地把它震倒（樹人倒了自己砍；帶鐵盾可以架在窄軌上）→ 踩上去頂住車頭
 ## → 最後一下照跟席菈的約定（ch1.after_slimes_answer：warn_me＝她舉弩等玩家給信號、medicine＝她喊「低頭」自己射）打開車扣，
-##   阿展用左手拉回煞車 → 車停回主軌、對話 ch1_rail_saved（兩種金光；最後一句設 ch1.cart_saved）。
+##   被車扣壓著的煞車繩甩下來、阿展用左手把它拉到底 → 車停回主軌、對話 ch1_rail_saved（兩種金光；最後一句設 ch1.cart_saved）。
+## 講過話、車還沒救下來的時候可以再問阿展一次（照做到哪一步提醒下一步）。
 ## 任務 gather 階段要「蕈採滿且車停穩」才聽到慘叫（data/quests/ch1_main.json）。
 ## 劇情旗標：ch1.rail_heard、ch1.azhan_met（對話設）、ch1.cart_tried、ch1.rail_rope、ch1.rail_ramp（"tree"／"shield"）、
 ## ch1.cart_route（"top"／"bottom"：最後那一下演完了）、ch1.cart_saved（對話設）。
@@ -29,16 +30,30 @@ const HEAR_DIST: float = 9.0
 const COUNT_DIST: float = 15.0
 ## 頂住車頭的那一下從哪裡踩上去（枯木的斜坡腳下）
 const TREE_FOOT: Vector3 = Vector3(53.3, 0.0, -44.9)
-## 最後那一下的時間軸（秒）：畫面暗一下擺好位置 → 席菈舉弩（等信號／喊低頭之後 DUCK_SEC 秒）→ 藥瓶飛 VIAL_SEC 秒打上車扣
-## → 阿展拉煞車 BRAKE_SEC 秒 → 畫面再暗一下，車停回主軌
+## 最後那一下的時間軸（秒）：畫面暗一下擺好位置（坡底：諾恩弓著身頂住車頭；坡頂：從坡頂的鏡頭看他搖絞盤 CRANK_SHOT_SEC 秒、
+## 繩放一段、車往下放 CRANK_LOWER 公尺）→ 從阿展這一邊看：席菈舉弩瞄著車扣（等信號／喊低頭之後 DUCK_SEC 秒）→ 藥瓶飛 VIAL_SEC 秒打上車扣
+## → 車扣彈開、車往下滑一小步（LURCH：坡底頂著／坡頂繩拉著），煞車繩 CORD_FLY_SEC 秒甩到阿展手上，他 PULL_AT 秒後用左手往下拉
+## （拉到一半 HAUL_AT 拉桿倒到底）→ 一共 BRAKE_SEC 秒 → 畫面再暗一下，車停回主軌
 const DIM: Vector3 = Vector3(0.3, 0.2, 0.35)
+const CRANK_SHOT_SEC: float = 2.4
+const CRANK_LOWER: float = 0.3
 const DUCK_SEC: float = 0.8
 const VIAL_SEC: float = 0.42
-const BRAKE_SEC: float = 1.3
+const VIAL_ARC: float = 0.4
+const LURCH: Vector2 = Vector2(0.28, 0.12)
+const CORD_FLY_SEC: float = 0.5
+const PULL_AT: float = 0.1
+const HAUL_AT: float = 0.75
+const BRAKE_SEC: float = 2.3
+## 席菈舉著弩等的時候停在 shoot 動作的第幾秒（舉到定位之後、擊發之前）
+const AIM_HOLD: float = 0.5
 ## 等信號最多等這麼久（玩家沒按也會繼續：不卡住）
 const SIGNAL_MAX: float = 12.0
 ## 藤長回來的時候席菈提醒去踩網：隔這麼久才再喊一次
 const VINE_BARK_EVERY: float = 9.0
+## 砍斷的藤飛出來的碎葉、車扣彈開的火星
+const VINE_BITS: Color = Color(0.32, 0.66, 0.28)
+const BUCKLE_GOLD: Color = Color(1.0, 0.8, 0.3)
 
 var level: StoryLevel
 var player: PlayerController
@@ -62,7 +77,11 @@ var final_camera: FinisherCamera
 var final_step: int = 0
 var final_route: String = ""
 var _final_t: float = 0.0
-var _vial: MeshInstance3D
+## 這一次最後一下：阿展開始拉了嗎、拉到底了嗎
+var _pulling: bool = false
+var _hauled: bool = false
+## 模型不在的時候搖把照時間轉（有模型就照 crank 動作播到哪）
+var _crank_t: float = 0.0
 var _tree_hinted: bool = false
 var _vine_bark_in: float = 0.0
 ## 最後那一下演的時候先停住的敵人（演完放開）
@@ -122,7 +141,8 @@ func _ready() -> void:
 		cam.cast[CART_KEY] = site.cart
 	Game.dialogue_ended.connect(_on_dialogue_ended)
 	# 截圖／連拍用（配 `--explore --at=…`）：`--rail=met` 跟阿展講過了、`--rail=tried` 兩條走法開放了、`--rail=rope`／`--rail=tree`／
-	# `--rail=shield` 那一條準備好了、`--rail=final-top`／`--rail=final-bottom` 進場 1.5 秒後演最後那一下、`--rail=saved` 車停穩了
+	# `--rail=shield` 那一條準備好了、`--rail=final-top`／`--rail=final-bottom` 進場 1.5 秒後演最後那一下、`--rail=saved` 車停穩了；
+	# `--rail=cut` 進場 1.5 秒後連砍三股藤（繩落下來）、`--rail=fell` 枯木被震倒——都從那一刻開始連拍
 	var demo: String = str(Game.level_args().get("rail", ""))
 	if demo != "":
 		_demo(demo)
@@ -154,6 +174,16 @@ func _demo(demo: String) -> void:
 		get_tree().create_timer(1.5).timeout.connect(func() -> void:
 			App.burst_start_in(1)
 			start_final(demo.trim_prefix("final-")))
+	if demo == "cut":
+		for i: int in RailRescue.VINES:
+			get_tree().create_timer(1.5 + 0.25 * float(i)).timeout.connect(func() -> void:
+				if i == 0:
+					App.burst_start_in(1)
+				_on_vine_chopped({}))
+	if demo == "fell":
+		get_tree().create_timer(1.5).timeout.connect(func() -> void:
+			App.burst_start_in(1)
+			_tree_down(true))
 	if demo == "saved":
 		Game.session.set_flag(FLAG_ROUTE, "top")
 		Game.session.set_flag(FLAG_SAVED, true)
@@ -191,7 +221,7 @@ func _physics_process(delta: float) -> void:
 	var settled: bool = is_settled()
 	var busy: bool = final_step != 0
 	var working: bool = open and tried and not settled and not busy
-	azhan_use.enabled = open and not busy and (not met or is_saved())
+	azhan_use.enabled = open and not busy and (not settled or is_saved())
 	reach_use.enabled = open and met and not tried
 	vine_knot.active = working and not rescue.rope_free
 	winch_use.enabled = working and rescue.rope_free
@@ -223,8 +253,21 @@ func _physics_process(delta: float) -> void:
 func _on_azhan_used(_by: PlayerController) -> void:
 	if is_saved():
 		hud.show_bark(azhan, "BARK_AZHAN_AFTER", 3.6, AZHAN_KEY)
-		return
-	Game.start_dialogue(MEET_DIALOGUE)
+	elif _flag(FLAG_MET):
+		hud.show_bark(azhan, azhan_hint(), 5.0, AZHAN_KEY)
+	else:
+		Game.start_dialogue(MEET_DIALOGUE)
+
+
+## 講過話、車還沒救下來：再問他一次，他照現在做到哪一步提醒下一步
+func azhan_hint() -> String:
+	if not _flag(FLAG_TRIED):
+		return "BARK_AZHAN_HINT_REACH"
+	if rescue.rope_free:
+		return "BARK_AZHAN_HINT_WINCH"
+	if rescue.ramp != "":
+		return "BARK_AZHAN_HINT_HOLD"
+	return "BARK_AZHAN_HINT_WAYS"
 
 
 ## 伸手去搆煞車的拉桿：差半步。席菈把一朵夜光毒蕈放進車架——車往下沉一寸；拿回來又浮上來。兩條走法從這裡開放
@@ -243,11 +286,10 @@ func _on_reach_used(by: PlayerController) -> void:
 
 ## 車往下沉一點、再浮回來（放一朵毒蕈上去的重量）
 func _dip_cart() -> void:
-	var y: float = RailSite.cart_spot(false).y
-	var t: Tween = site.cart.create_tween()
-	t.tween_property(site.cart, "position:y", y - 0.06, 0.35)
+	var t: Tween = site.create_tween()
+	t.tween_property(site, "cart_dip", 0.06, 0.35)
 	t.tween_interval(1.1)
-	t.tween_property(site.cart, "position:y", y, 0.3)
+	t.tween_property(site, "cart_dip", 0.0, 0.3)
 
 
 ## 自己放一朵採到的毒蕈上去試（劇本：玩家可以自己放一次，看上坡的繩與下坡的泥）：只是看，毒蕈拿得回來
@@ -265,11 +307,13 @@ func _on_vine_chopped(_info: Dictionary) -> void:
 	var free: bool = rescue.chop_vine()
 	site.show_vines(rescue.vines_cut)
 	Sfx.play_at(level, "web_stick", RailSite.WINCH + Vector3.UP, -6.0, 0.08)
+	# 砍斷的那一股：碎葉往砍的人那一邊飛
+	RockDebris.burst(level, RailSite.WINCH + Vector3(0, 0.9, 0), (player.global_position - RailSite.WINCH).normalized() + Vector3.UP, 10, 0.12, VINE_BITS, Vector2(1.5, 4.0), 0.5)
 	if not free:
 		hud.show_banner(tr("CH1_RAIL_VINE_CUT").format({"have": rescue.vines_cut, "need": rescue.vines_needed()}), 1.2)
 		return
 	site.show_vines(RailRescue.VINES)
-	site.show_rope_free(true)
+	site.show_rope_free(true, true)
 	Game.session.set_flag(FLAG_ROPE, true)
 	if rescue.plug_used:
 		Game.session.state.items[PLUG_ITEM] = int(Game.session.state.items.get(PLUG_ITEM, 0)) - 1
@@ -283,8 +327,13 @@ func _on_vine_chopped(_info: Dictionary) -> void:
 
 func _tree_down(by_treant: bool) -> void:
 	site.topple()
+	# 根部裂開的木屑；倒到棧橋上的那一下（RailSite.topple 的 0.9 秒裡第一次碰到約在一半）再揚一次
+	RockDebris.burst(level, RailSite.DEAD_TREE + Vector3(0, 0.3, 0), Vector3.UP, 14, 0.15, RailSite.DEAD_BARK * 0.8, Vector2(2.0, 5.0))
+	get_tree().create_timer(0.4, false, true).timeout.connect(func() -> void:
+		RockDebris.burst(level, Vector3(RailSite.DEAD_TREE.x, RailSite.deck_y(RailSite.DEAD_TREE.x), RailSite.TRACK_Z - 0.5), Vector3.UP, 12, 0.13, RailSite.DEAD_BARK * 0.6, Vector2(1.5, 4.0))
+		Sfx.play_at(level, "blunt_weak", RailSite.DEAD_TREE + Vector3(0, 1.5, 3.0), -3.0, 0.05))
 	Game.session.set_flag(FLAG_RAMP, "tree")
-	Sfx.play_at(level, "blunt_weak", RailSite.DEAD_TREE + Vector3.UP, 0.0, 0.05)
+	Sfx.play_at(level, "treant_fall", RailSite.DEAD_TREE + Vector3.UP, -2.0, 0.05)
 	hud.show_banner("CH1_RAIL_TREE_DOWN", 3.2)
 	if by_treant and sera.joined:
 		hud.show_bark(sera, "BARK_SERA_TREE", 3.4, Sera.NAME_KEY)
@@ -334,19 +383,38 @@ func start_final(route: String) -> void:
 	hud.dim_blink(DIM.x, DIM.y, DIM.z, _pose_for_final)
 
 
-## 畫面黑的那一刻：諾恩站到位（坡底：橋面上、車頭旁邊；坡頂：絞盤旁、看著車）、席菈到阿展這一邊舉弩、阿展站起來
+## 畫面黑的那一刻：諾恩收劍、站到位（坡底：橋面上弓著身頂住車頭；坡頂：握著絞盤的搖把）、席菈到阿展這一邊瞄著車扣、
+## 阿展站到斷口邊上；鏡頭切過去（坡頂先看諾恩搖絞盤，再換到阿展這一邊）
 func _pose_for_final() -> void:
-	var cart_at: Vector3 = site.cart.global_position
+	player.sheathe(true)
 	if final_route == "bottom":
 		player.stand_at(RailSite.stand_spot(), -PI * 0.5)
+		player.puppet().set_pose("brace", 0.0)
+		_cut_to(RailSite.FINAL_EYE, RailSite.FINAL_AIM)
 	else:
-		var from: Vector3 = RailSite.WINCH + Vector3(-0.9, player.global_position.y, 0.3)
-		player.stand_at(from, atan2(-(cart_at.x - from.x), -(cart_at.z - from.z)))
+		player.stand_at(RailSite.crank_spot() + Vector3(0, player.global_position.y, 0), PI * 0.5)
+		player.puppet().set_pose("crank", 0.0)
+		player.puppet().pose_speed = 1.0
+		_crank_t = 0.0
+		site.slide_cart(CRANK_LOWER, CRANK_SHOT_SEC, Tween.TRANS_SINE)
+		_cut_to(RailSite.CRANK_EYE, RailSite.CRANK_AIM)
+	var mark: Vector3 = site.buckle.global_position
 	sera.global_position = RailSite.SERA_SHOT + Vector3(0, sera.global_position.y, 0)
 	sera.hold_at = RailSite.SERA_SHOT
+	sera.hold_look = mark
+	sera.rotation.y = atan2(-(mark.x - RailSite.SERA_SHOT.x), -(mark.z - RailSite.SERA_SHOT.z))
 	azhan.pose = ""
-	azhan.global_position = RailSite.AZHAN_BRAKE
-	azhan.face(cart_at)
+	azhan.global_position = RailSite.AZHAN_PULL
+	azhan.rotation.y = -PI * 0.5
+	azhan.face(site.cart.global_position)
+
+
+## 換鏡位（直接切，不滑回玩家的鏡頭）
+func _cut_to(eye: Vector3, aim: Vector3) -> void:
+	var old: FinisherCamera = final_camera
+	final_camera = FinisherCamera.play_shot(level, eye, aim, 600.0, player.camera())
+	if old != null and is_instance_valid(old):
+		old.queue_free()
 
 
 func promise_is_signal() -> bool:
@@ -366,20 +434,36 @@ func give_signal() -> void:
 		_fire()
 
 
+## 坡頂：搖把跟著諾恩的手轉（有模型照 crank 動作播到哪；沒有就照時間）
+func _turn_crank(delta: float) -> void:
+	var phase: float = player.puppet().pose_phase()
+	if phase < 0.0:
+		_crank_t += delta * player.puppet().pose_speed
+		phase = _crank_t / RailSite.CRANK_SEC
+	site.set_crank(phase * TAU)
+
+
 func _tick_final(delta: float) -> void:
 	_final_t += delta
+	var top: bool = final_route == "top"
+	if top and (final_step > 1 or _final_t > DIM.x):
+		_turn_crank(delta)
 	match final_step:
 		1:
-			if _final_t >= DIM.x + DIM.y + DIM.z:
+			if _final_t >= DIM.x + DIM.y + DIM.z + (CRANK_SHOT_SEC if top else 0.0):
 				final_step = 2
 				_final_t = 0.0
-				final_camera = FinisherCamera.play_shot(level, RailSite.FINAL_EYE, RailSite.FINAL_AIM, 600.0)
+				if top:
+					# 繩放夠了：握著搖把不動，鏡頭換到阿展這一邊
+					player.puppet().pose_speed = 0.0
+					_cut_to(RailSite.FINAL_EYE, RailSite.FINAL_AIM)
 				sera.puppet().play_action("shoot")
+				sera.puppet().pause_at(AIM_HOLD)
 				if promise_is_signal():
 					hud.show_bark(sera, "BARK_SERA_WAIT", 4.0, Sera.NAME_KEY)
 				else:
 					hud.show_bark(sera, "BARK_SERA_DUCK", 2.4, Sera.NAME_KEY)
-					player.gesture("bow", site.cart.global_position)
+					player.puppet().head = "down"
 		2:
 			if promise_is_signal():
 				if Input.is_action_just_pressed(Interactable.ACTION) or _final_t >= SIGNAL_MAX:
@@ -387,24 +471,25 @@ func _tick_final(delta: float) -> void:
 			elif _final_t >= DUCK_SEC:
 				_fire()
 		3:
-			var k: float = clampf(_final_t / VIAL_SEC, 0.0, 1.0)
-			var from: Vector3 = _vial.get_meta("from")
-			var to: Vector3 = site.buckle.global_position
-			_vial.global_position = from.lerp(to, k) + Vector3.UP * sin(k * PI) * 0.9
-			if k >= 1.0:
-				_vial.queue_free()
-				_vial = null
-				Sfx.play_at(level, "vial_shatter", to, -2.0, 0.04)
-				site.buckle.visible = false
-				# 煞車鬆開：車往下滑一小步就被頂住（坡底）／被繩拉住（坡頂），不再晃
-				site.cart_stuck = false
-				site.cart.create_tween().tween_property(site.cart, "position:x", RailSite.CART_X - 0.28, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-				final_step = 4
-				_final_t = 0.0
-				azhan.gesture("reach")
-				hud.show_bark(azhan, "BARK_AZHAN_BRAKE", 2.4, AZHAN_KEY)
-				site.lever.create_tween().tween_property(site.lever, "rotation:z", -0.35, 0.5).set_delay(0.4)
+			# 藥瓶自己飛（SeraVial），打中發 shattered；沒發（瓶子不見了）也照時間往下走
+			if _final_t >= VIAL_SEC + 0.3:
+				_on_buckle_hit()
 		4:
+			if not top:
+				player.move_seat(RailSite.stand_spot(site.cart_slide))
+			if not _pulling and _final_t >= PULL_AT:
+				_pulling = true
+				azhan.gesture("pull")
+			if not _hauled and _final_t >= HAUL_AT:
+				_hauled = true
+				site.set_brake(0.45)
+				Sfx.play_at(level, "door_creak", site.cart.global_position, -6.0, 0.05)
+				hud.show_bark(azhan, "BARK_AZHAN_BRAKE", 2.4, AZHAN_KEY)
+			if _final_t >= CORD_FLY_SEC:
+				# 繩頭落到他手上了：跟著那隻手（往下拉）
+				var hand: Node3D = azhan.puppet.hand("L")
+				var grip: Vector3 = hand.global_position if hand != null else RailSite.CORD_CATCH
+				site.cord_end = site.cord_end.lerp(grip, minf(delta * 14.0, 1.0))
 			if _final_t >= BRAKE_SEC:
 				final_step = 5
 				_final_t = 0.0
@@ -421,28 +506,30 @@ func _tick_final(delta: float) -> void:
 				Game.start_dialogue(SAVED_DIALOGUE)
 
 
-## 席菈擊發：一瓶從弩口飛向車扣（不是射諾恩的那種藥瓶——只是看得到的一顆）
+## 席菈擊發：一瓶從弩口飛向車扣（跟射諾恩的是同一種瓶子，只是不上狀態；坡底那一條剛好從他耳邊擦過去）
 func _fire() -> void:
 	final_step = 3
 	_final_t = 0.0
-	sera.puppet().play_action("shoot")
+	_pulling = false
+	_hauled = false
+	sera.puppet().release_hold()
 	var from: Vector3 = sera.crossbow().global_position if sera.crossbow() != null else sera.global_position + Vector3.UP * 1.2
-	_vial = MeshInstance3D.new()
-	_vial.name = "BuckleVial"
-	var ball := SphereMesh.new()
-	ball.radius = 0.09
-	ball.height = 0.18
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(0.75, 0.5, 1.0)
-	glass.emission_enabled = true
-	glass.emission = Color(0.75, 0.5, 1.0)
-	glass.emission_energy_multiplier = 2.5
-	ball.material = glass
-	_vial.mesh = ball
-	_vial.set_meta("from", from)
-	level.add_child(_vial)
-	_vial.global_position = from
+	SeraVial.launch_at(level, from, site.buckle.global_position, VIAL_SEC, VIAL_ARC).shattered.connect(_on_buckle_hit)
 	Sfx.play_at(level, "vial_shot", from, -5.0)
+
+
+## 藥瓶打上車扣：扣子彈開、車往下滑一小步就被頂住（坡底）／被繩拉住（坡頂），煞車繩甩向阿展
+func _on_buckle_hit() -> void:
+	if final_step != 3:
+		return
+	final_step = 4
+	_final_t = 0.0
+	player.puppet().head = ""
+	site.cart_stuck = false
+	site.pop_buckle(RailSite.CORD_CATCH, CORD_FLY_SEC)
+	site.slide_cart(LURCH.y if final_route == "top" else LURCH.x, 0.3)
+	Sfx.play_at(level, "iron_clang", site.cart.global_position, -9.0, 0.05)
+	RockDebris.burst(level, site.buckle.global_position, Vector3.UP, 8, 0.07, BUCKLE_GOLD, Vector2(2.0, 5.0), 2.5)
 
 
 ## 畫面黑的那一刻：車停回主軌、三個人站到車旁邊；記下走的是哪一條
@@ -452,9 +539,13 @@ func _park() -> void:
 	final_camera = null
 	Game.session.set_flag(FLAG_ROUTE, final_route)
 	_settle()
+	player.puppet().pose_speed = 1.0
+	player.puppet().head = ""
 	player.stand_up()
+	player.sheathe(false)
 	player.global_position = Vector3(RailSite.CART_HOME_X + 1.6, 0.05, RailSite.TRACK_Z + 1.5)
 	sera.hold_at = Vector3.INF
+	sera.hold_look = Vector3.INF
 	sera.global_position = Vector3(RailSite.CART_HOME_X + 2.6, sera.global_position.y, RailSite.TRACK_Z + 2.4)
 	player.snap_camera()
 	Game.session.autosave()

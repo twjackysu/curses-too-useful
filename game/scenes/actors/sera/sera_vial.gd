@@ -2,8 +2,12 @@ class_name SeraVial
 extends Node3D
 ## 席菈射出來的藥瓶：一道拋物線飛向諾恩的背（她瞄的就是他，一定會中），落在身上就套用那個來源的狀態
 ## （data/status/statuses.json 的 sources）——反轉的回饋由 StatusEffects.changed 自己觸發，這裡不用管。
+## launch_at 的那一瓶不射人、射一個地方（斷軌的車扣）：同一個瓶子、同樣的光尾與濺開，不上狀態，打中發 shattered。
 ## 來源寫了 "vial": "forbidden" 的那一瓶（Boss 戰的【混沌大災難藥劑】，D-306）長得不一樣：圓底的大燒瓶、藥水在桃紅／紫／金之間一直變、
 ## 三顆光點繞著它轉、拖著一條變色的光尾，拋得比較高、飛得比較慢；砸中時一圈往外擴的光環＋一下強光＋更大一團藥水。
+
+## 打中了（launch_at 的那一瓶：後面的事關卡自己接）
+signal shattered
 
 const ARC_HEIGHT: float = 1.1
 const CHEST_Y: float = 1.15
@@ -32,6 +36,8 @@ const ORBIT_TURNS: float = 2.2
 const BURST_RING: float = 3.2
 
 var target: PlayerController
+## 不射人、射這個地方（Vector3.INF＝射 target）
+var aim_point: Vector3 = Vector3.INF
 var source: String = ""
 var flight: float = 0.55
 var landed: bool = false
@@ -74,6 +80,19 @@ static func launch(parent: Node, from: Vector3, p_target: PlayerController, p_so
 	return v
 
 
+## 從 from 射向一個地方（不是人）：飛 flight_sec 秒、拋 arc 公尺高
+static func launch_at(parent: Node, from: Vector3, point: Vector3, flight_sec: float, arc: float = ARC_HEIGHT) -> SeraVial:
+	var v := SeraVial.new()
+	v.name = "SeraVial"
+	v.aim_point = point
+	v.flight = maxf(flight_sec, 0.05)
+	v._arc = arc
+	v._from = from
+	parent.add_child(v)
+	v.global_position = from
+	return v
+
+
 func is_forbidden() -> bool:
 	return style == FORBIDDEN
 
@@ -107,12 +126,13 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if landed:
 		return
-	if target == null or not is_instance_valid(target):
+	var at_point: bool = aim_point.is_finite()
+	if not at_point and (target == null or not is_instance_valid(target)):
 		queue_free()
 		return
 	_t = minf(_t + delta / flight, 1.0)
 	_age += delta
-	var to: Vector3 = target.global_position + Vector3.UP * CHEST_Y
+	var to: Vector3 = aim_point if at_point else target.global_position + Vector3.UP * CHEST_Y
 	var p: Vector3 = _from.lerp(to, _t)
 	p.y += sin(_t * PI) * _arc
 	global_position = p
@@ -126,8 +146,12 @@ func _physics_process(delta: float) -> void:
 ## 砸在諾恩身上：上狀態、玻璃碎掉潑開的聲音、一團藥水往外濺；煙霧彈再加一圈貼地的煙。
 func _land() -> void:
 	landed = true
-	target.status_effects.apply_source(source)
-	Sfx.play_at(target, "vial_shatter", global_position, -3.0)
+	if aim_point.is_finite():
+		Sfx.play_at(get_parent(), "vial_shatter", global_position, -2.0, 0.04)
+		shattered.emit()
+	else:
+		target.status_effects.apply_source(source)
+		Sfx.play_at(target, "vial_shatter", global_position, -3.0)
 	_bottle.visible = false
 	_trail.emitting = false
 	if is_forbidden():

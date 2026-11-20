@@ -103,7 +103,7 @@ var burden: float = 1.0
 var peaceful: bool = false:
 	set(value):
 		peaceful = value
-		_sheathe(value)
+		sheathe(value)
 const SWORD_SCALE: float = 0.42
 const SWORD_GRIP: Vector3 = Vector3(0.0, 0.1, 0.0)
 
@@ -291,6 +291,13 @@ func stand_at(spot: Vector3, face_yaw: float) -> void:
 	remove_meta(TalkCamera.DROP_META)
 
 
+## 定在原地的時候（sit_at、stand_at）整個人被挪到 spot（斷軌：車往下滑一小步，頂著車頭的他跟著退）
+func move_seat(spot: Vector3) -> void:
+	if is_seated():
+		_seat = spot
+		global_position = spot
+
+
 func stand_up() -> void:
 	if not is_seated():
 		return
@@ -327,6 +334,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func puppet() -> Puppet:
 	return _puppet
+
+
+## 玩家的鏡頭（過場的鏡頭停完要還給它）
+func camera() -> Camera3D:
+	return _camera
 
 
 func _add_look(delta_look: Vector2, from_mouse: bool = false) -> void:
@@ -1140,7 +1152,8 @@ const SHEATHED_BLADE: Vector3 = Vector3(-0.45, -0.89, 0.0)
 
 
 ## 收劍（劍掛到背上）／拔劍（回到右手）。劍的節點 −Y 是劍尖的方向、原點在握把。
-func _sheathe(on: bool) -> void:
+## 公會大廳整關收著（peaceful）；過場要空出兩隻手的時候關卡也會叫（斷軌：頂住車頭、搖絞盤）
+func sheathe(on: bool) -> void:
 	if _weapon == null or _puppet == null:
 		return
 	var holder: Node3D = _puppet.joint("chest") if on else _puppet.hand("R")

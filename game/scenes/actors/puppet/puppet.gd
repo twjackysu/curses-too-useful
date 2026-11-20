@@ -15,7 +15,7 @@ extends Node3D
 ## 走路或跑步時，每隻腳落地的那一刻發一次（腳步聲照這個播）
 signal footfall
 
-const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave", "fumble", "reload", "swap", "lift_blade",
+const STATES: PackedStringArray = ["idle", "walk", "run", "dodge", "attack", "shoot", "reach", "give", "nod", "bow", "point", "chest", "shrug", "fist", "wave", "fumble", "reload", "swap", "lift_blade", "pull",
 	"roar", "gaze", "kneel", "flinch", "punch", "hammer", "collapse"]
 const WALK_MIN_SPEED: float = 0.3
 ## 這個速度以上用跑的動作。諾恩平常移動 3.4 m/s 是小跑：以前用「走路」的動作加速到 1.6 倍，腿還是跟不上，
@@ -37,6 +37,8 @@ const ACTION_TIME: Dictionary = {"dodge": 0.35, "attack": 0.55, "shoot": 0.9, "r
 	"reload": 1.6, "swap": 0.8,
 	# 諾恩從詛咒寶箱拿起裂刃、舉起來看（social_actions 的 lift_blade；ForestExplore.CHEST_*）
 	"lift_blade": 2.2,
+	# 左手抓住垂下來的繩往下拉（斷軌的阿展拉煞車繩；social_actions 的 pull）
+	"pull": 1.6,
 	# 怪物（魔像、樹人）自己的動作（tools/blender/common.py 的 monster_actions）：吼、凝視、跪照那一段要多久縮放播（play_action 的 seconds），
 	# 直拳與兩手砸停在舉到頂（MONSTER_APEX）等前兆走完（pause_at）
 	"roar": 2.2, "gaze": 2.0, "kneel": 2.0, "flinch": 0.5, "punch": 1.25, "hammer": 1.5,
@@ -62,7 +64,7 @@ const DRINK_UP_KEYS: Array[Vector2] = [Vector2(0, 0), Vector2(0.45, 0), Vector2(
 const DRINK_SIP_KEYS: Array[Vector2] = [Vector2(0, 0), Vector2(0.6, 0), Vector2(0.7, 1), Vector2(0.8, 1), Vector2(0.88, 0), Vector2(1, 0)]
 const DRINK_TILT: Vector2 = Vector2(0.2, 0.85)
 ## 站著不動的時候可以換成的樣子（模型的循環動作；程式人偶只會坐）
-const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "sit_laugh", "laugh", "slump", "down_back", "down_front", "sit_ground", "brew"]
+const POSES: PackedStringArray = ["", "sit", "sit_hunch", "sit_drink", "sit_laugh", "laugh", "slump", "down_back", "down_front", "sit_ground", "brew", "brace", "crank"]
 ## 「釋放」的姿勢播多久。它不是 action：疊在站姿／走路／出手上面，不佔出手與閃避（放完同一幀照樣能出手）
 const RELEASE_POSE_TIME: float = 0.36
 ## 模型的手骨頭在手腕：手上的掛點往指尖移這麼多（掌心）
@@ -83,6 +85,8 @@ const SIT_HIP_HEIGHT: float = 0.5
 @export var character_id: String = ""
 ## 沒在走、沒在做一次性動作的時候的樣子（POSES）：""＝平常站著。模型沒有那段動作就照平常站
 var pose: String = ""
+## pose 那一段循環動作播多快（0＝停在那一格：搖絞盤的手握著不動）
+var pose_speed: float = 1.0
 ## 下一次因為換 pose 而換動作時，用這麼久交叉淡化（秒；負數＝照平常）。用一次就清掉（set_pose）
 var _pose_blend: float = -1.0
 ## 扛著東西（魔像核心）：站、走、跑都換成左手舉到左肩上扶著的版本；模型沒有就照平常
@@ -425,6 +429,14 @@ func _emit_footfalls() -> void:
 			footfall.emit()
 
 
+## pose 的那一段循環動作播到一圈的哪裡（0～1）；沒有模型、或現在播的不是它（在走、在做別的動作）＝−1。
+## 場景裡跟著手動的東西照這個轉（絞盤的搖把）
+func pose_phase() -> float:
+	if anim == null or pose == "" or model_animation != CharacterModels.find_animation(anim, pose):
+		return -1.0
+	return anim.current_animation_position / maxf(anim.current_animation_length, 0.001)
+
+
 ## 換成另一個樣子（POSES），動作用 blend 秒慢慢換過去（倒在地上的人撐起上身）
 func set_pose(new_pose: String, blend: float) -> void:
 	if new_pose == pose:
@@ -482,7 +494,7 @@ func _animate_model() -> void:
 			# 出手變快（麻痺、流血被反轉）動作也要跟著快，不然只播得到舉劍的前半段、看不到劈下去
 			anim.speed_scale = attack_speed
 		_:
-			anim.speed_scale = _rate if state == action else 1.0
+			anim.speed_scale = _rate if state == action else (pose_speed if state == "idle" and pose != "" else 1.0)
 	if _hold_at >= 0.0 and state == action:
 		# 停在那一刻：不混合、不往前播
 		anim.play(name_found, 0.0)
@@ -618,6 +630,8 @@ func _pose(speed_t: float) -> void:
 			_pose_shoot(action_time / float(ACTION_TIME["shoot"]))
 		"reach", "give", "point", "wave", "chest", "shrug", "fist", "reload", "swap", "lift_blade":
 			_pose_reach(action_time / float(ACTION_TIME[action]), action in ["give", "shrug", "reload", "swap"])
+		"pull":
+			_pose_pull(action_time / float(ACTION_TIME["pull"]))
 		"nod", "bow":
 			var k: float = sin(PI * action_time / float(ACTION_TIME[action]))
 			_rot("spine", Vector3((-0.35 if action == "bow" else -0.05) * k, 0, 0))
@@ -688,6 +702,15 @@ func _pose_reach(t: float, both: bool) -> void:
 		_rot("shoulder_L", Vector3(1.3 * r, 0, -0.12 + 0.1 * r))
 		_rot("elbow_L", Vector3(0.25 + 0.2 * r, 0, 0))
 	_rot("spine", Vector3(-0.12 * r, 0, 0))
+
+
+## 左手舉到頭上前方抓住繩（0～30%）→ 往下拉到胸口、上身往後（42～70%）→ 拉著 → 放開。右手垂著
+func _pose_pull(t: float) -> void:
+	var up: float = smoothstep(0.0, 0.3, t) * (1.0 - 0.75 * smoothstep(0.42, 0.7, t)) * (1.0 - smoothstep(0.88, 1.0, t))
+	var haul: float = smoothstep(0.42, 0.7, t) * (1.0 - smoothstep(0.88, 1.0, t))
+	_rot("shoulder_L", Vector3(2.4 * up + 0.7 * haul, 0, -0.12))
+	_rot("elbow_L", Vector3(0.2 + 1.6 * haul, 0, 0))
+	_rot("spine", Vector3(-0.07 * up + 0.16 * haul, 0, 0))
 
 
 ## 舉過頭往下劈：舉起（0～35%）→ 劈下（35～60%）→ 收回。

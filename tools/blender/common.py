@@ -658,6 +658,10 @@ GIVE_RIGHT = ((8.0, 50.0, 85.0, 14.0), (2.0, 74.0, -110.0, -6.0), (0.0, 10.0, -5
 GIVE_LEFT = ((4.0, 50.0, 62.0, -25.0), (0.0, 8.0, -32.0, -12.0))
 # 扛著魔像核心：脊椎、胸口、頭往右（離開左肩上的重物）歪幾度
 CARRY_LEAN = (5.0, 4.0, 7.0)
+# 搖絞盤（crank）：搖把的軸在身體前面多遠、離地多高、搖把轉的半徑（m）——RailSite 的 CRANK_* 要一樣
+CRANK_AHEAD = 0.45
+CRANK_AXLE = 0.9
+CRANK_RADIUS = 0.26
 
 
 def social_actions(a):
@@ -1009,7 +1013,70 @@ def social_actions(a):
             a.arm_pose("Left", f, hang=34, swing=112, elbow=104)
         return fn
 
+    # 斷軌救車的三個樣子（RailEvent 的最後一下）。
+    # 頂住往下滑的車（Puppet.pose "brace"）：弓箭步（左腳在前）、上身往前壓、兩手伸直頂在胸口高，被車一下一下壓回來
+    def brace(f, t):
+        b = math.sin(t * math.tau)
+        a.rot("Hips", f, (X, -10))
+        a.move("Hips", f, (0, 0.10 + 0.012 * b, -0.10))
+        a.rot("Spine", f, (X, -13 - 1.5 * b))
+        a.rot("Chest", f, (X, -9))
+        a.rot("Head", f, (X, 22 + b))
+        # 腳掌貼地＝骨盆、大腿、膝蓋、腳掌的角度加起來是 0（後腳踮著：−25）
+        a.leg_pose("Left", f, thigh=45, knee=50, foot=15)
+        a.leg_pose("Right", f, thigh=-18, knee=12, foot=15)
+        for side, sgn in (("Left", -1), ("Right", 1)):
+            a.arm_pose(side, f, hang=7, swing=90 - 3 * b, elbow=16 + 9 * b, twist=-5 * sgn)
+
+    # 搖絞盤（Puppet.pose "crank"）：把手在身體正前方 CRANK_AHEAD 公尺、離地 CRANK_AXLE 公尺的軸上畫半徑 CRANK_RADIUS 的圓
+    # （前 → 上 → 後 → 下；RailSite 的搖把照同一圈轉），兩手握著它跟著轉——肩膀到把手的距離用兩節手臂解出 swing 與 elbow，
+    # 把手轉到遠的地方上身多壓一點、轉到底下膝蓋多彎一點
+    hips_z = bones["Hips"].head_local.z
+    shoulder_up = bones["RightUpperArm"].head_local.z - hips_z
+    upper = (bones["RightLowerArm"].head_local - bones["RightUpperArm"].head_local).length
+    fore = (bones["RightHand"].head_local - bones["RightLowerArm"].head_local).length + 0.07
+    leg = thigh + (bones["LeftFoot"].head_local - bones["LeftLowerLeg"].head_local).length
+
+    def crank(f, t):
+        p = t * math.tau
+        lean = 24 + 8 * math.cos(p) - 6 * math.sin(p)
+        dip = 0.05 + 0.10 * max(0.0, -math.sin(p))
+        a.rot("Hips", f, (X, -lean * 0.2))
+        a.move("Hips", f, (0, 0, -dip))
+        a.rot("Spine", f, (X, -lean * 0.45))
+        a.rot("Chest", f, (X, -lean * 0.35))
+        a.rot("Head", f, (X, lean * 0.5))
+        # 骨盆低 dip：大腿往前 bend 度、膝蓋彎兩倍，腳掌貼地（骨盆前傾的那幾度大腿補回來）
+        bend = math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - dip / leg))))
+        for side in ("Left", "Right"):
+            a.leg_pose(side, f, thigh=bend + lean * 0.2, knee=2 * bend, foot=bend)
+        # 肩膀在哪（骨盆的正上方往前傾 lean 度）、把手在哪
+        sx = shoulder_up * math.sin(math.radians(lean))
+        sz = hips_z - dip + shoulder_up * math.cos(math.radians(lean))
+        dx = CRANK_AHEAD + CRANK_RADIUS * math.cos(p) - sx
+        dz = sz - (CRANK_AXLE + CRANK_RADIUS * math.sin(p))
+        r = min(math.hypot(dx, dz), (upper + fore) * 0.985)
+        elbow = math.pi - math.acos(max(-1.0, min(1.0, (upper * upper + fore * fore - r * r) / (2 * upper * fore))))
+        at = math.atan2(dx, dz) - math.acos(max(-1.0, min(1.0, (upper * upper + r * r - fore * fore) / (2 * upper * r))))
+        for side, sgn in (("Left", -1), ("Right", 1)):
+            a.arm_pose(side, f, hang=5, swing=math.degrees(at) + lean, elbow=math.degrees(elbow), twist=-9 * sgn)
+
+    # 左手抓住頭頂斜前方垂下來的繩、往下拉到胸口（阿展拉煞車繩；右手不聽使喚，垂著）：
+    # 0～0.3 左手舉到頭上前方 → 0.3～0.42 抓住 → 0.42～0.7 整個人往後坐、把繩拉到胸口 → 拉著停一下 → 放開
+    def pull(f, t):
+        up = keys(t, [(0, 0), (0.3, 1), (0.42, 1), (0.7, 0.25), (0.88, 0.25), (1, 0)])
+        haul = keys(t, [(0, 0), (0.42, 0), (0.7, 1), (0.88, 1), (1, 0)])
+        stand(f, spine=-4 * up + 9 * haul, chest=-3 * up + 5 * haul, head=14 * up - 6 * haul, hips_z=6 * up)
+        a.move("Hips", f, (0, -0.07 * haul, -0.012 - 0.06 * haul))
+        a.leg_pose("Left", f, thigh=9 + 10 * haul, knee=10 + 22 * haul, foot=-2 - 6 * haul)
+        a.leg_pose("Right", f, thigh=-5 + 8 * haul, knee=6 + 20 * haul, foot=4 - 6 * haul)
+        a.arm_pose("Left", f, hang=9 + 6 * up, swing=-3 + 138 * up - 10 * haul, elbow=14 + 6 * up + 86 * haul, twist=10 * up)
+        a.arm_pose("Right", f, hang=11, swing=4, elbow=10)
+
     idle, walk, run = a.base_fns["idle"], a.base_fns["walk"], a.base_fns["run"]
+    a.action("brace", 48, brace, step=4)
+    a.action("crank", 30, crank, step=1)
+    a.action("pull", 38, pull, step=1)
     a.action("sit", 72, sit, step=6)
     a.action("sit_hunch", 72, sit_hunch, step=6)
     a.action("sit_drink", 96, sit_drink, step=2)

@@ -120,6 +120,8 @@ var _mask: Node3D
 var _mask_off_in: float = 0.0
 ## 關卡叫她去某個地方站著、不跟諾恩（Boss 戰她退到後排裝禁藥）。Vector3.INF＝照平常跟著
 var hold_at: Vector3 = Vector3.INF
+## 站在 hold_at 的時候面向哪裡（Vector3.INF＝面向諾恩；斷軌的最後一下她瞄的是車扣）
+var hold_look: Vector3 = Vector3.INF
 ## 去 hold_at 的速度（公尺／秒）；0＝用跑的（Boss 戰）。公會大廳她鼓起勇氣走過來，關卡設得慢一點
 var hold_speed: float = 0.0
 ## true＝手上在忙別的（裝禁藥）：不射平常的藥，玩家也要不到
@@ -453,7 +455,10 @@ func _go_hold(delta: float, to_target: Vector3, target_dist: float) -> void:
 	var step: Vector3 = hold_at - global_position
 	step.y = 0.0
 	var moving: bool = step.length() > 0.35 and _special_in < 0.0 and not Game.is_player_locked()
-	var dir: Vector3 = step.normalized() if moving else (to_target / target_dist if target_dist > 0.01 else Vector3.ZERO)
+	var facing: Vector3 = to_target / target_dist if target_dist > 0.01 else Vector3.ZERO
+	if hold_look.is_finite():
+		facing = Vector3(hold_look.x - global_position.x, 0.0, hold_look.z - global_position.z).normalized()
+	var dir: Vector3 = step.normalized() if moving else facing
 	var speed: float = (hold_speed if hold_speed > 0.0 else CombatTuning.num("sera.run_speed", 5.6)) if moving else 0.0
 	velocity = Vector3(dir.x * speed, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, dir.z * speed) if moving else Vector3(0.0, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, 0.0)
 	move_and_slide()

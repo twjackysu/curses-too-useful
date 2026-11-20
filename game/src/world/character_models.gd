@@ -48,6 +48,10 @@ const ANIM_MAP: Dictionary = {
 	"reload": ["reload"],
 	"lift_blade": ["lift_blade"],
 	"swap": ["swap"],
+	# 斷軌救車（RailEvent 的最後一下）：頂住車頭、搖絞盤（Puppet.pose）、左手拉煞車繩（一次性的動作）
+	"brace": ["brace"],
+	"crank": ["crank"],
+	"pull": ["pull"],
 	"idle_carry": ["idle_carry"],
 	"walk_carry": ["walk_carry"],
 	"run_carry": ["run_carry"],
@@ -61,7 +65,7 @@ const ANIM_MAP: Dictionary = {
 	"collapse": ["collapse"],
 }
 ## 會循環播放的動作
-const LOOPING: PackedStringArray = ["idle", "walk", "run", "sit", "sit_hunch", "sit_drink", "sit_laugh", "laugh", "slump", "down_back", "down_front", "sit_ground", "idle_carry", "walk_carry", "run_carry", "brew"]
+const LOOPING: PackedStringArray = ["idle", "walk", "run", "sit", "sit_hunch", "sit_drink", "sit_laugh", "laugh", "slump", "down_back", "down_front", "sit_ground", "idle_carry", "walk_carry", "run_carry", "brew", "brace", "crank"]
 ## 掛點骨骼：小寫、去掉 Mixamo 前綴（Godot 匯入時 "mixamorig:" 會變成 "mixamorig_"）後比對（Mixamo、Blender Rigify／一般命名）
 const HAND_BONES: Dictionary = {
 	"L": ["lefthand", "hand_l", "hand.l", "l_hand"],

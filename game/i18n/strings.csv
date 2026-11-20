@@ -537,6 +537,10 @@ BARK_SERA_DUCK,"Norn, duck!",諾恩，低頭！
 BARK_AZHAN_BRAKE,...Got it!,……拉住了！
 CH1_RAIL_SAVED,The cart is safe on the main track,車停穩了
 BARK_AZHAN_AFTER,"If you pass the apothecary on the way back, tell her I'll bring the cups myself. Later.",回程經過藥房的話，幫我說一聲——杯子我晚點自己送。
+BARK_AZHAN_HINT_REACH,"The brake lever's right on the front of the cart. Your reach is longer than mine. Try it from the edge of the break.",拉桿就在車頭。你手比我長，去斷口那邊搆搆看。
+BARK_AZHAN_HINT_WAYS,"Two ways. Up top, vines have the winch tied up. Cut them and the rope comes down. Or go down by the mud, find something to climb, and brace the cart's front.",兩條路：坡頂的絞盤被藤纏住了，砍開就能放繩；不然到坡底找東西墊腳，上去頂住車頭。
+BARK_AZHAN_HINT_WINCH,The rope's down! Go crank the winch. I'll be right here on the brake.,繩放下來了！去搖絞盤，煞車我在這邊等著拉。
+BARK_AZHAN_HINT_HOLD,You can climb up now! Get up there and brace the front. I'll take the brake.,能踩上去了！你上去頂住車頭，煞車我來。
 DLG_CH1_RAIL_001,"Four buckles undone, one to go... and of course it's the one tied to the brake.",四個扣子都解開了，就剩這一個……偏偏跟煞車綁在一起。
 DLG_CH1_RAIL_002,Why not post a request at the guild for this?,這種事，怎麼不去公會發委託？
 DLG_CH1_RAIL_003,I went. The counter told me to write my name. (He lifts his right hand. The fingers won't close.),我去了。櫃檯要我寫名字。（他舉起右手——手指握不起來。）

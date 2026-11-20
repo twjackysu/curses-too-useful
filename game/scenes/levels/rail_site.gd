@@ -21,9 +21,15 @@ const WEDGE_THICK: float = 6.0
 const CART_X: float = 54.6
 const CART_HOME_X: float = 46.4
 const CART_LEN: float = 1.7
-## 阿展坐的地方（木軌盡頭旁邊的一截圓木上，面向車）、他站起來拉煞車的地方
+## 阿展坐的地方（木軌盡頭旁邊的一截圓木上，面向車）、車救下來之後他站的地方
 const AZHAN_SEAT: Vector3 = Vector3(49.0, 0.0, -41.2)
 const AZHAN_BRAKE: Vector3 = Vector3(49.2, 0.0, -42.3)
+## 最後那一下他站在斷口邊上、車的正下坡（煞車繩彈下來落在他手上；手還沒舉起來之前繩先飛向 CORD_CATCH）
+const AZHAN_PULL: Vector3 = Vector3(50.2, 0.0, -42.55)
+const CORD_CATCH: Vector3 = Vector3(50.55, 2.0, -42.5)
+## 煞車的拉桿：鬆了一半／拉到底（繞 z 軸的弧度；往下坡＝往阿展那一邊倒）
+const LEVER_LOOSE: float = 0.5
+const LEVER_SET: float = 1.0
 ## 伸手搆拉桿的地方（斷口邊上）
 const REACH_SPOT: Vector3 = Vector3(49.8, 0.0, -43.0)
 ## 坡頂：絞盤、掛繩的桅杆（頂上的滑輪多高）
@@ -33,14 +39,27 @@ const MAST_HEIGHT: float = 7.2
 ## 坡底：有裂紋的枯木（倒下去會搭在棧橋上）、頂住車頭時站的地方（橋面上）
 const DEAD_TREE: Vector3 = Vector3(53.3, 0.0, -46.4)
 const DEAD_TREE_HEIGHT: float = 4.4
-const STAND_X: float = 53.3
+const DEAD_BARK: Color = Color(0.47, 0.42, 0.38)
+const STAND_X: float = 52.9
+## 他站在軌道中線偏北一點（拉桿在車頭的南側，手臂不跟它疊在一起）
+const STAND_Z: float = -43.12
+## 絞盤的搖把：軸離地多高、轉的半徑、搖的人站在軸的東邊多遠（這三個跟 tools/blender/common.py 的 CRANK_* 要一樣）、
+## 握把在絞盤的哪一側（z）、搖一圈幾秒（模型的 crank 動作 30 格、24 fps）
+const CRANK_AXLE: float = 0.9
+const CRANK_RADIUS: float = 0.26
+const CRANK_AHEAD: float = 0.45
+const CRANK_Z: float = 0.73
+const CRANK_SEC: float = 1.25
 ## 把盾架上去的地方（斷掉垂下來的窄軌中間）
 const SHIELD_SPOT: Vector3 = Vector3(51.2, 0.72, -43.0)
-## 最後那一下席菈站的地方（阿展這一邊，看得到車扣）
-const SERA_SHOT: Vector3 = Vector3(50.4, 0.0, -40.4)
-## 最後那一下的鏡頭（從阿展這一邊看過去：左邊阿展、中間的車、右邊舉弩的席菈）：鏡頭在哪、看著哪
-const FINAL_EYE: Vector3 = Vector3(46.6, 2.5, -38.4)
-const FINAL_AIM: Vector3 = Vector3(53.6, 1.9, -42.7)
+## 最後那一下席菈站的地方（阿展這一邊、棧橋低的那一頭的南邊，看得到車扣；離鏡頭夠遠，整個人都在畫面裡）
+const SERA_SHOT: Vector3 = Vector3(51.6, 0.0, -41.0)
+## 最後那一下的鏡頭（從阿展這一邊看過去：左邊斷口邊上的阿展、中間的車與頂著它的諾恩、右邊舉弩的席菈）：鏡頭在哪、看著哪
+const FINAL_EYE: Vector3 = Vector3(47.0, 2.6, -39.4)
+const FINAL_AIM: Vector3 = Vector3(53.2, 2.0, -42.9)
+## 坡頂那一條的第一個鏡頭（從南邊看：右邊搖絞盤的諾恩、左邊遠處繩吊著的車）
+const CRANK_EYE: Vector3 = Vector3(66.0, 1.7, -34.9)
+const CRANK_AIM: Vector3 = Vector3(62.6, 1.25, -39.6)
 ## 自己放一朵毒蕈到車架上試（斷口邊上、伸手的地方旁邊）
 const WEIGH_SPOT: Vector3 = Vector3(49.0, 0.0, -43.0)
 ## 泥灘那一片黑泥多大（空地本身比它大：樹人站在遠端）
@@ -52,6 +71,12 @@ var lever: Node3D
 var vines: Array[MeshInstance3D] = []
 var rope_knot: Node3D
 var rope_down: Node3D
+## 絞盤的搖把（set_crank 轉它）
+var crank: Node3D
+## 煞車繩：平常捲著被車扣壓在車邊（cord_coil）；車扣彈開之後是一條從拉桿頂拉到 cord_end 的繩（cord）
+var cord: MeshInstance3D
+var cord_coil: Node3D
+var cord_end: Vector3 = Vector3.INF
 var dead_tree: Node3D
 var tree_blocker: StaticBody3D
 var shield_step: Node3D
@@ -62,6 +87,15 @@ var _rope: StandardMaterial3D
 var _rock_t: float = 0.0
 ## 車還卡在坡上（會輕輕晃）
 var cart_stuck: bool = true
+## 車從卡住的地方往下坡滑了多遠（公尺；最後那一下：繩放一段、車扣彈開滑一小步）
+var cart_slide: float = 0.0
+## 車身被壓得往下沉多少（公尺；放一朵毒蕈上去試的那一下）
+var cart_dip: float = 0.0
+## 掛繩放下來多少（0＝還吊在桅杆上、1＝鉤在車上）
+var _rope_k: float = 1.0
+var _rope_line: MeshInstance3D
+var _rope_hook: MeshInstance3D
+var _rope_top: Vector3
 
 
 ## 橋面在 x 的地方多高
@@ -69,14 +103,24 @@ static func deck_y(x: float) -> float:
 	return DECK_LOW + (clampf(x, TRESTLE_X.x, TRESTLE_X.y) - TRESTLE_X.x) * DECK_SLOPE
 
 
-## 頂住車頭時站的地方（橋面上、車頭的下坡那一邊）
-static func stand_spot() -> Vector3:
-	return Vector3(STAND_X, deck_y(STAND_X), TRACK_Z)
+## 頂住車頭時站的地方（橋面上、車頭的下坡那一邊）；slide＝車往下滑了多遠（他跟著退）
+static func stand_spot(slide: float = 0.0) -> Vector3:
+	return Vector3(STAND_X - slide, deck_y(STAND_X - slide), STAND_Z)
+
+
+## 搖絞盤時站的地方（握把的東邊，面向西：看得到繩與坡下的車）
+static func crank_spot() -> Vector3:
+	return WINCH + Vector3(CRANK_AHEAD, 0.0, CRANK_Z)
+
+
+## 車在棧橋上 x 的地方時的位置
+static func cart_on_deck(x: float) -> Vector3:
+	return Vector3(x, deck_y(x) + 0.06, TRACK_Z)
 
 
 ## 車卡著的位置／救下來停在主軌上的位置
 static func cart_spot(home: bool) -> Vector3:
-	return Vector3(CART_HOME_X, 0.16, TRACK_Z) if home else Vector3(CART_X, deck_y(CART_X) + 0.06, TRACK_Z)
+	return Vector3(CART_HOME_X, 0.16, TRACK_Z) if home else cart_on_deck(CART_X)
 
 
 func _ready() -> void:
@@ -95,10 +139,21 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if cart == null:
+		return
 	# 卡在坡上的車：煞車鬆了一半，輕輕前後晃
-	if cart_stuck and cart != null:
+	if cart_stuck:
 		_rock_t += delta
-		cart.position.x = CART_X + 0.035 * sin(_rock_t * 2.1)
+		cart.position = cart_on_deck(CART_X - cart_slide + 0.035 * sin(_rock_t * 2.1)) - Vector3(0, cart_dip, 0)
+	elif cart.rotation.z != 0.0:
+		cart.position = cart_on_deck(CART_X - cart_slide)
+	# 掛繩跟著車走（放下來的那一下從桅杆上的繩結落到車上）
+	if rope_down.visible:
+		var hook: Vector3 = (rope_knot.position - Vector3(0, 0.8, 0)).lerp(cart.position + Vector3(0.2, 1.05, 0), _rope_k)
+		_stretch(_rope_line, _rope_top, hook)
+		_rope_hook.position = hook - Vector3(0, 0.08, 0)
+	if cord.visible and cord_end.is_finite():
+		_stretch(cord, lever_tip(), cord_end)
 
 
 static func _mat(color: Color, rough: float, metal: float = 0.0) -> StandardMaterial3D:
@@ -154,6 +209,17 @@ static func _beam(on: Node3D, node_name: String, a: Vector3, b: Vector3, radius:
 	if absf(dir.dot(Vector3.UP)) < 0.999:
 		mi.basis = Basis(Quaternion(Vector3.UP, dir))
 	return mi
+
+
+## 把一根單位長的圓柱（_beam 做的）拉到 a、b 兩點之間（世界座標；每一幀在動的繩）
+static func _stretch(mi: MeshInstance3D, a: Vector3, b: Vector3) -> void:
+	var d: Vector3 = b - a
+	var length: float = maxf(d.length(), 0.01)
+	var up: Vector3 = d / length
+	var basis := Basis.IDENTITY
+	if absf(up.dot(Vector3.UP)) < 0.999:
+		basis = Basis(Quaternion(Vector3.UP, up))
+	mi.global_transform = Transform3D(Basis(basis.x, basis.y * length, basis.z), (a + b) * 0.5)
 
 
 static func _wall(on: Node3D, node_name: String, size: Vector3, at: Vector3) -> StaticBody3D:
@@ -268,10 +334,60 @@ func _build_cart() -> void:
 	lever = Node3D.new()
 	lever.name = "Lever"
 	lever.position = Vector3(-0.92, 0.3, 0.3)
-	lever.rotation.z = 0.5
+	lever.rotation.z = LEVER_LOOSE
 	cart.add_child(lever)
 	_box(lever, "Bar", Vector3(0.05, 0.75, 0.05), Vector3(0, 0.37, 0), _iron)
 	_cyl(lever, "Knob", Vector2(0.06, 0.06), 0.12, Vector3(0, 0.78, 0), _glow(Color(0.9, 0.25, 0.2), 0.8))
+	# 煞車繩：一頭綁在拉桿頂，其餘捲成一圈被車扣壓在車邊；車扣彈開（pop_buckle）它才甩得下來
+	cord_coil = Node3D.new()
+	cord_coil.name = "CordCoil"
+	cord_coil.position = Vector3(-0.6, 0.72, 0.5)
+	cart.add_child(cord_coil)
+	for i: int in 3:
+		var loop := MeshInstance3D.new()
+		loop.name = "Loop"
+		var ring := TorusMesh.new()
+		ring.inner_radius = 0.085
+		ring.outer_radius = 0.12
+		ring.rings = 12
+		ring.ring_segments = 5
+		ring.material = _rope
+		loop.mesh = ring
+		loop.position = Vector3(0.012 * float(i - 1), -0.02 * float(i), 0.012 * float(i))
+		loop.rotation = Vector3(PI * 0.5 + 0.18 * float(i - 1), 0, 0.12 * float(i))
+		cord_coil.add_child(loop)
+	_beam(cord_coil, "Tail", Vector3(0, 0.1, 0), Vector3(0, 0.18, -0.26), 0.018, _rope)
+	cord = _cyl(self, "BrakeCord", Vector2(0.02, 0.02), 1.0, Vector3.ZERO, _rope)
+	cord.visible = false
+
+
+## 拉桿頂在哪（世界座標：煞車繩綁在這裡）
+func lever_tip() -> Vector3:
+	return lever.global_transform * Vector3(0, 0.78, 0)
+
+
+## 車扣被打開：扣子往上彈開、不見；捲著的煞車繩甩出去，繩頭 fly_sec 秒飛到 to（之後 cord_end 由 RailEvent 每一幀跟著阿展的手）
+func pop_buckle(to: Vector3, fly_sec: float) -> void:
+	var from: Vector3 = cord_coil.global_position
+	cord_coil.visible = false
+	cord.visible = true
+	cord_end = from
+	var fly: Tween = create_tween()
+	fly.tween_method(func(k: float) -> void: cord_end = from.lerp(to, k) + Vector3.UP * sin(k * PI) * 0.7, 0.0, 1.0, fly_sec)
+	var pop: Tween = buckle.create_tween().set_parallel(true)
+	pop.tween_property(buckle, "position", buckle.position + Vector3(-0.15, 0.7, 0.5), 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	pop.tween_property(buckle, "rotation", Vector3(5.0, 3.0, 4.0), 0.3)
+	pop.chain().tween_callback(func() -> void: buckle.visible = false)
+
+
+## 車往下坡再滑 by 公尺（sec 秒）。預設滑到底彈一下（車扣彈開的那一下）；放繩慢慢放下去給 TRANS_SINE
+func slide_cart(by: float, sec: float, trans: Tween.TransitionType = Tween.TRANS_BACK) -> void:
+	create_tween().tween_property(self, "cart_slide", cart_slide + by, sec).set_trans(trans).set_ease(Tween.EASE_OUT if trans == Tween.TRANS_BACK else Tween.EASE_IN_OUT)
+
+
+## 拉桿拉到底（煞車咬住）
+func set_brake(sec: float, delay: float = 0.0) -> void:
+	lever.create_tween().tween_property(lever, "rotation:z", LEVER_SET, sec).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## 坡頂的絞盤：兩個木架、橫著的轉筒、搖把；三股藤纏在轉筒上（Vine1～3）；繩往上到桅杆頂的滑輪，打結吊在那裡
@@ -285,8 +401,13 @@ func _build_winch() -> void:
 		_beam(winch, "Leg", Vector3(0.4, 0, side * 0.55), Vector3(0, 1.05, side * 0.5), 0.06, _wood)
 	_cyl(winch, "Drum", Vector2(0.2, 0.2), 0.95, Vector3(0, 0.9, 0), _dark, Vector3(PI * 0.5, 0, 0))
 	_cyl(winch, "Coil", Vector2(0.24, 0.24), 0.4, Vector3(0, 0.9, 0), _rope, Vector3(PI * 0.5, 0, 0))
-	_beam(winch, "Crank", Vector3(0, 0.9, 0.5), Vector3(0.05, 1.25, 0.62), 0.03, _iron)
-	_beam(winch, "Handle", Vector3(0.05, 1.25, 0.62), Vector3(0.05, 1.25, 0.84), 0.03, _iron)
+	crank = Node3D.new()
+	crank.name = "Crank"
+	crank.position = Vector3(0, CRANK_AXLE, 0.5)
+	winch.add_child(crank)
+	_beam(crank, "Arm", Vector3.ZERO, Vector3(0, CRANK_RADIUS, CRANK_Z - 0.5 - 0.11), 0.03, _iron)
+	_beam(crank, "Handle", Vector3(0, CRANK_RADIUS, CRANK_Z - 0.5 - 0.11), Vector3(0, CRANK_RADIUS, CRANK_Z - 0.5 + 0.11), 0.035, _wood)
+	set_crank(1.1)
 	var vine_mat: StandardMaterial3D = _glow(Color(0.3, 0.62, 0.26), 0.35)
 	var leaf_mat: StandardMaterial3D = _glow(Color(0.62, 0.3, 0.75), 0.6)
 	for i: int in RailRescue.VINES:
@@ -336,9 +457,15 @@ func _build_winch() -> void:
 	rope_down.name = "RopeDown"
 	rope_down.visible = false
 	mast.add_child(rope_down)
-	var hook_at: Vector3 = cart_spot(false) + Vector3(0.2, 1.05, 0)
-	_beam(rope_down, "Line", top - Vector3(0, 0.2, 0), hook_at, 0.025, _rope)
-	_cyl(rope_down, "Hook", Vector2(0.05, 0.02), 0.18, hook_at - Vector3(0, 0.08, 0), _iron)
+	# 放下來的那一段每一幀照車的位置拉（_process）
+	_rope_top = top - Vector3(0, 0.2, 0)
+	_rope_line = _cyl(rope_down, "Line", Vector2(0.025, 0.025), 1.0, Vector3.ZERO, _rope)
+	_rope_hook = _cyl(rope_down, "Hook", Vector2(0.05, 0.02), 0.18, Vector3.ZERO, _iron)
+
+
+## 搖把轉到 phase（弧度；跟模型的 crank 動作同一圈：0＝握把離搖的人最遠，再往上、往他那邊、往下）
+func set_crank(phase: float) -> void:
+	crank.rotation.z = PI * 0.5 - phase
 
 
 ## 棧橋北邊有裂紋的枯木：根部一圈發橘光的裂縫；倒下去（topple）搭在棧橋上、變成能踩上去的斜坡
@@ -347,8 +474,18 @@ func _build_dead_tree() -> void:
 	dead_tree.name = "DeadTree"
 	dead_tree.position = DEAD_TREE
 	add_child(dead_tree)
-	var bark: StandardMaterial3D = _mat(Color(0.56, 0.5, 0.44), 0.95)
-	_cyl(dead_tree, "Trunk", Vector2(0.15, 0.3), DEAD_TREE_HEIGHT, Vector3(0, DEAD_TREE_HEIGHT * 0.5, 0), bark)
+	# 樹幹跟路邊的倒木同一套（粗細起伏、樹皮紋、斷口的年輪），顏色調成枯掉的灰白；立起來（木頭的長軸轉成往上，細的那一頭在上面）
+	var bark: StandardMaterial3D = _mat(DEAD_BARK, 0.95)
+	var trunk := MeshInstance3D.new()
+	trunk.name = "Trunk"
+	trunk.mesh = SlopeClutter.log_mesh(91, DEAD_TREE_HEIGHT, 0.25, 9, 8)
+	var trunk_mat: ShaderMaterial = SlopeClutter.log_material(0.25)
+	trunk_mat.set_shader_parameter("bark", DEAD_BARK)
+	trunk_mat.set_shader_parameter("bark_dark", DEAD_BARK * 0.45)
+	trunk.material_override = trunk_mat
+	trunk.position = Vector3(0, DEAD_TREE_HEIGHT * 0.5, 0)
+	trunk.rotation.z = PI * 0.5
+	dead_tree.add_child(trunk)
 	_beam(dead_tree, "Branch", Vector3(0, 2.6, 0), Vector3(0.9, 3.4, 0.2), 0.06, bark)
 	_beam(dead_tree, "Branch", Vector3(0, 3.3, 0), Vector3(-0.7, 4.0, -0.3), 0.05, bark)
 	_beam(dead_tree, "Branch", Vector3(0, 1.9, 0), Vector3(-0.5, 2.4, 0.5), 0.05, bark)
@@ -409,16 +546,24 @@ func place_shield() -> void:
 	shield_step.visible = true
 
 
-## 藤：砍掉幾股（0＝都還在）
+## 藤：砍掉幾股（0＝都還在）。原本砍掉、現在又在的那幾股是長回來的：從小長到原本的大小
 func show_vines(cut: int) -> void:
 	for i: int in vines.size():
+		var back: bool = i >= cut and not vines[i].visible
 		vines[i].visible = i >= cut
+		if back and is_inside_tree():
+			vines[i].scale = Vector3.ONE * 0.3
+			vines[i].create_tween().tween_property(vines[i], "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## 繩放下來了（掛到車上）
-func show_rope_free(free: bool) -> void:
+## 繩放下來了（掛到車上）。animate＝true：從桅杆上的繩結落下來、晃一下才鉤住（砍開藤的那一刻）
+func show_rope_free(free: bool, animate: bool = false) -> void:
 	rope_knot.visible = not free
 	rope_down.visible = free and cart_stuck
+	_rope_k = 1.0
+	if free and animate:
+		_rope_k = 0.0
+		create_tween().tween_property(self, "_rope_k", 1.0, 0.8).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
 ## 車停回主軌上（救下來了）。animate＝false 直接擺好
@@ -426,9 +571,11 @@ func park_cart() -> void:
 	cart_stuck = false
 	cart.position = cart_spot(true)
 	cart.rotation.z = 0.0
-	lever.rotation.z = -0.35
+	lever.rotation.z = LEVER_SET
 	buckle.visible = false
 	rope_down.visible = false
+	cord.visible = false
+	cord_coil.visible = false
 
 
 ## 坡底的泥灘：一片發亮的黑泥

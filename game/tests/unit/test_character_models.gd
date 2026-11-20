@@ -298,6 +298,37 @@ func test_built_models_face_forward_in_every_clip() -> void:
 		await tree.process_frame
 
 
+## 斷軌救車的樣子（common.py 的 brace、crank、pull）：搖絞盤是循環的，播到一圈的哪裡問得到（搖把照這個轉）、可以停在那一格；
+## 沒有那一段動作的模型問不到（−1：搖把照時間轉）。
+func test_crank_pose_reports_its_phase_and_can_be_held_still() -> void:
+	var p: Puppet = _puppet(_fake_model(["idle", "run", "crank"]))
+	assert_eq(p.pose_phase(), -1.0, "平常站著：沒有在播")
+	p.set_pose("crank", 0.0)
+	p.advance(0.016)
+	assert_eq(p.model_animation, "crank")
+	var before: float = p.pose_phase()
+	p.anim.advance(0.3)
+	assert_true(p.pose_phase() > before and p.pose_phase() <= 1.0, "在往前播（%.2f → %.2f）" % [before, p.pose_phase()])
+	p.pose_speed = 0.0
+	p.advance(0.016)
+	assert_eq(p.anim.speed_scale, 0.0, "握著不動")
+	p.set_pose("brace", 0.0)
+	p.advance(0.016)
+	assert_eq(p.pose_phase(), -1.0, "這個模型沒有 brace：照平常站、問不到")
+	p.queue_free()
+	var human: PackedScene = CharacterModels.scene_for("noen")
+	if human != null:
+		var n: Puppet = _puppet(human)
+		if n.anim != null:
+			for clip: String in ["brace", "crank", "pull"]:
+				assert_ne(CharacterModels.find_animation(n.anim, clip), "", "諾恩有 %s" % clip)
+			var crank: Animation = n.anim.get_animation(CharacterModels.find_animation(n.anim, "crank"))
+			assert_true(absf(crank.length - RailSite.CRANK_SEC) < 0.05, "搖一圈 %.2f 秒（RailSite.CRANK_SEC）" % crank.length)
+			assert_eq(crank.loop_mode, Animation.LOOP_LINEAR, "循環的")
+		n.queue_free()
+	await tree.process_frame
+
+
 ## 怪物（魔像、樹人）有自己的動作（common.py 的 monster_actions）：出招舉到頂停住、放開才打下去；同一段動作再播一次從頭播。
 ## 人沒有這些動作（模型沒有那一段就照平常站）。
 func test_monsters_have_their_own_strikes_roar_gaze_kneel_and_flinch() -> void:
