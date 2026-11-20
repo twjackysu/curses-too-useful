@@ -373,3 +373,78 @@ func test_shield_iou_keeps_it_hanging() -> void:
 	assert_eq(str(s.state.get_flag(TownStreet.FLAG_SHIELD, "")), "iou")
 	assert_true(level.shield.visible, "補借據：盾留在藥房")
 	assert_eq(int(s.state.items.get(TownStreet.SHIELD_ITEM, 0)), 0)
+
+
+func _go_down(level: TownStreet) -> void:
+	level.go_down()
+	var guard: int = 0
+	while not level.in_cellar and guard < 120:
+		guard += 1
+		await tree.physics_frame
+	assert_true(level.in_cellar, "下到地下室")
+
+
+func test_cellar_with_the_lamp_lures_them_out_one_by_one() -> void:
+	_new_game_at_town()
+	var s: GameSession = _session()
+	var level: TownStreet = _load_level()
+	await _frames(1)
+	assert_true(level.talk_vendor())
+	_finish_dialogue(0)
+	assert_true(bool(s.state.get_flag(TownStreet.FLAG_CELLAR_ASKED, false)))
+	await _go_down(level)
+	var player: PlayerController = _player()
+	assert_true(TownScenery.is_in_cellar(player.global_position))
+	assert_false(player.peaceful, "地下室裡可以出手")
+	assert_eq(level.hiding.size(), 3, "三團縮在鐵網後面")
+	assert_true(level.lamp_use.enabled)
+	assert_true(level.valve_use.enabled)
+	for i: int in 3:
+		level.lure_one()
+		assert_not_null(level.lured, "第 %d 團爬出來" % (i + 1))
+		assert_false(level.lamp_use.enabled, "砍掉之前不能再引")
+		await _frames(2)
+		level.lured.health.apply_damage(9999.0, {"source": player})
+		await _frames(2)
+	assert_true(bool(s.state.get_flag(TownStreet.FLAG_CELLAR_DONE, false)))
+	assert_eq(str(s.state.get_flag(TownStreet.FLAG_CELLAR_WAY, "")), "lamp")
+	assert_false(level.barrel_lid.visible)
+	# 爬上去、回麵攤領謝禮
+	level.go_up()
+	var guard: int = 0
+	while level.in_cellar and guard < 120:
+		guard += 1
+		await tree.physics_frame
+	assert_false(level.in_cellar)
+	assert_true(player.peaceful)
+	assert_true(level.talk_vendor())
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_eq(runner.current_text(), "DLG_CH1_NOODLE_REPORT_LAMP")
+	_finish_dialogue(0)
+	assert_eq(int(s.state.items.get(TownStreet.NOODLE_TICKET, 0)), 2, "兩張麵票")
+	assert_eq(int(s.state.items.get(TownStreet.WARM_PLUG, 0)), 1, "一瓶暖泥塞")
+	assert_false(level.vendor_use.enabled, "謝過了")
+
+
+func test_cellar_valve_first_turn_is_wrong_then_they_roll_into_the_barrel() -> void:
+	_new_game_at_town()
+	var s: GameSession = _session()
+	var level: TownStreet = _load_level()
+	await _frames(1)
+	await _go_down(level)
+	level.turn_valve()
+	assert_true((level.get_node("Hud") as Hud).bark_keys().has("BARK_VENDOR_TEA"), "樓上的茶杯冒泡")
+	assert_eq(level.hiding.size(), 3, "轉錯：還在")
+	assert_false(level.valve_use.enabled, "等一下才能再轉")
+	await _frames(int(TownStreet.VALVE_WRONG_SEC * 60.0) + 5)
+	assert_true(level.valve_use.enabled)
+	level.turn_valve()
+	await _frames(int(TownStreet.ROLL_SEC * 60.0) + 5)
+	assert_eq(level.hiding.size(), 0, "全部滾進酒桶")
+	assert_true(level.barrel_lid.visible, "扣上桶蓋")
+	assert_eq(str(s.state.get_flag(TownStreet.FLAG_CELLAR_WAY, "")), "barrel")
+	assert_false(level.lamp_use.enabled)
+	level.talk_vendor()
+	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
+	assert_eq(runner.current_text(), "DLG_CH1_NOODLE_REPORT_BARREL", "養在保溫鍋底")
+	_finish_dialogue(0)

@@ -1,0 +1,36 @@
+{
+  "id": "ch1_town_noodle_ask",
+  "start": "v00",
+  "nodes": {
+    "v00": {
+      "speaker": "SPK_NOODLE",
+      "text": "DLG_CH1_NOODLE_001",
+      "emote": "anger",
+      "act": "point",
+      "shot": "two",
+      "next": "v01"
+    },
+    "v01": {
+      "speaker": "SPK_NOODLE",
+      "text": "DLG_CH1_NOODLE_002",
+      "emote": "question",
+      "next": "v02"
+    },
+    "v02": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_NOODLE_003",
+      "emote": "question",
+      "next": "v03"
+    },
+    "v03": {
+      "speaker": "SPK_NOODLE",
+      "text": "DLG_CH1_NOODLE_004",
+      "act": "bow",
+      "do": {
+        "set": {
+          "ch1.cellar_asked": true
+        }
+      }
+    }
+  }
+}

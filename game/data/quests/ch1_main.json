@@ -65,6 +65,11 @@
           "text": "Q_CH1_LIST_SHIELD",
           "flag": "ch1.shield_done",
           "optional": true
+        },
+        {
+          "text": "Q_CH1_LIST_CELLAR",
+          "flag": "ch1.cellar_done",
+          "optional": true
         }
       ],
       "done_when": {
@@ -91,6 +96,11 @@
         {
           "text": "Q_CH1_LIST_SHIELD",
           "flag": "ch1.shield_done",
+          "optional": true
+        },
+        {
+          "text": "Q_CH1_LIST_CELLAR",
+          "flag": "ch1.cellar_done",
           "optional": true
         }
       ],

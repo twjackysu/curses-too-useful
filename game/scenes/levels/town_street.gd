@@ -52,6 +52,26 @@ const SHIELD_ITEM: String = "rusty_shield"
 ## 曬衣繩上的盾（翻過來掛著、綁帶朝外）
 const SHIELD_POS: Vector3 = Vector3(8.6, 1.45, 14.2)
 const SLIP_LINES: PackedStringArray = ["AZHAN_SLIP_LINE_1", "AZHAN_SLIP_LINE_2", "AZHAN_SLIP_LINE_3"]
+## 佈告一：麵攤攤主（湯沒煮開）→ 地下室的三團黴泥縮在鐵網後面抱著暖管：
+## 提燈（lamp）：一次引一團爬出來、砍掉；切熱水管（barrel）：第一次轉錯（樓上的茶杯冒泡）、再轉一次全部滾進空酒桶、蓋上
+## → 回麵攤領兩張麵票＋一瓶暖泥塞
+const VENDOR_KEY: String = "SPK_NOODLE"
+const VENDOR_POS: Vector3 = TownScenery.NOODLE_STALL + Vector3(0.3, 0, -1.05)
+const NOODLE_ASK_DIALOGUE: String = "ch1_town_noodle_ask"
+const NOODLE_REPORT_DIALOGUE: String = "ch1_town_noodle_report"
+const FLAG_CELLAR_ASKED: String = "ch1.cellar_asked"
+## 怎麼解的："lamp"／"barrel"（ch1.cellar_done 也一起設）
+const FLAG_CELLAR_WAY: String = "ch1.cellar_way"
+const FLAG_CELLAR_DONE: String = "ch1.cellar_done"
+const FLAG_CELLAR_PAID: String = "ch1.cellar_paid"
+const NOODLE_TICKET: String = "noodle_ticket"
+const WARM_PLUG: String = "warm_mud_plug"
+## 下樓／上樓：畫面暗下去、黑著、亮回來
+const STAIRS_DIM: Vector3 = Vector3(0.3, 0.15, 0.35)
+## 轉錯的那一次：多久之後才能再轉
+const VALVE_WRONG_SEC: float = 1.2
+## 黴泥滾進酒桶要多久
+const ROLL_SEC: float = 1.4
 const MERCHANT_KEY: String = "SPK_MERCHANT"
 const MERCHANT_POS: Vector3 = TownScenery.MERCHANT_STALL + Vector3(0.2, 0, 1.15)
 ## 攤子上那只戒指（模型 0.07 m 高：放大一點才看得到）
@@ -86,6 +106,21 @@ var sera_use: Interactable
 var board_use: Interactable
 var board_note: PaperNote
 var _board_t: float = 0.0
+var vendor: Npc
+var vendor_use: Interactable
+var cellar_door_use: Interactable
+var ladder_use: Interactable
+var lamp_use: Interactable
+var valve_use: Interactable
+var lamp_light: OmniLight3D
+## 地下室裡：縮在鐵網後面的黴泥（只是模型）、爬出來的那一隻（真的敵人）
+var hiding: Array[Node3D] = []
+var lured: MoldSlime
+var in_cellar: bool = false
+var valve_turns: int = 0
+var _valve_wait: float = 0.0
+var _rolling: float = -1.0
+var barrel_lid: MeshInstance3D
 var uncle: Npc
 var uncle_use: Interactable
 var shield: Node3D
@@ -158,6 +193,16 @@ func _ready() -> void:
 		_player.yaw = deg_to_rad(150.0)
 		_player.snap_camera()
 		get_tree().create_timer(0.3).timeout.connect(talk_sera)
+	elif args.has("cellar"):
+		# 截圖用：`--cellar` 一進來就在麵攤的地下室（`--demo=lure` 再引一團出來）
+		in_cellar = true
+		_player.peaceful = false
+		_player.global_position = TownScenery.CELLAR_IN
+		_player.yaw = deg_to_rad(-60.0)
+		_player.snap_camera()
+		_refresh_interactables()
+		if str(args.get("demo", "")) == "lure":
+			get_tree().create_timer(0.3).timeout.connect(lure_one)
 	elif stage() == STAGE_BASKET:
 		_hud.show_center_lines("CH1_TOWN_LINE1", "CH1_TOWN_LINE2", 5.5, Hud.CENTER_LINE2_COLOR)
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
@@ -187,6 +232,10 @@ func _spawn_cast() -> void:
 	add_child(uncle)
 	shield = _build_shield()
 	add_child(shield)
+	vendor = Npc.create("NoodleVendor", "town_noodle_vendor", VENDOR_POS, 180.0)
+	vendor.doll_colors(Color(0.2, 0.26, 0.45), Color(0.92, 0.9, 0.86))
+	add_child(vendor)
+	_build_cellar_cast()
 	merchant = Npc.create("Merchant", "black_market_merchant", MERCHANT_POS, 0.0)
 	add_child(merchant)
 	ring_prop = PropModels.instance(Gear.load_data()["accessories"][RING_ID]["model"])
@@ -221,9 +270,14 @@ func _seat_sera(on: bool) -> void:
 func _physics_process(delta: float) -> void:
 	if not Game.session.in_story() or _leaving:
 		return
+	_gate_nag_t = maxf(_gate_nag_t - delta, 0.0)
+	if in_cellar:
+		# 地下室裡：只管地下室（街上的那些位置判斷不套，不然會被「拉回東門前」拉出地下室）
+		_player.global_position = TownScenery.keep_in_cellar(_player.global_position)
+		_tick_cellar(delta)
+		return
 	_player.global_position = TownScenery.keep_inside(_player.global_position)
 	_tick_board(delta)
-	_gate_nag_t = maxf(_gate_nag_t - delta, 0.0)
 	match stage():
 		STAGE_BASKET:
 			if _player.global_position.distance_to(TownScenery.PHARMACY_COUNTER + Vector3(0, 0.05, -1.2)) < PHARMACY_TALK_DIST:
@@ -278,6 +332,8 @@ func _speaker_node(key: String) -> Node3D:
 			return merchant
 		UNCLE_KEY:
 			return uncle
+		VENDOR_KEY:
+			return vendor
 	return null
 
 
@@ -294,6 +350,21 @@ func _build_interactables() -> void:
 	shield_use = Interactable.create("CheckShield", Vector3(SHIELD_POS.x, 0, SHIELD_POS.z - 0.8), "HINT_CHECK_SHIELD", 2.0)
 	shield_use.used.connect(func(_by: PlayerController) -> void: check_shield())
 	add_child(shield_use)
+	vendor_use = Interactable.create("TalkVendor", TownScenery.NOODLE_STALL + Vector3(0, 0, 1.3), "HINT_TALK_VENDOR", 2.4)
+	vendor_use.used.connect(func(_by: PlayerController) -> void: talk_vendor())
+	add_child(vendor_use)
+	cellar_door_use = Interactable.create("CellarDoorUse", TownScenery.CELLAR_DOOR + Vector3(0, 0, 1.3), "HINT_ENTER_CELLAR", 1.8)
+	cellar_door_use.used.connect(func(_by: PlayerController) -> void: go_down())
+	add_child(cellar_door_use)
+	ladder_use = Interactable.create("LadderUse", TownScenery.in_cellar(TownScenery.CELLAR_LADDER), "HINT_LEAVE_CELLAR", 1.6)
+	ladder_use.used.connect(func(_by: PlayerController) -> void: go_up())
+	add_child(ladder_use)
+	lamp_use = Interactable.create("LampUse", TownScenery.in_cellar(TownScenery.CELLAR_LAMP + Vector3(0, 0, 0.6)), "HINT_TAKE_LAMP", 1.8)
+	lamp_use.used.connect(func(_by: PlayerController) -> void: lure_one())
+	add_child(lamp_use)
+	valve_use = Interactable.create("ValveUse", TownScenery.in_cellar(TownScenery.CELLAR_VALVE + Vector3(-0.5, 0, 0)), "HINT_TURN_VALVE", 1.8)
+	valve_use.used.connect(func(_by: PlayerController) -> void: turn_valve())
+	add_child(valve_use)
 	sera_use = Interactable.create("TalkSera", SERA_SPOT + Vector3(-0.6, 0, -1.0), "HINT_TALK_SERA", 2.2)
 	sera_use.used.connect(func(_by: PlayerController) -> void: talk_sera())
 	add_child(sera_use)
@@ -306,6 +377,14 @@ func _refresh_interactables() -> void:
 	if ring_prop != null:
 		ring_prop.visible = not Gear.new(Game.session.state).owns(RING_ID)
 	board_use.enabled = Game.session.in_story() and not _leaving
+	var done: bool = _flag(FLAG_CELLAR_DONE)
+	vendor_use.enabled = Game.session.in_story() and not _leaving and not _flag(FLAG_CELLAR_PAID)
+	cellar_door_use.enabled = Game.session.in_story() and not _leaving
+	ladder_use.enabled = in_cellar
+	var busy: bool = (lured != null and is_instance_valid(lured) and not lured.health.is_dead()) or _rolling >= 0.0
+	lamp_use.enabled = in_cellar and not done and not busy and not hiding.is_empty()
+	lamp_use.hint_key = "HINT_TAKE_LAMP" if hiding.size() == TownScenery.CELLAR_SLIMES.size() else "HINT_LAMP_AGAIN"
+	valve_use.enabled = in_cellar and not done and not busy and not hiding.is_empty() and _valve_wait <= 0.0
 	uncle_use.enabled = Game.session.in_story() and not _leaving and not _flag(FLAG_SHIELD_PAID)
 	shield_use.enabled = Game.session.in_story() and not _leaving and not _flag(FLAG_SHIELD_DONE)
 	# 帶走了就不在繩子上；補借據的留在藥房（還掛著）
@@ -417,6 +496,13 @@ func talk_merchant() -> bool:
 func _on_dialogue_ended(dialogue_id: String) -> void:
 	var g := Gear.new(Game.session.state)
 	match dialogue_id:
+		NOODLE_REPORT_DIALOGUE:
+			if _flag(FLAG_CELLAR_DONE) and not _flag(FLAG_CELLAR_PAID):
+				Game.session.set_flag(FLAG_CELLAR_PAID, true)
+				var st: GameState = Game.session.state
+				st.items[NOODLE_TICKET] = int(st.items.get(NOODLE_TICKET, 0)) + 2
+				st.items[WARM_PLUG] = int(st.items.get(WARM_PLUG, 0)) + 1
+				Game.session.autosave()
 		SHIELD_DIALOGUE:
 			if slip_note != null and is_instance_valid(slip_note):
 				slip_note.close(0.6)
@@ -467,3 +553,188 @@ func _mark(node_name: String, at: Vector3) -> void:
 	m.name = node_name
 	m.position = at
 	add_child(m)
+
+
+## 地下室裡的東西：牆上的油燈（帶一盞燈）、鐵網後面抱著暖管的三團黴泥（只是模型；解掉的不擺）、酒桶的蓋子（裝進去之後才出現）
+func _build_cellar_cast() -> void:
+	var lamp: Node3D = PropModels.instance("quaternius/Lantern_Wall")
+	var lamp_at: Vector3 = TownScenery.in_cellar(TownScenery.CELLAR_LAMP + Vector3(0, 1.7, -0.95))
+	if lamp != null:
+		lamp.name = "CellarLamp"
+		lamp.position = lamp_at
+		add_child(lamp)
+	lamp_light = OmniLight3D.new()
+	lamp_light.name = "CellarLampLight"
+	lamp_light.light_color = Color(1.0, 0.66, 0.34)
+	lamp_light.light_energy = 1.6
+	lamp_light.omni_range = 7.0
+	lamp_light.shadow_enabled = true
+	lamp_light.position = lamp_at + Vector3(0, 0.25, 0.8)
+	add_child(lamp_light)
+	var lid_mat := TownScenery.wood(Color(0.36, 0.24, 0.14), Vector3(1, 0, 0), 0.2)
+	barrel_lid = MeshInstance3D.new()
+	barrel_lid.name = "BarrelLid"
+	var lm := CylinderMesh.new()
+	lm.top_radius = 0.36
+	lm.bottom_radius = 0.36
+	lm.height = 0.05
+	lm.material = lid_mat
+	barrel_lid.mesh = lm
+	barrel_lid.position = TownScenery.in_cellar(TownScenery.CELLAR_BARREL + Vector3(0, 0.92, 0))
+	add_child(barrel_lid)
+	var done: bool = _flag(FLAG_CELLAR_DONE)
+	barrel_lid.visible = done and str(Game.session.state.get_flag(FLAG_CELLAR_WAY, "")) == "barrel"
+	if done:
+		return
+	for i: int in TownScenery.CELLAR_SLIMES.size():
+		var blob: Node3D = PropModels.instance("tripo/enemy_mold_slime")
+		if blob == null:
+			blob = _blob_stand_in()
+		blob.name = "HidingMold%d" % i
+		blob.position = TownScenery.in_cellar(TownScenery.CELLAR_SLIMES[i])
+		blob.scale = Vector3.ONE * 0.6
+		add_child(blob)
+		hiding.append(blob)
+
+
+## 黴泥的模型不在時的替身：一團灰綠的扁球
+static func _blob_stand_in() -> Node3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.4
+	sm.height = 0.5
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.45, 0.55, 0.38)
+	sm.material = m
+	mi.mesh = sm
+	mi.position.y = 0.25
+	var root := Node3D.new()
+	root.add_child(mi)
+	return root
+
+
+## 跟麵攤攤主說話：還沒解＝湯沒煮開、拜託下去看看；解了＝謝禮（只給一次）
+func talk_vendor() -> bool:
+	if _flag(FLAG_CELLAR_DONE):
+		return _talk(NOODLE_REPORT_DIALOGUE, ["SPK_NOEN", VENDOR_KEY])
+	return _talk(NOODLE_ASK_DIALOGUE, ["SPK_NOEN", VENDOR_KEY])
+
+
+## 走下地下室：畫面暗一下，換到地下室（可以出手）
+func go_down() -> void:
+	if in_cellar:
+		return
+	_hud.dim_blink(STAIRS_DIM.x, STAIRS_DIM.y, STAIRS_DIM.z, func() -> void:
+		in_cellar = true
+		_player.peaceful = false
+		_player.global_position = TownScenery.CELLAR_IN
+		_player.yaw = deg_to_rad(-60.0)
+		_player.snap_camera()
+		_refresh_interactables()
+		if not _flag(FLAG_CELLAR_DONE):
+			_hud.show_bark(_player, "BARK_NOEN_CELLAR", 3.0, "SPK_NOEN"))
+
+
+## 爬上梯子：回到麵攤旁邊
+func go_up() -> void:
+	if not in_cellar:
+		return
+	_hud.dim_blink(STAIRS_DIM.x, STAIRS_DIM.y, STAIRS_DIM.z, func() -> void:
+		in_cellar = false
+		_player.peaceful = true
+		_player.global_position = TownScenery.CELLAR_DOOR + Vector3(0, 0.05, 1.6)
+		_player.yaw = deg_to_rad(180.0)
+		_player.snap_camera()
+		if lured != null and is_instance_valid(lured) and not lured.health.is_dead():
+			# 爬出來的那一團還沒砍：縮回去
+			lured.queue_free()
+			lured = null
+			_unhide_one()
+		_refresh_interactables())
+
+
+## 提燈：引最近的一團爬出鐵網（變成真的敵人，追著諾恩）
+func lure_one() -> void:
+	if hiding.is_empty() or (lured != null and is_instance_valid(lured) and not lured.health.is_dead()):
+		return
+	var blob: Node3D = hiding.pop_front()
+	var at: Vector3 = blob.global_position
+	blob.queue_free()
+	lured = MoldSlime.new()
+	lured.name = "LuredMold%d" % (TownScenery.CELLAR_SLIMES.size() - hiding.size())
+	lured.position = Vector3(at.x, TownScenery.CELLAR_Y, TownScenery.CELLAR_MESH_Z + 0.9)
+	lured.focus_player = true
+	add_child(lured)
+	lured.set_facing(PI)
+	lured.health.died.connect(_on_lured_died)
+	lamp_light.light_energy = 2.4
+	_hud.show_bark(_player, "BARK_NOEN_LURED", 2.2, "SPK_NOEN")
+	_refresh_interactables()
+
+
+func _unhide_one() -> void:
+	var i: int = TownScenery.CELLAR_SLIMES.size() - hiding.size() - 1
+	var blob: Node3D = _blob_stand_in() if PropModels.instance("tripo/enemy_mold_slime") == null else PropModels.instance("tripo/enemy_mold_slime")
+	blob.name = "HidingMoldBack%d" % i
+	blob.position = TownScenery.in_cellar(TownScenery.CELLAR_SLIMES[maxi(i, 0)])
+	blob.scale = Vector3.ONE * 0.6
+	add_child(blob)
+	hiding.push_front(blob)
+
+
+func _on_lured_died() -> void:
+	lamp_light.light_energy = 1.6
+	if hiding.is_empty():
+		_finish_cellar("lamp")
+	_refresh_interactables.call_deferred()
+
+
+## 轉備用暖管的閥：第一次轉錯（熱水跑到樓上，客人的茶杯冒一個泡）；再轉一次，熱水進備用管，剩下的黴泥一起滾進空酒桶
+func turn_valve() -> void:
+	if hiding.is_empty() or _valve_wait > 0.0 or _rolling >= 0.0:
+		return
+	valve_turns += 1
+	if valve_turns == 1:
+		_valve_wait = VALVE_WRONG_SEC
+		_hud.show_bark(vendor, "BARK_VENDOR_TEA", 3.0, VENDOR_KEY)
+		Sfx.play_at(self, "swamp_bubble", _player.global_position + Vector3(0, 2.5, 0), -6.0)
+		_refresh_interactables()
+		return
+	_rolling = 0.0
+	_hud.show_bark(_player, "BARK_NOEN_ROLL", 2.4, "SPK_NOEN")
+	_refresh_interactables()
+
+
+func _tick_cellar(delta: float) -> void:
+	if _valve_wait > 0.0:
+		_valve_wait -= delta
+		if _valve_wait <= 0.0:
+			_refresh_interactables()
+	if _rolling < 0.0:
+		return
+	_rolling += delta
+	var k: float = clampf(_rolling / ROLL_SEC, 0.0, 1.0)
+	var barrel: Vector3 = TownScenery.in_cellar(TownScenery.CELLAR_BARREL + Vector3(0, 0.7, 0))
+	for i: int in hiding.size():
+		var blob: Node3D = hiding[i]
+		var from: Vector3 = TownScenery.in_cellar(TownScenery.CELLAR_SLIMES[TownScenery.CELLAR_SLIMES.size() - hiding.size() + i])
+		var p: Vector3 = from.lerp(barrel, k)
+		p.y += sin(k * PI) * 0.8
+		blob.position = p
+		blob.rotation.z = -k * TAU * 2.0
+		blob.scale = Vector3.ONE * lerpf(0.6, 0.3, k)
+	if k >= 1.0:
+		for blob: Node3D in hiding:
+			blob.queue_free()
+		hiding.clear()
+		_rolling = -1.0
+		barrel_lid.visible = true
+		_finish_cellar("barrel")
+		_refresh_interactables()
+
+
+func _finish_cellar(way: String) -> void:
+	Game.session.set_flag(FLAG_CELLAR_WAY, way)
+	Game.session.set_flag(FLAG_CELLAR_DONE, true)
+	Game.session.autosave()
+	_hud.show_bark(_player, "BARK_NOEN_CELLAR_DONE", 2.8, "SPK_NOEN")

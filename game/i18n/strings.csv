@@ -481,3 +481,25 @@ DLG_CH1_SHIELD_B,I'll bring it along. I'll ask him when I find him.,帶著走。
 DLG_CH1_SHIELD_REPORT_IOU,"An IOU? ...The apothecary, huh. Fine, I'll talk to her.",借據？……是藥房的老闆娘啊。好，我去跟她說。
 DLG_CH1_SHIELD_REPORT_TAKEN,You're going to ask him yourself? ...Then I'm counting on you.,你要親自去問他？……那就拜託你了。
 DLG_CH1_SHIELD_REPORT_PAY,Here's the reward. Three coppers — don't complain.,謝禮。三枚銅幣，別嫌少。
+SPK_NOODLE,Noodle vendor,麵攤攤主
+HINT_TALK_VENDOR,{key} Talk to the noodle vendor,{key} 跟麵攤攤主說話
+HINT_ENTER_CELLAR,{key} Go down to the cellar,{key} 下地下室
+HINT_LEAVE_CELLAR,{key} Climb back up,{key} 爬上去
+HINT_TAKE_LAMP,{key} Wave the oil lamp at the mesh,{key} 拿油燈在鐵網前晃
+HINT_LAMP_AGAIN,{key} Lure out the next one with the lamp,{key} 再用油燈引一團出來
+HINT_TURN_VALVE,{key} Turn the spare heat-pipe valve,{key} 轉備用暖管的閥
+Q_CH1_LIST_CELLAR,Deal with whatever's in the noodle cellar,處理麵攤地下室的東西
+BARK_NOEN_CELLAR,"Three of them, hugging the warm pipes... My sword can't reach through the mesh.",三團東西抱著暖管……隔著鐵網，劍搆不到。
+BARK_NOEN_LURED,It's following the warmth. Come on out.,跟著熱過來了。出來吧。
+BARK_VENDOR_TEA,This cup's done! Three more!,這杯好了！再來三杯！
+BARK_NOEN_ROLL,The heat went into the spare pipe — they're rolling after it!,熱水進了備用管——牠們跟著滾過去了！
+BARK_NOEN_CELLAR_DONE,That's the cellar done. Back to the stall.,地下室搞定了。回麵攤說一聲。
+DLG_CH1_NOODLE_001,Third time today the soup won't boil! The surface is so flat you could see your face in it.,湯今天第三次沒煮開！鍋面平得能照出人臉。
+DLG_CH1_NOODLE_002,And yet there's burping coming from under the stove.,可是灶底下一直在打嗝。
+DLG_CH1_NOODLE_003,...Burping?,……打嗝？
+DLG_CH1_NOODLE_004,"From the cellar. Please, go down and take a look — the door's right beside the stall.",地下室傳上來的。拜託你下去看看——門就在攤子旁邊。
+DLG_CH1_NOODLE_REPORT_BARREL,All rolled into the wine barrel? ...Great. I'll keep that little one warm at the bottom of my stockpot!,全滾進酒桶了？……好！那一團我就養在保溫鍋底！
+DLG_CH1_NOODLE_REPORT_LAMP,"Cut them all down, huh... That's fine. As long as the soup boils.",全砍了啊……沒關係，湯煮得開就好。
+DLG_CH1_NOODLE_REPORT_PAY,Here — two noodle tickets. And this bottle.,謝禮：兩張麵票。還有這一瓶。
+DLG_CH1_NOODLE_REPORT_PLUG,...A warm mud stopper?,……暖泥塞？
+DLG_CH1_NOODLE_REPORT_SERA,The alchemist girl from the apothecary ran over and bottled some of the mold. Says warm it in your palm and the cork pops.,藥房那個鍊金術師的女孩跑來分裝的。說拿手心暖一暖，瓶塞就會彈開。

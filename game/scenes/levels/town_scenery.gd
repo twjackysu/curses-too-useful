@@ -49,6 +49,21 @@ const CELLAR_DOOR: Vector3 = Vector3(19.3, 0, -4.6)
 const WAREHOUSE_FRONT: Vector3 = Vector3(35.0, 0, -3.6)
 ## 街尾的商人攤（南側）
 const MERCHANT_STALL: Vector3 = Vector3(40.5, 0, 3.4)
+## 麵攤的地下室：街的東邊、地面底下 12 m 另外蓋的一間（走下去是畫面暗一下、換到這裡；地面擋住太陽，從街上看不到）。
+## 走得到的範圍（x、z）、地板的高度、下來站的地方、梯子。下面的位置都是「地下室裡」的（y 是相對地下室的地板）
+const CELLAR: Rect2 = Rect2(90.6, -2.4, 7.8, 5.0)
+const CELLAR_Y: float = -12.0
+const CELLAR_CENTER: Vector3 = Vector3(94.5, 0, 0)
+const CELLAR_IN: Vector3 = Vector3(91.6, CELLAR_Y + 0.05, 1.6)
+const CELLAR_LADDER: Vector3 = Vector3(91.0, 0, 2.2)
+## 暖管與鐵網（北牆）、牆上的油燈、備用暖管的閥、空酒桶
+const CELLAR_PIPE_Z: float = -3.05
+const CELLAR_MESH_Z: float = -2.65
+const CELLAR_LAMP: Vector3 = Vector3(93.2, 0, -2.4)
+const CELLAR_VALVE: Vector3 = Vector3(97.6, 0, -1.6)
+const CELLAR_BARREL: Vector3 = Vector3(97.2, 0, 1.6)
+## 抱著暖管的三團黴泥（鐵網後面）
+const CELLAR_SLIMES: Array[Vector3] = [Vector3(93.6, 0, -3.1), Vector3(95.0, 0, -3.1), Vector3(96.4, 0, -3.1)]
 ## 東門：兩座石塔中間，往東走出去就換到森林
 const GATE_X: float = 58.5
 const GATE_HALF: float = 2.8
@@ -88,6 +103,7 @@ static func build(level: Node3D) -> TownScenery:
 	s._build_merchant()
 	s._build_gate()
 	s._build_street_props()
+	s._build_cellar()
 	return s
 
 
@@ -102,6 +118,20 @@ static func keep_inside(p: Vector3) -> Vector3:
 			best_d = d
 			best = q
 	return Vector3(best.x, p.y, best.y)
+
+
+## 地下室裡走得到的範圍
+static func keep_in_cellar(p: Vector3) -> Vector3:
+	return Vector3(clampf(p.x, CELLAR.position.x, CELLAR.end.x), p.y, clampf(p.z, CELLAR.position.y, CELLAR.end.y))
+
+
+## 地下室裡的位置（相對地下室地板）→ 世界座標
+static func in_cellar(p: Vector3) -> Vector3:
+	return p + Vector3(0, CELLAR_Y, 0)
+
+
+static func is_in_cellar(p: Vector3) -> bool:
+	return p.y < CELLAR_Y * 0.5
 
 
 static func is_walkable(p: Vector3) -> bool:
@@ -485,3 +515,101 @@ func _build_street_props() -> void:
 		_lamp_on_wall(Vector3(x, 2.7, -STREET_HALF + 0.02), 0.0)
 	for x: float in [19.0, 30.0, 51.0]:
 		_lamp_on_wall(Vector3(x, 2.7, STREET_HALF - 0.02), 180.0)
+
+
+## 麵攤的地下室：石牆、木頭天花板、北牆上兩根銅色的暖管（前面一排鐵網）、一截備用暖管與閥、空酒桶、牆上的油燈、往上的梯子。
+## 天花板擋住太陽：只有油燈與從梯子口照下來的一點光
+func _build_cellar() -> void:
+	var c := Node3D.new()
+	c.name = "Cellar"
+	c.position.y = CELLAR_Y
+	_root.add_child(c)
+	var down := Vector3(0, CELLAR_Y, 0)
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.36, 0.33, 0.3)
+	stone.roughness = 0.95
+	var w: float = CELLAR.size.x + 1.4
+	var d: float = CELLAR.size.y + 1.4
+	var cx: float = CELLAR_CENTER.x
+	for spec: Array in [
+		["WallN", Vector3(w + 1.0, 3.2, 0.5), Vector3(cx, 1.6, CELLAR.position.y - 0.95)],
+		["WallS", Vector3(w + 1.0, 3.2, 0.5), Vector3(cx, 1.6, CELLAR.end.y + 0.95)],
+		["WallW", Vector3(0.5, 3.2, d + 1.0), Vector3(CELLAR.position.x - 0.95, 1.6, 0)],
+		["WallE", Vector3(0.5, 3.2, d + 1.0), Vector3(CELLAR.end.x + 0.95, 1.6, 0)],
+	]:
+		_box(c, str(spec[0]), spec[1] as Vector3, spec[2] as Vector3, stone)
+		_block("Cellar" + str(spec[0]), spec[1] as Vector3, (spec[2] as Vector3) + down)
+	var ceiling := _box(c, "Ceiling", Vector3(w + 1.0, 0.3, d + 1.0), Vector3(cx, 3.15, 0), wood(Color(0.26, 0.18, 0.12), Vector3(1, 0, 0), 0.3))
+	ceiling.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var floor_mat := StandardMaterial3D.new()
+	floor_mat.albedo_color = Color(0.28, 0.25, 0.22)
+	_box(c, "Floor", Vector3(w, 0.04, d), Vector3(cx, 0.02, 0), floor_mat)
+	_block("CellarFloor", Vector3(w + 1.0, 0.5, d + 1.0), Vector3(cx, -0.25, 0) + down)
+	var copper := StandardMaterial3D.new()
+	copper.albedo_color = Color(0.72, 0.42, 0.26)
+	copper.metallic = 0.7
+	copper.roughness = 0.4
+	for y: float in [0.55, 1.05]:
+		var pipe := MeshInstance3D.new()
+		pipe.name = "Pipe%d" % int(y * 100.0)
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.09
+		cm.bottom_radius = 0.09
+		cm.height = CELLAR.size.x
+		cm.material = copper
+		pipe.mesh = cm
+		pipe.rotation_degrees.z = 90.0
+		pipe.position = Vector3(cx, y, CELLAR_PIPE_Z)
+		c.add_child(pipe)
+	# 鐵網：一排細鐵條＋上下兩道橫條（黴泥縮在後面，劍搆不到）
+	var iron := StandardMaterial3D.new()
+	iron.albedo_color = Color(0.22, 0.22, 0.24)
+	iron.metallic = 0.6
+	var bars: int = int(CELLAR.size.x / 0.16)
+	for i: int in bars:
+		_box(c, "Bar%d" % i, Vector3(0.025, 1.5, 0.025), Vector3(CELLAR.position.x + 0.1 + 0.16 * float(i), 0.75, CELLAR_MESH_Z), iron)
+	for y: float in [0.06, 1.48]:
+		_box(c, "Rail%d" % int(y * 100.0), Vector3(CELLAR.size.x, 0.05, 0.04), Vector3(cx, y, CELLAR_MESH_Z), iron)
+	_block("CellarMesh", Vector3(CELLAR.size.x, 1.5, 0.2), Vector3(cx, 0.75, CELLAR_MESH_Z) + down)
+	# 備用暖管與閥（東牆邊）
+	var spare := MeshInstance3D.new()
+	spare.name = "SparePipe"
+	var sm := CylinderMesh.new()
+	sm.top_radius = 0.07
+	sm.bottom_radius = 0.07
+	sm.height = 1.8
+	sm.material = copper
+	spare.mesh = sm
+	spare.position = CELLAR_VALVE + Vector3(0.4, 0.9, 0)
+	c.add_child(spare)
+	var red := StandardMaterial3D.new()
+	red.albedo_color = Color(0.7, 0.16, 0.12)
+	var wheel := MeshInstance3D.new()
+	wheel.name = "ValveWheel"
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.1
+	tm.outer_radius = 0.16
+	tm.material = red
+	wheel.mesh = tm
+	wheel.rotation_degrees.z = 90.0
+	wheel.position = CELLAR_VALVE + Vector3(0.2, 1.1, 0)
+	c.add_child(wheel)
+	var barrel: Node3D = _prop("quaternius/Barrel", CELLAR_BARREL, 0.0, 1.0, c)
+	if barrel != null:
+		barrel.name = "CellarBarrel"
+	_block("CellarBarrelBlock", Vector3(0.8, 1.0, 0.8), CELLAR_BARREL + Vector3(0, 0.5, 0) + down)
+	_prop("quaternius/Crate_Wooden", Vector3(CELLAR.end.x - 0.2, 0, CELLAR.position.y + 2.2), 20.0, 1.0, c)
+	_prop("quaternius/Barrel", Vector3(CELLAR.position.x + 0.3, 0, CELLAR.position.y + 0.3), 0.0, 1.0, c)
+	# 梯子（往上回麵攤）
+	var ladder_wood: ShaderMaterial = wood(Color(0.4, 0.28, 0.18), Vector3(0, 1, 0), 0.2)
+	for side: float in [-0.25, 0.25]:
+		_box(c, "LadderRail%d" % int(side * 10.0), Vector3(0.06, 3.0, 0.06), CELLAR_LADDER + Vector3(side, 1.5, 0.5), ladder_wood)
+	for i: int in 7:
+		_box(c, "LadderRung%d" % i, Vector3(0.5, 0.04, 0.05), CELLAR_LADDER + Vector3(0, 0.35 + 0.4 * float(i), 0.5), ladder_wood)
+	var hatch := OmniLight3D.new()
+	hatch.name = "HatchLight"
+	hatch.light_color = Color(0.9, 0.92, 1.0)
+	hatch.light_energy = 0.8
+	hatch.omni_range = 4.0
+	hatch.position = CELLAR_LADDER + Vector3(0, 2.8, 0.5)
+	c.add_child(hatch)

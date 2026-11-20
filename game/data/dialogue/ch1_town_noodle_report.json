@@ -1,0 +1,39 @@
+{
+  "id": "ch1_town_noodle_report",
+  "start": "r00",
+  "nodes": {
+    "r00": {
+      "speaker": "SPK_NOODLE",
+      "text": "DLG_CH1_NOODLE_REPORT_LAMP",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.cellar_way",
+            "eq": "barrel"
+          },
+          "text": "DLG_CH1_NOODLE_REPORT_BARREL"
+        }
+      ],
+      "emote": "sparkle",
+      "shot": "two",
+      "next": "r01"
+    },
+    "r01": {
+      "speaker": "SPK_NOODLE",
+      "text": "DLG_CH1_NOODLE_REPORT_PAY",
+      "act": "nod",
+      "next": "r02"
+    },
+    "r02": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_NOODLE_REPORT_PLUG",
+      "emote": "question",
+      "next": "r03"
+    },
+    "r03": {
+      "speaker": "SPK_NOODLE",
+      "text": "DLG_CH1_NOODLE_REPORT_SERA",
+      "act": "shrug"
+    }
+  }
+}
