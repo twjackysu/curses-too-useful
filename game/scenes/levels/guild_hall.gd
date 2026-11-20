@@ -556,7 +556,7 @@ func _tick_alarm(delta: float) -> void:
 		# 雷歐從佈告欄前面走到走道上，再走到諾恩旁邊
 		leo.walk_path([AISLE_WEST, _beside_player(Vector3(-1.5, 0, 1.3))], 2.5)
 	elif _alarm_step == 4 and (not leo.is_walking() or _alarm_t >= ALARM_TIMEOUT):
-		if _talk(LEO_DIALOGUE, ["SPK_NOEN", LEO_KEY, Sera.NAME_KEY]):
+		if _talk(LEO_DIALOGUE, ["SPK_NOEN", LEO_KEY, Sera.NAME_KEY, LILITH_KEY]):
 			_alarm_step = 5
 			_sera_look = _player.global_position
 			# 雷歐開口，大家安靜下來聽（笑到一半停住）

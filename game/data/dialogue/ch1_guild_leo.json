@@ -1,7 +1,28 @@
 {
   "id": "ch1_guild_leo",
-  "start": "l00",
+  "start": "c0",
   "nodes": {
+    "c0": {
+      "speaker": "SPK_LILITH",
+      "text": "DLG_CH1_COTTON_001",
+      "emote": "sweat",
+      "to": "SPK_NOEN",
+      "next": "c1"
+    },
+    "c1": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_COTTON_002",
+      "emote": "question",
+      "head": "down",
+      "next": "c2"
+    },
+    "c2": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_COTTON_003",
+      "emote": "question",
+      "to": "SPK_NOEN",
+      "next": "l00"
+    },
     "l00": {
       "speaker": "SPK_LEO",
       "text": "DLG_CH1_LEO_001",

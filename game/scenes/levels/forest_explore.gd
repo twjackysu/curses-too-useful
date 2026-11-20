@@ -59,6 +59,14 @@ const PACKS: Dictionary = {
 	"rail_top": [["wolf", 68.2, -32.6]],
 	"rail_mud": [["treant", 59.6, -50.4]],
 }
+## 「會走的金光」（增補稿，阿展說的）：狼徑那一群的第一隻，齒間卡著一截發光的金屬（嘴邊一點金光）。打倒牠，金屬掉在地上
+## （GlintShard，走近撿起來看）；地上成對的發光齒痕（GlintMarks）從狼徑一路到毒沼的詛咒寶箱，走丟了照著找
+const GLINT_PACK: String = "wolves"
+const FLAG_GLINT: String = "ch1.glint_found"
+const GLINT_COLOR: Color = Color(1.0, 0.8, 0.3)
+## 齒痕沿著這幾個點走（最後一段到寶箱前面）、每隔幾公尺一對
+const GLINT_TRAIL: Array[Vector3] = [Vector3(26.0, 0, -47.5), Vector3(33.5, 0, -56.0), Vector3(40.5, 0, -64.5), Vector3(44.4, 0, -68.3)]
+const GLINT_STEP: float = 2.6
 ## 營火（劇本的營火休息事件）：休息＝補滿血、存檔、之後從這裡重來；第一次休息席菈講她的過去（對話 ch1_campfire），
 ## 講完解鎖連攜（旗標 sera.duo_unlocked）：向她要的煙霧彈換成多調一份麻痺的 DUO_SOURCE
 const CAMPFIRE_MODEL: String = "tripo/prop_campfire_v2"
@@ -141,6 +149,9 @@ var _regrow: PackedFloat32Array = []
 ## 每一叢被吃掉的那一顆果子（長回來之前看不到；null＝都還在）
 var _eaten: Array[Node3D] = []
 var _gate_bark_in: float = 0.0
+## 齒間卡著金屬的那隻狼、掉在地上的那截金屬（還沒掉＝null）
+var glint_wolf: EnemyActor
+var glint_shard: Interactable
 ## 走到祭壇路口之後的地點卡（播完換到祭壇那一關；測試叫 card.finish()）
 var card: ChapterCard
 
@@ -185,6 +196,7 @@ func _ready() -> void:
 	_spawn_packs()
 	_build_campfire()
 	_build_swamp()
+	_build_glint()
 	sera.fired.connect(_on_sera_fired)
 	# 連拍用（scripts/burst.sh，配 `--explore --at=x,z`）：`--burst-on=wolf|treant|mold` 那一種敵人第一次擺前兆的那一刻開始拍；
 	# `--burst-on=chest` 進場 1.2 秒後打開詛咒寶箱、`--burst-on=camp` 在營火休息（第一次會開始對話）、
@@ -778,11 +790,122 @@ func _tick_packs() -> void:
 				_burst_on = ""
 				App.burst_start_in(1)
 				break
+	if glint_shard == null and glint_wolf != null and (not is_instance_valid(glint_wolf) or glint_wolf.health.is_dead()):
+		_drop_glint(glint_wolf.global_position if is_instance_valid(glint_wolf) else ForestMap.at(ForestMap.WOLVES))
+		glint_wolf = null
 	for pack_id: String in packs.keys():
 		if pack_alive(pack_id) == 0:
 			packs.erase(pack_id)
 			Game.session.set_flag(pack_flag(pack_id), true)
 			Game.session.autosave()
+
+
+# ---------------------------------------------------------------- 會走的金光
+
+func _build_glint() -> void:
+	level.add_child(glint_marks())
+	if bool(Game.session.state.get_flag(FLAG_GLINT, false)):
+		return
+	var wolves: Array = packs.get(GLINT_PACK, []) as Array
+	if wolves.is_empty():
+		# 那一群已經打倒了（讀檔）：金屬掉在狼徑的空地上
+		_drop_glint(ForestMap.at(ForestMap.WOLVES) + Vector3(1.5, 0, -1.0))
+		return
+	glint_wolf = wolves[0] as EnemyActor
+	var glint := OmniLight3D.new()
+	glint.name = "Glint"
+	glint.light_color = GLINT_COLOR
+	glint.light_energy = 2.2
+	glint.omni_range = 4.5
+	glint.shadow_enabled = false
+	glint.light_volumetric_fog_energy = 3.0
+	glint.position = Vector3(0, 0.75, -0.75)
+	glint_wolf.add_child(glint)
+	glint.add_child(_glint_mesh(0.07))
+
+
+static func _glint_mesh(size: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = "Metal"
+	var box := BoxMesh.new()
+	box.size = Vector3(size * 3.2, size, size)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = GLINT_COLOR
+	mat.emission_enabled = true
+	mat.emission = GLINT_COLOR
+	mat.emission_energy_multiplier = 3.0
+	box.material = mat
+	mi.mesh = box
+	mi.rotation = Vector3(0.2, 0.5, 0.3)
+	return mi
+
+
+## 齒痕的位置（兩個一對、垂直於前進的方向；純函式）
+static func glint_spots() -> Array[Vector3]:
+	var spots: Array[Vector3] = []
+	for i: int in GLINT_TRAIL.size() - 1:
+		var a: Vector3 = GLINT_TRAIL[i]
+		var b: Vector3 = GLINT_TRAIL[i + 1]
+		var dir: Vector3 = (b - a).normalized()
+		var side: Vector3 = dir.cross(Vector3.UP) * 0.11
+		var n: int = maxi(int(a.distance_to(b) / GLINT_STEP), 1)
+		for k: int in n:
+			var at: Vector3 = a.lerp(b, float(k) / float(n)) + Vector3(sin(float(i * 7 + k) * 2.3) * 0.35, 0.035, cos(float(k) * 1.9) * 0.35)
+			for s: float in [-1.0, 1.0]:
+				spots.append(at + side * s)
+	return spots
+
+
+## 地上成對的發光齒痕：一個 MultiMesh（小小的金色圓點）
+static func glint_marks() -> MultiMeshInstance3D:
+	var spots: Array[Vector3] = glint_spots()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var dot := CylinderMesh.new()
+	dot.top_radius = 0.045
+	dot.bottom_radius = 0.045
+	dot.height = 0.02
+	dot.radial_segments = 8
+	dot.rings = 1
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = GLINT_COLOR
+	mat.emission_enabled = true
+	mat.emission = GLINT_COLOR
+	mat.emission_energy_multiplier = 2.4
+	dot.material = mat
+	mm.mesh = dot
+	mm.instance_count = spots.size()
+	for i: int in spots.size():
+		mm.set_instance_transform(i, Transform3D(Basis(), spots[i]))
+	var node := MultiMeshInstance3D.new()
+	node.name = "GlintMarks"
+	node.multimesh = mm
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return node
+
+
+func _drop_glint(at: Vector3) -> void:
+	glint_shard = Interactable.create("GlintShard", Vector3(at.x, 0.0, at.z), "HINT_PICK_GLINT", 2.2)
+	var metal: MeshInstance3D = _glint_mesh(0.09)
+	metal.position = Vector3(0, 0.12, 0)
+	glint_shard.add_child(metal)
+	glint_shard.add_child(_sparkles(GLINT_COLOR))
+	glint_shard.add_child(ForestScenery.pickup_ring(0.8, GLINT_COLOR))
+	glint_shard.used.connect(_on_glint_picked)
+	level.add_child(glint_shard)
+
+
+## 撿起那截金屬看：上面的齒痕跟地上的印子一樣——一路往毒沼去
+func _on_glint_picked(_by: PlayerController) -> void:
+	if glint_shard == null:
+		return
+	Game.session.set_flag(FLAG_GLINT, true)
+	hud.show_center_lines("CH1_GLINT_LINE1", "CH1_GLINT_LINE2", 7.0, Hud.CENTER_LINE2_COLOR)
+	Sfx.play_at(level, PICK_SFX, glint_shard.global_position + Vector3.UP * 0.4, -5.0, 0.05)
+	glint_shard.queue_free()
+	glint_shard = null
+	glint_wolf = null
+	Game.session.autosave()
 
 
 # ---------------------------------------------------------------- 陷阱

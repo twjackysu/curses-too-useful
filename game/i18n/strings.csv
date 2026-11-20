@@ -288,7 +288,7 @@ BARK_SERA_GUILD_GO,I-I'll be at the apothecary!,我、我在藥房等你！
 DLG_CH1_REG_001,"Welcome to the Alder Adventurers' Guild — dead last in the frontier rankings. New registration, right?",歡迎來到奧爾德冒險者公會——邊境業績最後一名的公會。新人登錄對吧？
 DLG_CH1_REG_002,"Right. Name's Norn. Starting today, I plan to eat by taking requests.",對。我叫諾恩，今天起想靠接委託吃飯。
 DLG_CH1_REG_003,Your form is filled in. Last step: put your hand on the aptitude crystal next to the counter. It shows which path suits you.,表格我幫你填好了。最後一步：把手放到櫃檯旁邊那顆適性測試水晶上，它會顯示你適合走哪一條路。
-DLG_CH1_LEO_001,"What a racket. ...All attributes: none? I came here two rookies short for bait, and you don't even qualify for that.",吵死了。……全屬性「無」？我本來還缺兩個菜鳥當誘餌，你連這個都不夠格。
+DLG_CH1_LEO_001,"(He shoves a rolled-up request between the two of them.) What a racket. ...All attributes: none? I came here two rookies short for bait, and you don't even qualify for that.",（用委託卷把兩人隔開）吵死了。……全屬性「無」？我本來還缺兩個菜鳥當誘餌，你連這個都不夠格。
 DLG_CH1_LEO_002,"And the alchemist hiding in the corner. That stamina potion of yours, the one with paralysis on the side — it put your own teammate in the infirmary, didn't it?",還有縮在角落的那個鍊金術師。妳那瓶「附帶麻痺的體力藥水」，把自己的隊友送進醫務室了吧？
 DLG_CH1_LEO_003,I-I'm sorry... I didn't mean to...,對、對不起……我不是故意的……
 DLG_CH1_LEO_004,"One useless washout, one walking gas bomb. The guild's two biggest duds, together at last.",一個沒用的廢柴、一個移動毒氣彈。公會的兩大廢物，今天湊齊了。
@@ -333,7 +333,7 @@ PREVIEW_SOON,Coming soon,製作中
 BARK_LEO_RETURN,"...That golem was a nightmare. Those two duds are done for, no question.",……那隻魔像根本是怪物。那兩個廢物，肯定回不來了。
 DLG_CH1_RETURN_001,"...So don't bother waiting for them. Against a monster like that, a 'no aptitude' and a gas bomb couldn't possibly—",……所以那兩個人不用等了。在那種怪物面前，「無適性」跟毒氣彈怎麼可能——
 DLG_CH1_RETURN_002,"H-hey, the door...! That thing on his shoulder — that's the golem's core, isn't it!?",喂、喂，門口……！他肩上扛的那個，是魔像的核心吧！？
-DLG_CH1_RETURN_003,Lilith. Five glowing toxic mushrooms. We also picked up some extra loot on the way — add it to the tab.,莉莉絲，夜光毒蕈五朵。另外路上多了一件戰利品，一起算。
+DLG_CH1_RETURN_003,"Lilith: five glowing toxic mushrooms, signed for at the apothecary. And one more trophy from the road. Add it up.",莉莉絲，夜光毒蕈五朵，藥房簽收了。另外路上多了一件戰利品，一起算。
 DLG_CH1_RETURN_004,The core of an Abyssal Plague Golem...!? W-we haven't logged loot of this grade in ten years!,【深淵疫病魔像】的核心……！？這、這種等級的戰利品，我們公會十年沒收過了！
 DLG_CH1_RETURN_005,Impossible... What did the two of you even do...?,不可能……你們兩個，到底做了什麼……
 DLG_CH1_RETURN_006,...Norn did it. Together with... my potions.,……是諾恩，還有我的藥……一起打倒的。
@@ -552,3 +552,14 @@ DLG_CH1_RAILS_003_FULL,"Got all five? I'll take the rack apart and pack them for
 DLG_CH1_RAILS_003_NOTYET,"Still short on mushrooms, right? Come back when you have five. I'll take the rack apart and pack them, one portion each.",蕈還沒採滿吧。齊了再過來——杯架我拆下來，替你們一份一份裝。
 DLG_CH1_RAILS_004,Before you go back to the main path: there are two golden lights in the fog. The one that stays put is the fire I lit.,回主路之前——霧裡有兩種金光。不動的那個，是我生的火。
 DLG_CH1_RAILS_005,The one that walks... I threw a rock at it last week. It bit the rock in half.,會走的那個……我上星期丟了塊石頭過去，它把石頭咬斷了。
+DLG_CH1_COTTON_001,"H-here, a cotton pad first. The registration needle pricked your finger, didn't it?",先、先給你一片止血棉。剛才登錄針扎的那一下，擦一擦。
+DLG_CH1_COTTON_002,(One small red dot on the pad. The finger... has already closed up.),（棉片上只有一個小紅點。手指……已經長好了。）
+DLG_CH1_COTTON_003,...Um. Which hand did you use just now?,……那個。你剛剛用的是哪隻手？
+DLG_CH1_GATE_002_RING,Just like that ring. It can't hurt me... and I feel better than I have all week.,跟那只戒指一樣。傷不了我——還讓我這禮拜精神最好。
+DLG_CH1_CAMP_004_LABEL,"The wound healed. But he was out cold for three days, and I was thrown out the next morning. ...You copied my notes, right? Hold that label up to the fire. (A scratched-out line shows through: ""for patients"".)",傷是好了。可是他整整昏迷了三天，隔天我就被趕出來了。……你抄過我的藥單對吧。把那瓶的標籤對著火光看——（一行被刮掉的字透了出來：「給病人用」。）
+DLG_CH1_RETURN_WIPE,(Leo opens his mouth twice. In the end he only wipes up the water spilled on the table.),（雷歐張了兩次嘴。最後只把桌上灑出來的水擦乾淨。）
+DLG_CH1_RETURN_WIPE_RECEIPT,(Leo stares at the thin slip in her hand and opens his mouth twice. In the end he only wipes up the water spilled on her side of the table.),（雷歐看著她手上那張薄薄的紙，張了兩次嘴。最後只替她把桌面灑出來的水擦乾淨。）
+BARK_SERA_CHAOS_WAIT,It's loaded! Norn... I waited for you. Take all of it!,裝好了！諾恩——我等你。全部接住！
+HINT_PICK_GLINT,{key} Pick up the glowing piece of metal,{key} 撿起那截發光的金屬
+CH1_GLINT_LINE1,"A glowing shard of metal, with two rows of tooth marks",一截發光的金屬——上面有兩排齒痕
+CH1_GLINT_LINE2,The paired glowing marks on the ground lead off toward the bog,地上成對的發光印子，一路往毒沼去

@@ -27,7 +27,15 @@
       "text": "DLG_CH1_CAMP_004",
       "emote": "gloom",
       "head": "down",
-      "next": "ask"
+      "next": "ask",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.sera_list"
+          },
+          "text": "DLG_CH1_CAMP_004_LABEL"
+        }
+      ]
     },
     "ask": {
       "speaker": "SPK_SHEILA",

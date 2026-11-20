@@ -95,7 +95,7 @@
         }
       ],
       "emote": "blush",
-      "next": "l07"
+      "next": "wipe"
     },
     "l07": {
       "speaker": "SPK_LILITH",
@@ -107,6 +107,22 @@
     "l08": {
       "speaker": "SPK_UNKNOWN",
       "text": "DLG_CH1_RETURN_008"
+    },
+    "wipe": {
+      "speaker": "SPK_LEO",
+      "text": "DLG_CH1_RETURN_WIPE",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.ledger",
+            "eq": "receipt"
+          },
+          "text": "DLG_CH1_RETURN_WIPE_RECEIPT"
+        }
+      ],
+      "emote": "gloom",
+      "head": "down",
+      "next": "l07"
     }
   }
 }

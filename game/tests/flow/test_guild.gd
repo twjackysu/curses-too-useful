@@ -234,6 +234,14 @@ func test_registering_then_the_crystal_alarms_and_leo_humiliates_them_both() -> 
 	assert_true(leo.global_position.distance_to(leo_start) > 3.0, "他離開佈告欄了")
 	assert_true(leo.global_position.distance_to(player.global_position) < 3.5, "走到諾恩旁邊（%.1f m）" % leo.global_position.distance_to(player.global_position))
 	runner = _game().get("dialogue") as DialogueRunner
+	# 增補稿：先是莉莉絲遞止血棉、手指已經長好了、席菈從角落問「你剛剛用哪隻手？」，雷歐才把兩人隔開
+	assert_eq(str(runner.current().get("speaker", "")), GuildHall.LILITH_KEY)
+	assert_true(level.talk_camera.cast.has(GuildHall.LILITH_KEY), "鏡頭認得莉莉絲")
+	runner.advance()
+	assert_eq(runner.current_text(), "DLG_CH1_COTTON_002")
+	runner.advance()
+	assert_eq(str(runner.current().get("speaker", "")), Sera.NAME_KEY, "席菈第一個看見不對勁")
+	runner.advance()
 	assert_eq(str(runner.current().get("speaker", "")), "SPK_LEO")
 	runner.advance()
 	assert_eq(runner.current_text(), GuildHall.LEO_CALLS_SERA_LINE)

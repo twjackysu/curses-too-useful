@@ -14,7 +14,15 @@
       "text": "DLG_CH1_GATE_002",
       "emote": "sparkle",
       "act": "chest",
-      "next": "l02"
+      "next": "l02",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.ring_tried"
+          },
+          "text": "DLG_CH1_GATE_002_RING"
+        }
+      ]
     },
     "l02": {
       "speaker": "SPK_SHEILA",

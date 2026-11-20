@@ -333,3 +333,105 @@ func test_chopping_the_tree_or_wedging_the_shield_also_works_and_survives_reload
 		assert_eq(rail.rescue.ramp, "")
 		rail.tree_chop.health.apply_damage(5.0, {})
 	assert_eq(rail.rescue.ramp, "tree", "砍了三刀倒了")
+
+
+## 「會走的金光」：狼徑那一群的第一隻嘴邊有一點金光；打倒牠，金屬掉在地上；撿起來 → 齒痕往毒沼去。地上成對的齒痕一直都在。
+## 那一群已經打倒的存檔讀進來：金屬在狼徑的空地上
+func test_glint_wolf_drops_the_metal_and_tooth_marks_lead_to_the_chest() -> void:
+	var level: CorruptForest = _load_exploring()
+	var s: GameSession = _session()
+	var explore: ForestExplore = level.explore
+	var hud: Hud = level.get_node("Hud") as Hud
+	await _frames(2)
+	var marks: MultiMeshInstance3D = level.get_node("GlintMarks") as MultiMeshInstance3D
+	var spots: Array[Vector3] = ForestExplore.glint_spots()
+	assert_true(spots.size() >= 16 and spots.size() % 2 == 0 and marks.multimesh.instance_count == spots.size(), "成對的齒痕（%d 個）" % spots.size())
+	assert_true(spots[0].distance_to(ForestMap.at(ForestMap.WOLVES)) < 8.0, "從狼徑開始")
+	assert_true(spots[spots.size() - 1].distance_to(ForestExplore.CHEST_POS) < 6.0, "最後一對在寶箱附近（%.1f m）" % spots[spots.size() - 1].distance_to(ForestExplore.CHEST_POS))
+	for p: Vector3 in spots:
+		assert_eq(ForestMap.keep_inside(p), p, "齒痕在走得到的地方")
+	var wolf: EnemyActor = explore.glint_wolf
+	assert_true(wolf is MiasmaWolf and wolf.get_node_or_null("Glint") is OmniLight3D, "齒間卡著金屬的狼：嘴邊一點金光")
+	assert_true(explore.glint_shard == null)
+	var died_at: Vector3 = wolf.global_position
+	wolf.health.apply_damage(99999.0, {})
+	await _frames(3)
+	assert_not_null(explore.glint_shard, "打倒牠：金屬掉在地上")
+	assert_true(explore.glint_shard.global_position.distance_to(died_at) < 1.5)
+	explore.glint_shard.use(level.get_node("Player") as PlayerController)
+	assert_true(bool(s.state.get_flag(ForestExplore.FLAG_GLINT, false)))
+	assert_eq(hud.center_lines(), PackedStringArray(["CH1_GLINT_LINE1", "CH1_GLINT_LINE2"]), "齒痕往毒沼去")
+	await _frames(2)
+	assert_true(explore.glint_shard == null, "撿走了")
+	# 那一群打倒了、金屬還沒撿的存檔
+	level.free()
+	s.set_flag(ForestExplore.FLAG_GLINT, false)
+	s.set_flag(ForestExplore.pack_flag(ForestExplore.GLINT_PACK), true)
+	_level = (load(LEVEL) as PackedScene).instantiate() as CorruptForest
+	tree.root.add_child(_level)
+	await _frames(2)
+	assert_not_null(_level.explore.glint_shard, "讀檔：金屬在狼徑的空地上")
+	assert_true(_level.explore.glint_shard.global_position.distance_to(ForestMap.at(ForestMap.WOLVES)) < 4.0)
+
+
+## 增補稿在別的段落加的幾句（照旗標換台詞）：公會的止血棉與「你剛剛用哪隻手？」、試戴過戒指的人在瘴氣裡那一句、
+## 看過藥單的人在營火旁照出標籤上的字、公會結尾雷歐擦桌子、祭壇禁藥射出去前照約定喊
+func test_added_lines_follow_what_the_player_did_before() -> void:
+	var db: DialogueDB = DialogueDB.load_default()
+	assert_true(db.errors.is_empty(), "對話資料沒有錯：%s" % str(db.errors))
+	var st := GameState.new()
+	var r := DialogueRunner.new(db, st)
+	assert_true(r.start("ch1_guild_leo"))
+	assert_eq(str(r.current()["speaker"]), "SPK_LILITH", "先是莉莉絲遞止血棉")
+	assert_eq(r.current_text(), "DLG_CH1_COTTON_001")
+	r.advance()
+	assert_eq(r.current_text(), "DLG_CH1_COTTON_002", "手指已經長好了")
+	r.advance()
+	assert_true(str(r.current()["speaker"]) == "SPK_SHEILA" and r.current_text() == "DLG_CH1_COTTON_003", "席菈：你剛剛用哪隻手？")
+	r.advance()
+	assert_eq(r.current_text(), "DLG_CH1_LEO_001", "雷歐把兩人隔開，接回原本那段話")
+	# 瘴氣裡：試戴過戒指
+	r = DialogueRunner.new(db, st)
+	r.start("ch1_forest_gate")
+	r.advance()
+	assert_eq(r.current_text(), "DLG_CH1_GATE_002")
+	st.set_flag("ch1.ring_tried", true)
+	assert_eq(r.current_text(), "DLG_CH1_GATE_002_RING")
+	# 營火：看過藥單
+	r = DialogueRunner.new(db, st)
+	r.start("ch1_campfire")
+	for i: int in 3:
+		r.advance()
+	assert_eq(r.current_text(), "DLG_CH1_CAMP_004")
+	st.set_flag("ch1.sera_list", true)
+	assert_eq(r.current_text(), "DLG_CH1_CAMP_004_LABEL", "火光照出標籤上刮掉的那一行")
+	# 公會結尾：雷歐擦桌子（拿到收據的版本看著那張紙）
+	r = DialogueRunner.new(db, st)
+	r.start("ch1_guild_return")
+	var seen: PackedStringArray = []
+	var guard: int = 0
+	while r.is_running() and guard < 30:
+		guard += 1
+		seen.append(r.current_text())
+		if not r.visible_choices.is_empty():
+			r.choose(0)
+		else:
+			r.advance()
+	assert_true(seen.has("DLG_CH1_RETURN_WIPE") and seen.find("DLG_CH1_RETURN_WIPE") == seen.find("DLG_CH1_RETURN_LEDGER_TOGETHER") + 1, "記帳那一句之後雷歐擦桌子：%s" % str(seen))
+	st.set_flag("ch1.ledger", "receipt")
+	r = DialogueRunner.new(db, st)
+	r.start("ch1_guild_return")
+	seen = []
+	guard = 0
+	while r.is_running() and guard < 30:
+		guard += 1
+		seen.append(r.current_text())
+		if not r.visible_choices.is_empty():
+			r.choose(0)
+		else:
+			r.advance()
+	assert_true(seen.has("DLG_CH1_RETURN_WIPE_RECEIPT"), "拿到收據：他看著那張紙")
+	# 祭壇：禁藥
+	assert_eq(RuinedAltar.chaos_bark(st), "BARK_SERA_CHAOS")
+	st.set_flag(RailEvent.FLAG_PROMISE, "warn_me")
+	assert_eq(RuinedAltar.chaos_bark(st), "BARK_SERA_CHAOS_WAIT", "說好先說一聲的：這裡也說「我等你」")

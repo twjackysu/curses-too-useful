@@ -515,6 +515,12 @@ func _on_gaze_started() -> void:
 		App.burst_start_in(1)
 
 
+## 禁藥射出去之前席菈喊的那一句（增補稿）：斷軌那一次是玩家給信號的（說好「先說一聲」），她在這裡也說同一句「我等你」——
+## 這一次不用等，凝視擋住的那一刻就是信號；其他的照樣喊「諾恩，低頭！」的那一種（全部接住）
+static func chaos_bark(state: GameState) -> String:
+	return "BARK_SERA_CHAOS_WAIT" if str(state.get_flag(RailEvent.FLAG_PROMISE, "")) == "warn_me" else "BARK_SERA_CHAOS"
+
+
 ## 凝視打出去：擋住了＝席菈把禁藥射出來；沒擋住＝她被石化，等魔像下一次凝視
 func _on_gaze_fired(blocked: bool) -> void:
 	_hud.set_extra_hint("")
@@ -522,7 +528,7 @@ func _on_gaze_fired(blocked: bool) -> void:
 		App.burst_start_in(1)
 	if blocked:
 		_hud.show_center_lines("CH1_BLOCKED_LINE1", "CH1_BLOCKED_LINE2", 5.0, GOLD)
-		_hud.show_bark(sera, "BARK_SERA_CHAOS", 3.0, Sera.NAME_KEY)
+		_hud.show_bark(sera, chaos_bark(Game.session.state), 3.0, Sera.NAME_KEY)
 		sera.shoot(CHAOS_SOURCE)
 	else:
 		sera.petrify(CombatTuning.num("plague_golem.sera_stoned_sec", 6.0))
