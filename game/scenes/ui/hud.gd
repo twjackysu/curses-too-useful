@@ -334,6 +334,9 @@ func _process(delta: float) -> void:
 	var talking: bool = Game.is_in_dialogue()
 	_objective_box.visible = _objective.text != "" and not talking and not objective_held
 	_refresh_checklist(talking)
+	# 同一個階段裡目標也會換（objective_if：蕈採滿了，目標換成「把車停穩」）
+	if Game.session.in_story() and not Game.session.story_finished() and Game.session.objective_key() != _objective.text:
+		_refresh_objective(true)
 	# 左下的狀態列與生命條：對話框會蓋到它們的右半邊，所以對話中整組往上讓到對話框上面
 	# （瘴氣裡那一段講的就是「你的血在回」：邊聽邊看得到生命往上爬）
 	combat.lift = move_toward(combat.lift, _talk_lift() if talking else 0.0, TALK_LIFT_SPEED * delta)

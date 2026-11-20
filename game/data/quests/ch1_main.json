@@ -193,6 +193,15 @@
           },
           "marker": "node:Azhan"
         }
+      ],
+      "objective_if": [
+        {
+          "when": {
+            "flag": "ch1.mushrooms",
+            "gte": 5
+          },
+          "objective": "Q_CH1_OBJ_RAIL"
+        }
       ]
     },
     {

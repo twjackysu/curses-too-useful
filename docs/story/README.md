@@ -19,6 +19,7 @@
 | 女主角 | 席菈 | Sera | `sheila` |
 | 櫃檯小姐 | 莉莉絲 | Lilith | `lilith` |
 | B 級隊長 | 雷歐 | Leo | `leo` |
+| 採集員（增補稿） | 阿展 | Azhan | `azhan` |
 
 ## 舊劇情
 
