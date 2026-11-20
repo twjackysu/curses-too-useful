@@ -120,6 +120,13 @@ static func rock_material() -> ShaderMaterial:
 	return mat
 
 
+## 噴發口底座那一圈石頭：裂縫發綠光
+static func vent_rock_material() -> ShaderMaterial:
+	var mat: ShaderMaterial = rock_material()
+	mat.set_shader_parameter("crack_glow", 1.0)
+	return mat
+
+
 static func log_material(radius: float) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = SHADER

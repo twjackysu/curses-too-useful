@@ -11,6 +11,9 @@ uniform vec3 bark_dark : source_color = vec3(0.1, 0.06, 0.08);
 uniform vec3 wood : source_color = vec3(0.5, 0.36, 0.3);
 uniform vec3 moss : source_color = vec3(0.2, 0.34, 0.25);
 uniform float log_radius = 0.35;
+// 噴發口底座的石頭（crack_glow = 1）：裂縫寬一點、發綠光，一下一下地亮
+uniform float crack_glow = 0.0;
+uniform vec3 crack_color : source_color = vec3(0.45, 1.0, 0.3);
 
 varying vec3 world_pos;
 varying vec3 world_n;
@@ -62,8 +65,9 @@ void fragment() {
 	} else {
 		col = mix(stone_dark, stone, smoothstep(0.25, 0.7, grain)) * (0.85 + 0.3 * big);
 		// 裂縫：細的暗線
-		float crack = 1.0 - smoothstep(0.0, 0.035, abs(fbm(world_pos.xz * 1.3 + world_pos.y * 0.9) - 0.5));
+		float crack = 1.0 - smoothstep(0.0, mix(0.035, 0.07, crack_glow), abs(fbm(world_pos.xz * 1.3 + world_pos.y * 0.9) - 0.5));
 		col = mix(col, stone_dark * 0.6, crack * 0.8);
+		EMISSION = crack_color * crack * crack_glow * (2.6 + 0.8 * sin(TIME * 2.4));
 	}
 	// 朝上的面長苔，邊緣跟著雜訊咬
 	float mossy = smoothstep(0.35, 0.7, n.y + (big - 0.5) * 0.9);

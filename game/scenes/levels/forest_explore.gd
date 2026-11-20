@@ -31,6 +31,12 @@ const VENT_RADIUS: float = 2.3
 const VENT_MODEL: String = "tripo/prop_poison_vent"
 ## 底座只留模型最下面那一截（gen_props 的 --keep-below）：放大到從霧盤裡露出來（2.2 倍時幾乎整個被霧蓋住）
 const VENT_SCALE: float = 3.2
+## 噴發口外面圍的一圈石頭（幾顆、離洞口多遠、多大）與腳下那一圈綠縫多大（公尺，半徑）
+const VENT_RIM_STONES: int = 7
+const VENT_RIM_RADIUS: float = 0.85
+const VENT_RIM_SIZE: float = 0.3
+const VENT_CRACK_RADIUS: float = 1.7
+const VENT_CRACK_SHADER: Shader = preload("res://src/world/vent_cracks.gdshader")
 const WEB_SPOTS: Array[Vector3] = [Vector3(-0.9, -28.5, 90.0), Vector3(11.5, -39.8, 20.0), Vector3(-1.0, -51.0, 90.0), Vector3(31.5, -53.5, 130.0)]
 const BUSH_SPOTS: Array[Vector3] = [Vector3(5.6, 0, -33.0), Vector3(-20.0, 0, -50.0), Vector3(27.0, 0, -37.5), Vector3(-4.5, 0, -55.0)]
 const FRUIT_SOURCE: String = "rotten_fruit"
@@ -786,6 +792,7 @@ func _spawn_traps() -> void:
 		base.scale = Vector3.ONE * VENT_SCALE
 		base.rotation.y = float(i) * 1.3
 		vent.add_child(base)
+		vent.add_child(vent_rim(i))
 		vent.add_child(_gas_jet())
 		_loop_sound(vent, VENT_SOUND, Vector3(0, 0.4, 0), "VentHiss")
 		var glow := OmniLight3D.new()
@@ -958,6 +965,40 @@ static func _gas_jet() -> CPUParticles3D:
 	ps.mesh = quad
 	ps.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return ps
+
+
+## 噴發口的底座看得出來（D-311）：Tripo 的底座只留貼地的一圈（上半是噴出來的氣，切掉了），從玩的距離只看得到一團紫霧——
+## 外面圍一圈裂開的石頭（裂縫發綠光，SlopeClutter 的石頭）、地上一圈從洞口往外裂的綠縫（vent_cracks.gdshader）。節點名 Rim。
+static func vent_rim(seed_value: int) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Rim"
+	var mesh: ArrayMesh = SlopeClutter.rock_mesh(SlopeClutter.SEED + 40 + seed_value, 6, 9)
+	var mat: ShaderMaterial = SlopeClutter.vent_rock_material()
+	for k: int in VENT_RIM_STONES:
+		var a: float = TAU * float(k) / float(VENT_RIM_STONES) + sin(float(k * 7 + seed_value)) * 0.3
+		var s: float = VENT_RIM_SIZE * (0.8 + 0.4 * absf(sin(float(k) * 2.3 + float(seed_value))))
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = mat
+		mi.scale = Vector3(s * 1.4, s * 0.9, s)
+		mi.position = Vector3(cos(a), 0.0, sin(a)) * VENT_RIM_RADIUS * (0.9 + 0.2 * absf(cos(float(k) * 1.7))) - Vector3(0, 0.06, 0)
+		mi.rotation.y = -a
+		root.add_child(mi)
+	var cracks := MeshInstance3D.new()
+	cracks.name = "Cracks"
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * VENT_CRACK_RADIUS * 2.0
+	quad.orientation = PlaneMesh.FACE_Y
+	var glow := ShaderMaterial.new()
+	glow.shader = VENT_CRACK_SHADER
+	quad.material = glow
+	cracks.mesh = quad
+	# 霧盤最底那一層在 0.06 m：縫畫在它上面一點，隔著紫霧也透得出綠
+	cracks.position = Vector3(0, 0.09, 0)
+	cracks.rotation.y = float(seed_value) * 0.9
+	cracks.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(cracks)
+	return root
 
 
 static func _stand_in_vent() -> Node3D:

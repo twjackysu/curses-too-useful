@@ -61,3 +61,22 @@ func test_rocks_and_logs_sit_on_the_slopes_out_of_reach() -> void:
 			high += 1
 	assert_true(high > root.get_child_count() / 3, "大多擺在坡上，不是坡腳的平地（%d / %d）" % [high, root.get_child_count()])
 	level.free()
+
+
+## 噴發口的底座：外面一圈裂縫發綠光的石頭、地上一圈綠縫（畫在最底那一層霧盤上面）。
+func test_vent_rim_has_glowing_stones_and_ground_cracks() -> void:
+	var rim: Node3D = ForestExplore.vent_rim(2)
+	var stones: int = 0
+	for n: Node in rim.get_children():
+		if n.name == "Cracks":
+			continue
+		stones += 1
+		var mat := (n as MeshInstance3D).material_override as ShaderMaterial
+		assert_eq(float(mat.get_shader_parameter("crack_glow")), 1.0, "石頭的裂縫發光")
+		var d: float = Vector2((n as Node3D).position.x, (n as Node3D).position.z).length()
+		assert_true(d > 0.6 and d < 1.1, "圍在洞口外面（%.2f m）" % d)
+	assert_eq(stones, ForestExplore.VENT_RIM_STONES)
+	var cracks := rim.get_node("Cracks") as MeshInstance3D
+	assert_true(cracks.position.y > 0.06, "綠縫在最底那一層霧盤（0.06 m）上面")
+	assert_eq((cracks.mesh.surface_get_material(0) as ShaderMaterial).shader, ForestExplore.VENT_CRACK_SHADER)
+	rim.free()
