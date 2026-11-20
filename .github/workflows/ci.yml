@@ -211,6 +211,14 @@ jobs:
           shot 45-guild-inspector 90 --level=guild_hall --return --at=0.2,-2.2 --talk-skip=8 --locale=zh_TW
           shot 46-guild-credits 20 --level=guild_hall --return --demo=credits --locale=zh_TW
           shot 47-guild-preview 20 --level=guild_hall --return --demo=preview --locale=zh_TW
+          # 跟 scripts/shots/town.txt 同一組：公會門外的賒帳街（街上往東看／藥房那段話／試戴戒指／席菈的藥單／後院的盾／地下室／東門）
+          shot 50-town-street 40 --level=town_street --at=-1,-1 --cam-yaw=-120 --locale=zh_TW
+          shot 51-town-pharmacy 60 --level=town_street --at=5.5,1.4 --talk-skip=2 --locale=zh_TW
+          shot 52-town-ring 70 --level=town_street --demo=ring --locale=zh_TW
+          shot 53-town-list 80 --level=town_street --demo=list --talk-skip=3 --locale=zh_TW
+          shot 54-town-yard 40 --level=town_street --at=8,12 --cam-yaw=180 --locale=zh_TW
+          shot 55-town-cellar 70 --level=town_street --cellar --demo=lure --locale=zh_TW
+          shot 56-town-gate 40 --level=town_street --delivered --at=44,0 --cam-yaw=-90 --locale=zh_TW
           ls -la build/screens
           test -n "$(ls build/screens/*.png 2>/dev/null)"
           cd build && python3 -c "import shutil; shutil.make_archive('screens', 'zip', 'screens')"

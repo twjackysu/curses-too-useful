@@ -1,0 +1,11 @@
+# 公會門外的賒帳街（第一章 ⑤，增補劇本「自由時段 A」）的固定鏡頭組：名稱 幀數 旗標…（都用玩家的鏡頭或對話的鏡頭）
+# 街上往東看（藥房的遮雨棚、街尾的東門）／藥房那段話（席菈搶面具那一句）／試戴戒指（裝備面板）／席菈的藥單／
+# 藥房後院的曬衣繩與盾／地下室（引一團黴泥出來）／東門（門洞裡的樹）。
+# 用法同 forest.txt：scripts/shots.sh town [--save-baseline]
+town-street 40 --level=town_street --at=-1,-1 --cam-yaw=-120 --locale=zh_TW
+town-pharmacy 60 --level=town_street --at=5.5,1.4 --talk-skip=2 --locale=zh_TW
+town-ring 70 --level=town_street --demo=ring --locale=zh_TW
+town-list 80 --level=town_street --demo=list --talk-skip=3 --locale=zh_TW
+town-yard 40 --level=town_street --at=8,12 --cam-yaw=180 --locale=zh_TW
+town-cellar 70 --level=town_street --cellar --demo=lure --locale=zh_TW
+town-gate 40 --level=town_street --delivered --at=44,0 --cam-yaw=-90 --locale=zh_TW
