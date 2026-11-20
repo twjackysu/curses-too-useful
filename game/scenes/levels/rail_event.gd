@@ -396,6 +396,9 @@ func _tick_final(delta: float) -> void:
 				_vial = null
 				Sfx.play_at(level, "vial_shatter", to, -2.0, 0.04)
 				site.buckle.visible = false
+				# 煞車鬆開：車往下滑一小步就被頂住（坡底）／被繩拉住（坡頂），不再晃
+				site.cart_stuck = false
+				site.cart.create_tween().tween_property(site.cart, "position:x", RailSite.CART_X - 0.28, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 				final_step = 4
 				_final_t = 0.0
 				azhan.gesture("reach")
