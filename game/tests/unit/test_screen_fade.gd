@@ -23,6 +23,17 @@ func test_step_caps_a_long_frame() -> void:
 	assert_eq(ScreenFade.step(0.99, 1.0, 0.1, 0.45), 1.0, "到了就停在 1")
 
 
+## 每幀剛好 1/60 秒（垂直同步、--fixed-fps）：淡到底是剛好 1.0，不是差一點點就停住（停住就不換場景、畫面黑著卡住）
+func test_steady_frames_reach_exactly_black() -> void:
+	var a: float = 0.0
+	var frames: int = 0
+	while a < 1.0 and frames < 1000:
+		a = ScreenFade.step(a, 1.0, 1.0 / 60.0, ScreenFade.OUT_SEC)
+		frames += 1
+	assert_eq(a, 1.0, "淡到底（%d 幀）" % frames)
+	assert_true(frames <= int(ceil(ScreenFade.OUT_SEC * 60.0)) + 1, "差不多 OUT_SEC 秒")
+
+
 func test_fade_out_calls_back_once_when_black_and_fade_in_waits_a_few_frames() -> void:
 	var f := ScreenFade.new()
 	tree.root.add_child(f)

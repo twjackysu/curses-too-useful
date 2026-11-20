@@ -42,7 +42,8 @@ if grep -E "^(ERROR|SCRIPT ERROR|USER ERROR)" "$LOG_DIR/import.log"; then
 fi
 
 echo "== tests"
-"$GODOT" --headless --path game -s res://tests/run_tests.gd 2>&1 | tee "$LOG_DIR/tests.log"
+# --fixed-fps 60：每一幀固定 1/60 秒、不等真實時間（以前一個等物理幀的測試要真的等那麼多秒：測試 5 分多鐘裡 4 分鐘在等）
+"$GODOT" --headless --fixed-fps 60 --path game -s res://tests/run_tests.gd 2>&1 | tee "$LOG_DIR/tests.log"
 status="${PIPESTATUS[0]}"
 if [[ "$status" != "0" ]]; then
   echo "測試失敗（exit $status）" >&2

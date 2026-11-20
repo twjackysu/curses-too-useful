@@ -78,9 +78,11 @@ func _exit_tree() -> void:
 	_amp = null
 
 
-## 這一幀淡多少（純函式，測試用）：一幀最多算 MAX_STEP 秒
+## 這一幀淡多少（純函式，測試用）：一幀最多算 MAX_STEP 秒。差一點點（浮點誤差）就直接到：
+## 每幀剛好 1/60 秒時會停在 0.9999999999999993——_process 當成「已經到了」不再淡、也不呼叫換場景（畫面黑著卡住）
 static func step(from: float, to: float, delta: float, sec: float) -> float:
-	return move_toward(from, to, minf(maxf(delta, 0.0), MAX_STEP) / maxf(sec, 0.001))
+	var v: float = move_toward(from, to, minf(maxf(delta, 0.0), MAX_STEP) / maxf(sec, 0.001))
+	return to if is_equal_approx(v, to) else v
 
 
 ## 淡成黑（聲音一起收），黑了之後呼叫 then（已經是黑的就馬上呼叫）
