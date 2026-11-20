@@ -99,6 +99,9 @@ const BARK_COLOR: Color = Color(0.97, 0.94, 0.84)
 var _bark_root: Control
 ## 畫面下方「名字：台詞」那一行後面的暗底（頭上的話沒有：字小、跟著人動，加了底反而擋人）
 var _bark_back: StyleBoxFlat
+const DIM_COLOR: Color = Color(0.012, 0.01, 0.02)
+var _dim: ColorRect
+var _dim_tween: Tween
 ## Boss 的生命條（畫面上方中間；場上有醒著的 Boss 才出現）
 var boss_bar: BossBar
 ## 過場的鏡頭切走的那幾秒（粉碎核心的那一刀，FinisherCamera）：整個 HUD 收起來（生命條、狀態列、Boss 的生命條、目標、頭上的字）
@@ -137,6 +140,25 @@ func _notification(what: int) -> void:
 		_refresh_hint()
 
 
+## 畫面暗一下（營火休息）：out_sec 秒暗到全黑 → 黑著 hold_sec 秒（黑下去的那一刻叫 at_dark：關卡在這時候把人擺好）→ in_sec 秒亮回來
+func dim_blink(out_sec: float, hold_sec: float, in_sec: float, at_dark: Callable = Callable()) -> void:
+	if _dim_tween != null:
+		_dim_tween.kill()
+	_dim.visible = true
+	_dim_tween = create_tween()
+	_dim_tween.tween_property(_dim, "color:a", 1.0, out_sec)
+	if at_dark.is_valid():
+		_dim_tween.tween_callback(at_dark)
+	_dim_tween.tween_interval(hold_sec)
+	_dim_tween.tween_property(_dim, "color:a", 0.0, in_sec)
+	_dim_tween.tween_callback(func() -> void: _dim.visible = false)
+
+
+## 現在暗到多少（0＝沒有暗、1＝全黑）
+func dim_amount() -> float:
+	return _dim.color.a if _dim.visible else 0.0
+
+
 func is_objective_shown() -> bool:
 	return _objective_box.visible
 
@@ -155,6 +177,14 @@ func saved_label() -> Label:
 
 
 func _build() -> void:
+	# 畫面暗一下（dim_blink）的黑幕：排在最前面＝畫在 HUD 的字與條的底下，只蓋住場景
+	_dim = ColorRect.new()
+	_dim.name = "Dim"
+	_dim.color = Color(DIM_COLOR, 0.0)
+	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dim.visible = false
+	add_child(_dim)
 	reversal = ReversalOverlay.new()
 	add_child(reversal)
 	_objective_box = VBoxContainer.new()

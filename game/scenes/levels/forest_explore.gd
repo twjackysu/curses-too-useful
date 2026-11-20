@@ -64,6 +64,8 @@ const SCREAM_SFX: String = "distant_scream"
 const SCREAM_DB: float = -5.0
 const FIRE_ENERGY: float = 4.5
 const CAMP_DIALOGUE: String = "ch1_campfire"
+## 休息時畫面暗一下：暗下去、黑著、亮回來各幾秒（Hud.dim_blink）
+const CAMP_DIM: Vector3 = Vector3(0.4, 0.45, 0.7)
 const FLAG_CAMP_TALK: String = "ch1.campfire_talked"
 const FLAG_DUO: String = "sera.duo_unlocked"
 const DUO_SOURCE: String = "sera_duo_smoke"
@@ -341,15 +343,63 @@ func _build_campfire() -> void:
 	level.add_child(campfire)
 
 
-## 在營火旁休息：補滿血、之後從這裡重來、存檔。第一次：席菈講她的過去。
+## 在營火旁休息：補滿血、之後從這裡重來、存檔（按下的那一刻就做）。看得到的（D-310）：畫面暗下去 → 黑的那一刻諾恩坐到
+## 離他近的那一根圓木上、面向火，席菈坐到另一根 → 亮回來；第一次接著講她的過去（兩人坐著講），之後只出「休息了一下」。
+## 暗下去到亮回來不能動；坐著之後他一動就站起來，席菈跟著起來
 func _on_campfire_used(by: PlayerController) -> void:
 	by.health.heal(by.health.max_hp, {"source": "campfire"})
 	Game.session.set_flag(FLAG_RESPAWN, "camp")
-	if not bool(Game.session.state.get_flag(FLAG_CAMP_TALK, false)) and sera.joined and Game.start_dialogue(CAMP_DIALOGUE):
-		_duo_pending = true
-	else:
-		hud.show_banner("CH1_RESTED", 3.0)
 	Game.session.autosave()
+	var talk: bool = not bool(Game.session.state.get_flag(FLAG_CAMP_TALK, false)) and sera.joined
+	campfire.enabled = false
+	if level is StoryLevel:
+		(level as StoryLevel).lock_for_cutscene(true)
+	hud.dim_blink(CAMP_DIM.x, CAMP_DIM.y, CAMP_DIM.z, _sit_by_fire.bind(by))
+	_after(CAMP_DIM.x + CAMP_DIM.y + CAMP_DIM.z, func() -> void:
+		if level is StoryLevel:
+			(level as StoryLevel).lock_for_cutscene(false)
+		campfire.enabled = true
+		if talk and Game.start_dialogue(CAMP_DIALOGUE):
+			_duo_pending = true
+		else:
+			hud.show_banner("CH1_RESTED", 3.0))
+
+
+## 遊戲時間 sec 秒後做 then（暫停時不走）
+func _after(sec: float, then: Callable) -> void:
+	get_tree().create_timer(sec, false, true).timeout.connect(then)
+
+
+## 營火旁的兩根圓木上坐的位置（腳下、圓木的中線）：離 near 近的那一根在前面
+static func camp_seats(near: Vector3) -> Array[Vector3]:
+	var camp: Vector3 = ForestMap.at(ForestMap.CAMP)
+	var seats: Array[Vector3] = []
+	for spec: Vector3 in ForestScenery.CAMP_LOGS:
+		seats.append(camp + Vector3(spec.x, 0.0, spec.y))
+	seats.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.distance_to(near) < b.distance_to(near))
+	return seats
+
+
+## 畫面全黑的那一刻：兩人坐到圓木上、面向火
+func _sit_by_fire(by: PlayerController) -> void:
+	var seats: Array[Vector3] = camp_seats(by.global_position)
+	var fire: Vector3 = campfire.global_position
+	var y: float = by.global_position.y
+	by.sit_at(Vector3(seats[0].x, y, seats[0].z), _yaw_to(seats[0], fire))
+	if not by.stood_up.is_connected(_on_rest_over):
+		by.stood_up.connect(_on_rest_over)
+	if sera.joined and seats.size() > 1:
+		sera.sit_at(Vector3(seats[1].x, sera.global_position.y, seats[1].z), _yaw_to(seats[1], fire))
+
+
+## 站在 from 面向 to 的角度（rotation.y：角色的臉是 −Z）
+static func _yaw_to(from: Vector3, to: Vector3) -> float:
+	return atan2(-(to.x - from.x), -(to.z - from.z))
+
+
+## 諾恩站起來了：席菈也起來、跟上
+func _on_rest_over() -> void:
+	sera.stand_up()
 
 
 func _on_dialogue_ended(dialogue_id: String) -> void:

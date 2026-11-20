@@ -151,6 +151,8 @@ var _reload_started: bool = false
 var _swap_pending: bool = false
 ## 對話中正在調整跟諾恩的距離：-1＝往後退、1＝走近、0＝站著
 var _talk_step: int = 0
+## 坐著的時候腳下在哪（Vector3.INF＝沒坐；sit_at）
+var _seat: Vector3 = Vector3.INF
 var target: PlayerController
 var vials_fired: int = 0
 var last_vial: SeraVial
@@ -203,6 +205,14 @@ func _physics_process(delta: float) -> void:
 	_update_mask(delta)
 	_update_brew(delta)
 	_update_slot()
+	# 坐著：向她要藥、換一瓶的按鍵也讓她站起來接著做（不用先叫諾恩站起來再按一次）
+	if is_seated() and not Game.is_player_locked() and (Input.is_action_just_pressed(ASK_ACTION) or Input.is_action_just_pressed(SWITCH_ACTION)):
+		stand_up()
+	if is_seated():
+		velocity = Vector3.ZERO
+		global_position = _seat
+		_puppet.set_move_speed(0.0)
+		return
 	if fumble_left > 0.0 and stoned_left <= 0.0:
 		velocity = Vector3(0.0, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, 0.0)
 		move_and_slide()
@@ -412,6 +422,30 @@ func _build_brew_glow() -> void:
 ## 對話中轉過去面向 point（TalkCamera 叫：對話開始時面向聽她講話的人，之後照每一句的 to／look）
 func talk_to(point: Vector3) -> void:
 	_talk_point = point
+
+
+## 坐到 spot、面向 face_yaw（營火旁的另一根圓木；關卡在畫面暗下去的時候叫）。坐著不跟、不射、不轉身，
+## 關卡叫 stand_up() 才起來（諾恩站起來的時候）
+func sit_at(spot: Vector3, face_yaw: float) -> void:
+	_seat = spot
+	global_position = spot
+	velocity = Vector3.ZERO
+	rotation.y = face_yaw
+	_puppet.stop_action()
+	_puppet.set_pose(PlayerController.SIT_POSE, 0.0)
+	set_meta(TalkCamera.DROP_META, PlayerController.SIT_DROP)
+
+
+func stand_up() -> void:
+	if not is_seated():
+		return
+	_seat = Vector3.INF
+	_puppet.set_pose("", PlayerController.SIT_STAND_BLEND)
+	remove_meta(TalkCamera.DROP_META)
+
+
+func is_seated() -> bool:
+	return _seat.is_finite()
 
 
 ## 關卡叫她站到 hold_at：跑過去、到了就面向諾恩站著。不跟、不射平常的藥；關卡指定的那一瓶（shoot）照樣舉弩射。

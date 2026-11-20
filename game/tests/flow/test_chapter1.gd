@@ -1546,6 +1546,22 @@ func test_campfire_rest_tells_seras_past_and_unlocks_the_double_brew() -> void:
 	assert_eq(player.health.hp, player.health.max_hp, "休息補滿血")
 	assert_eq(s.state.get_flag(ForestExplore.FLAG_RESPAWN), "camp")
 	assert_true(ForestExplore.spawn_point(s.state).distance_to(explore.campfire.global_position) < 5.0, "之後從營火重來")
+	# 畫面暗下去 → 黑的那一刻兩人坐到圓木上、面向火 → 亮回來才開口
+	for i: int in int(ForestExplore.CAMP_DIM.x * 60.0) - 6:
+		await tree.physics_frame
+	assert_true(hud.dim_amount() > 0.5, "畫面暗下去（%.2f）" % hud.dim_amount())
+	assert_true(bool(_game().call("is_player_locked")), "暗下去的時候不能動")
+	for i: int in int((ForestExplore.CAMP_DIM.y + ForestExplore.CAMP_DIM.z) * 60.0) + 14:
+		await tree.physics_frame
+	assert_true(hud.dim_amount() < 0.01, "亮回來了")
+	var seats: Array[Vector3] = ForestExplore.camp_seats(player.global_position)
+	assert_true(player.is_seated() and player.puppet().pose == PlayerController.SIT_POSE, "諾恩坐下來了")
+	assert_true(ForestMap.flat(player.global_position).distance_to(ForestMap.flat(seats[0])) < 0.05, "坐在圓木上")
+	assert_true(sera.is_seated() and ForestMap.flat(sera.global_position).distance_to(ForestMap.flat(seats[1])) < 0.05, "席菈坐在另一根")
+	var to_fire: Vector3 = (explore.campfire.global_position - player.global_position).normalized()
+	assert_true(player.facing().dot(Vector3(to_fire.x, 0, to_fire.z).normalized()) > 0.95, "面向火")
+	var look: Vector3 = -(player.get_node("CameraRig/Pitch/SpringArm3D/Camera3D") as Camera3D).global_basis.z
+	assert_true(Vector3(look.x, 0, look.z).normalized().dot(Vector3(to_fire.x, 0, to_fire.z).normalized()) > 0.8, "鏡頭在他背後看著火")
 	assert_true(bool(_game().call("is_in_dialogue")), "第一次休息：席菈開口")
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(runner.current_text(), "DLG_CH1_CAMP_001")
@@ -1567,6 +1583,10 @@ func test_campfire_rest_tells_seras_past_and_unlocks_the_double_brew() -> void:
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_DUO_LINE1", "CH1_DUO_LINE2"]), "解鎖連攜")
 	for i: int in 3:
 		await tree.physics_frame
+	assert_true(player.is_seated() and sera.is_seated(), "講完還坐著（玩家沒動）")
+	player.stand_up()
+	assert_false(sera.is_seated(), "諾恩站起來，席菈也起來")
+	assert_eq(player.puppet().pose, "", "站起來了")
 	assert_true(hud.checklist_lines()[1].begins_with(tr("HUD_LIST_DONE").get_slice(" ", 0)), "清單上營火那一項完成：%s" % hud.checklist_lines()[1])
 	assert_eq(sera.ask_source, ForestExplore.DUO_SOURCE, "向她要的煙霧彈換成連攜的")
 	assert_true(sera.ask())
@@ -1610,8 +1630,11 @@ func test_campfire_rest_tells_seras_past_and_unlocks_the_double_brew() -> void:
 	assert_eq(sera.ask_choice(), ForestExplore.DUO_SOURCE, "下一次要的是換回來的那一瓶")
 	# 再休息一次：不再講，只是休息
 	explore.campfire.use(player)
+	for i: int in int((ForestExplore.CAMP_DIM.x + ForestExplore.CAMP_DIM.y + ForestExplore.CAMP_DIM.z) * 60.0) + 14:
+		await tree.physics_frame
 	assert_false(bool(_game().call("is_in_dialogue")), "只講一次")
 	assert_eq(hud.banner_text(), "CH1_RESTED")
+	assert_true(player.is_seated(), "一樣坐下來")
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
 	assert_eq(again.state.get_flag(ForestExplore.FLAG_DUO), true, "存檔裡記著連攜")

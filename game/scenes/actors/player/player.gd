@@ -104,6 +104,12 @@ const SWORD_SCALE: float = 0.42
 const SWORD_GRIP: Vector3 = Vector3(0.0, 0.1, 0.0)
 
 var _puppet: Puppet
+## 坐著的時候腳下在哪（Vector3.INF＝站著；sit_at）。坐著比站著矮多少（對話的鏡頭往下放）、站起來淡多久
+var _seat: Vector3 = Vector3.INF
+const SIT_POSE: String = "sit"
+const SIT_DROP: float = 0.42
+const SIT_STAND_BLEND: float = 0.3
+signal stood_up
 var _weapon: Node3D
 var _sword_glow_mat: ShaderMaterial
 var _sword_glow: float = 0.0
@@ -258,6 +264,35 @@ func gesture(action_name: String, point: Vector3) -> void:
 	_puppet.play_action(action_name)
 
 
+## 坐到 spot（腳下的位置：圓木的中線）、面向 face_yaw（弧度）：播坐著的樣子（Puppet 的 sit），對話的鏡頭照坐著的高度。
+## 關卡在畫面暗下去的時候叫（直接擺過去，不走過去）。玩家一動就站起來（stand_up，發 stood_up）
+func sit_at(spot: Vector3, face_yaw: float) -> void:
+	_seat = spot
+	global_position = spot
+	velocity = Vector3.ZERO
+	_body.rotation.y = face_yaw
+	_talk_return_yaw = NAN
+	_puppet.stop_action()
+	_puppet.set_pose(SIT_POSE, 0.0)
+	set_meta(TalkCamera.DROP_META, SIT_DROP)
+	# 鏡頭也轉到他背後（畫面黑著的時候擺：亮回來是從他肩膀後面看著火與對面的人）
+	yaw = face_yaw
+	snap_camera()
+
+
+func stand_up() -> void:
+	if not is_seated():
+		return
+	_seat = Vector3.INF
+	_puppet.set_pose("", SIT_STAND_BLEND)
+	remove_meta(TalkCamera.DROP_META)
+	stood_up.emit()
+
+
+func is_seated() -> bool:
+	return _seat.is_finite()
+
+
 ## 身體現在面向哪（水平的單位向量）
 func facing() -> Vector3:
 	return -_body.global_basis.z
@@ -338,6 +373,16 @@ func _physics_process(delta: float) -> void:
 			_auto_foe = auto_target()
 		if _auto_foe != null or (Input.is_action_pressed("attack") and not peaceful):
 			want = "attack"
+	# 坐著（營火旁的圓木）：一推搖桿、要出手／閃避、被打就站起來；不然整個人定在座位上（不被圓木的碰撞推開、不轉身）
+	if is_seated():
+		if not talking and (input.length() > 0.1 or want != "" or hurt_left > 0.0 or health.is_dead() or Input.is_action_just_pressed(Sera.ASK_ACTION)):
+			stand_up()
+		else:
+			velocity = Vector3.ZERO
+			global_position = _seat
+			_puppet.set_move_speed(0.0)
+			_buffered = ""
+			return
 	if talking:
 		pass
 	elif hurt_left > 0.0:
