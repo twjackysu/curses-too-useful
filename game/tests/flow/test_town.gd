@@ -68,6 +68,12 @@ func _until_dialogue(max_frames: int) -> void:
 	assert_true(bool(_game().call("is_in_dialogue")), "等了 %d 幀對話沒有開始" % frames)
 
 
+## 一棟房子牆上的材質（town_facade）
+func _facade(level: TownStreet, house: String) -> ShaderMaterial:
+	var walls: MeshInstance3D = (level.scenery.buildings[house] as Node3D).get_node("Walls") as MeshInstance3D
+	return (walls.mesh as BoxMesh).material as ShaderMaterial
+
+
 func _finish_dialogue(pick: int) -> void:
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	var guard: int = 0
@@ -113,6 +119,9 @@ func test_street_is_built_with_houses_shops_and_the_east_gate() -> void:
 	assert_true((level.get_node("Sun") as DirectionalLight3D).shadow_enabled)
 	var we: WorldEnvironment = level.get_node("WorldEnvironment") as WorldEnvironment
 	assert_eq(we.environment.background_mode, Environment.BG_SKY, "白天的天空")
+	assert_eq(level.scenery.lamps.size(), 0, "白天壁燈不點")
+	assert_eq(float(_facade(level, "HouseN1").get_shader_parameter("dusk")), 0.0, "白天的窗照舊")
+	assert_true(level.scenery.pot_steam == null and level.get_node_or_null("Scenery/StallLantern") == null, "白天麵攤沒有蒸氣與燈籠（湯還沒煮開）")
 	# 人：藥房的店主與小學徒、門邊凳子上的席菈
 	assert_not_null(level.pharmacist)
 	assert_not_null(level.apprentice)
@@ -482,6 +491,14 @@ func test_return_trip_delivers_the_mushrooms_then_walks_back_to_the_guild() -> v
 	var hud: Hud = level.get_node("Hud") as Hud
 	var player: PlayerController = _player()
 	assert_true(level.is_return() and level.scenery.dusk, "傍晚的街")
+	assert_true(level.scenery.lamps.size() >= 8, "傍晚的壁燈點著")
+	assert_true(level.scenery.lamps[0].light != null and level.scenery.lamps[0].light.light_energy > 1.0, "照得到地")
+	assert_eq(float(_facade(level, "HouseN1").get_shader_parameter("dusk")), 1.0, "窗亮起來")
+	assert_false(level.basket.visible, "還沒開口：籃子不在櫃檯上")
+	assert_false(level.shield.visible, "帶回來的盾還在諾恩身上")
+	assert_not_null(level.scenery.pot_steam, "麵攤的鍋煮開了")
+	assert_not_null(level.get_node_or_null("Scenery/StallLantern/LanternFlame"), "麵攤掛出紅燈籠")
+	assert_true(level.pot_blob == null, "全砍了的：鍋底下沒有那一團")
 	assert_true(player.global_position.distance_to(TownStreet.RETURN_ENTRANCE) < 1.0, "從東門裡面開始")
 	assert_true(level.core != null and level.core.is_carried_by(player.get_node("Body") as Node3D), "扛著魔像核心")
 	assert_true(level.sera != null and level.sera.joined and level.sera.target == player, "席菈跟在後面")
@@ -505,19 +522,42 @@ func test_return_trip_delivers_the_mushrooms_then_walks_back_to_the_guild() -> v
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(runner.dialogue_id, TownStreet.RETURN_DIALOGUE)
 	assert_true(level.talk_camera.cast.has(TownStreet.AZHAN_KEY), "鏡頭認得阿展")
+	assert_eq(level.talk_camera.cast.get(TownStreet.CUPS_KEY), level.cups_focus, "鏡頭認得那一排杯子")
+	assert_eq(level.cups_focus.get_meta(TalkCamera.SPOT_META), TownStreet.CUPS_CAMERA, "看杯子的鏡頭站在指定的地方")
+	assert_true(level.basket.visible and level.basket_mushrooms.visible, "開口的那一句：一籃毒蕈擱上櫃檯")
 	runner.advance()
 	assert_eq(runner.current_text(), TownStreet.RETURN_LIDS_LINE)
+	assert_eq(str(runner.current().get("look", "")), TownStreet.CUPS_KEY, "這一句鏡頭看杯子")
 	await _frames(int(TownStreet.CUP_LIGHT_EVERY * 60.0 * 5.0) + 30)
 	assert_eq(level.lids_lit(), TownStreet.CUP_COUNT, "五只杯蓋一個接一個亮起來")
+	assert_false(level.basket_mushrooms.visible, "蕈都放進杯子了：只剩空籃")
+	assert_true(level.basket.visible)
+	assert_true(level.cup_light.light_energy > 0.3, "櫃檯上多一點青綠的光")
 	runner.advance()
 	assert_eq(str(runner.current()["speaker"]), TownStreet.AZHAN_KEY, "阿展改辭工單")
+	var slip: PaperNote = level.slip_note
+	assert_not_null(slip, "辭工單拿到眼前")
+	assert_eq(slip.title_key, "AZHAN_SLIP_TITLE")
+	assert_true(slip.struck.is_empty(), "還沒劃")
+	await _frames(int(TownStreet.SLIP_WRITE_AFTER * 60.0) + 12)
+	assert_true(slip.struck.has(TownStreet.SLIP_STRIKE_INDEX), "「獨自採集」劃掉")
+	assert_eq(slip.line_keys[TownStreet.SLIP_STRIKE_INDEX], "AZHAN_SLIP_ALONE")
+	assert_eq(slip.line_keys[slip.line_keys.size() - 1], TownStreet.SLIP_NEW_LINE, "補寫「帶學徒認路」")
+	assert_eq(TownStreet.RETURN_SLIP_LINES.size(), 4, "補寫不動到原本那幾行的清單")
 	runner.advance()
+	assert_not_null(level.slip_note, "小學徒那一句紙還在")
 	runner.advance()
 	assert_eq(runner.current_text(), "DLG_CH1_TRET_005_TAKEN", "帶回來的盾：他自己簽名還")
+	assert_true(level.shield.visible and level.shield.position.distance_to(TownStreet.SHIELD_ON_COUNTER) < 0.01, "盾推上櫃檯")
+	assert_true(level.get_node_or_null("CupWarm") == null, "帶回來的：上面沒有溫著的杯")
+	assert_true(level.slip_note == null, "紙收起來了")
 	runner.advance()
 	assert_eq(runner.current_text(), "DLG_CH1_TRET_006_RECEIPT", "給席菈的收據")
+	assert_not_null(level.receipt_note, "收據拿到眼前")
+	assert_eq(level.receipt_note.stamp_key, "RECEIPT_STAMP")
 	runner.advance()
 	assert_eq(runner.current_text(), "DLG_CH1_TRET_007_RECEIPT")
+	assert_true(level.receipt_note == null, "她收進手套裡")
 	runner.advance()
 	assert_false(bool(_game().call("is_in_dialogue")))
 	assert_true(bool(s.state.get_flag(TownStreet.FLAG_DELIVERED, false)))
@@ -534,6 +574,7 @@ func test_return_trip_delivers_the_mushrooms_then_walks_back_to_the_guild() -> v
 	assert_eq(int(s.state.items.get(TownStreet.NOODLE_TICKET, 0)), 0, "麵票用掉了")
 	assert_eq(int(s.state.items.get("sera_poison_vial", 0)), 1, "席菈多調一瓶")
 	assert_true(player.health.is_full(), "喝了熱湯")
+	assert_eq(level.soup_bowls.size(), 2, "攤車上兩碗熱湯")
 	assert_false(level.vendor_use.enabled)
 	# 走回公會
 	player.global_position = TownScenery.GUILD_DOOR + Vector3(0, 0.05, 1.5)
@@ -546,6 +587,31 @@ func test_return_trip_delivers_the_mushrooms_then_walks_back_to_the_guild() -> v
 	var again := GameSession.new(QuestDB.load_default(), _dir)
 	assert_eq(again.load_slot(GameSession.AUTO_SLOT), SaveCodec.Status.OK)
 	assert_true(bool(again.state.get_flag(TownStreet.FLAG_DELIVERED, false)))
+
+
+## 回程讀檔（蕈交了、麵票兌了、當初把黴泥趕進酒桶）：空籃、亮著的杯蓋、兩碗湯、鍋底下那一團都在
+func test_return_trip_reloaded_keeps_what_was_done_on_the_counter_and_the_stall() -> void:
+	_game().call("new_game", false)
+	var s: GameSession = _session()
+	RuinedAltar.skip_to_altar(s)
+	for flag: String in [RuinedAltar.FLAG_TALKED, RuinedAltar.FLAG_GOLEM_DOWN, RuinedAltar.FLAG_DONE]:
+		s.set_flag(flag, true)
+	s.set_flag(TownStreet.FLAG_CELLAR_WAY, "barrel")
+	s.set_flag(TownStreet.FLAG_SHIELD, "iou")
+	s.set_flag(TownStreet.FLAG_DELIVERED, true)
+	s.set_flag(TownStreet.FLAG_NOODLE_BACK, true)
+	var level: TownStreet = _load_level()
+	await _frames(2)
+	assert_true(level.is_return())
+	assert_eq(level.lids_lit(), TownStreet.CUP_COUNT, "杯蓋是亮的")
+	assert_true(level.cup_light.light_energy > 0.3)
+	assert_true(level.basket.visible and not level.basket_mushrooms.visible, "空籃留在櫃檯上")
+	assert_true(level.shield.visible and level.shield.position.distance_to(TownStreet.SHIELD_ON_COUNTER) < 0.01, "補過借據的盾在櫃檯上當熱敷盤")
+	assert_not_null(level.get_node_or_null("CupWarm"), "盾面上溫著一只杯")
+	assert_eq(level.soup_bowls.size(), 2, "兩碗湯已經在攤車上")
+	assert_not_null(level.pot_blob, "鍋底下縮著那一團")
+	assert_true(level.pot_blob.position.distance_to(TownScenery.POT_POS) < 1.2)
+	assert_eq(ParticleLook.untextured(level).size(), 0, "蒸氣不是方塊")
 
 
 ## 回程的另一種：盾留在藥房（補借據）、藥錢一起領、黴泥趕進桶裡——各換一句

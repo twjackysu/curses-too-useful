@@ -171,3 +171,15 @@ func test_look_shot_keeps_the_near_speaker_inside_the_frame() -> void:
 			assert_true(v.dot(fwd) > 0.5 and absf(v.dot(t.basis.x)) / v.dot(fwd) < half_w * 0.97,
 				"%s 的兩邊肩膀都在畫面裡（%.2f）" % [str(who), absf(v.dot(t.basis.x)) / v.dot(fwd) / half_w])
 	assert_true((t.origin - speaker).length() < (t.origin - target).length(), "講話的人在前景")
+
+
+## 關卡指定鏡位（櫃檯上那一排杯子）：鏡頭就站在那裡，對準的地方在畫面正中間
+func test_spot_shot_stands_where_the_level_says_and_looks_at_the_target() -> void:
+	var eye := Vector3(4.5, 1.75, 1.3)
+	var aim := Vector3(5.5, 1.1, 2.88)
+	var t: Transform3D = TalkCamera.spot_shot(eye, aim)
+	assert_true(t.origin.is_equal_approx(eye), "站在指定的地方")
+	var v: Vector3 = t.affine_inverse() * aim
+	assert_true(v.z < -1.0, "它在鏡頭前面")
+	assert_true(absf(v.x) < 0.01, "左右置中")
+	assert_true(absf(v.y) < 0.01, "上下置中")

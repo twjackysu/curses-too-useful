@@ -3,6 +3,7 @@ extends Control
 ## 畫面右邊一張紙（公會的綠色委託單、佈告欄上的委託）：場景裡的紙在玩的距離只看得到一小片顏色，
 ## 要讀的時候把它「拿到眼前」——標題＋幾行字，紙稍微歪一點；要的話再蓋一個紅色的章（stamp）。
 ## 字都是翻譯 key。開的時候從右邊滑進來，close() 淡出後自己拿掉。
+## 紙上的字可以當場改：strike(第幾行) 劃掉一行、add_line(key, 墨色) 在最下面補寫一行（阿展改辭工單）。
 
 const WIDTH: float = 420.0
 const MARGIN_RIGHT: float = 56.0
@@ -10,6 +11,9 @@ const MARGIN_RIGHT: float = 56.0
 const CENTER_Y: float = 0.4
 const SLIDE: float = 60.0
 const TILT_DEG: float = -2.5
+## 劃掉一行：橫線從左畫到右要多久；補寫的一行淡進來要多久
+const STRIKE_SEC: float = 0.35
+const WRITE_SEC: float = 0.45
 
 var title_key: String = ""
 var line_keys: PackedStringArray = []
@@ -18,6 +22,9 @@ var _ink: Color
 var _paper: PanelContainer
 var _lines: VBoxContainer
 var _stamp: Label
+## 標題以外的每一行（照順序；strike 用）、被劃掉的是哪幾行
+var _line_labels: Array[Label] = []
+var struck: PackedInt32Array = []
 
 
 ## paper＝紙的顏色、ink＝字的顏色
@@ -25,7 +32,7 @@ static func create(p_title_key: String, p_line_keys: PackedStringArray, paper: C
 	var n := PaperNote.new()
 	n.name = "PaperNote"
 	n.title_key = p_title_key
-	n.line_keys = p_line_keys
+	n.line_keys = p_line_keys.duplicate()
 	n._ink = ink
 	n.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var box := StyleBoxFlat.new()
@@ -60,7 +67,7 @@ static func create(p_title_key: String, p_line_keys: PackedStringArray, paper: C
 	return n
 
 
-func _add_label(key: String, size: int, centered: bool) -> void:
+func _add_label(key: String, size: int, centered: bool) -> Label:
 	var l := Label.new()
 	l.text = key
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -70,6 +77,42 @@ func _add_label(key: String, size: int, centered: bool) -> void:
 	l.add_theme_color_override("font_color", _ink)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_lines.add_child(l)
+	if not centered:
+		_line_labels.append(l)
+	return l
+
+
+## 把第 index 行（從 0 算，不含標題）劃掉：一道橫線壓在字上，從左畫到右
+func strike(index: int) -> void:
+	if index < 0 or index >= _line_labels.size() or index in struck:
+		return
+	struck.append(index)
+	var l: Label = _line_labels[index]
+	var font_size: int = l.get_theme_font_size("font_size")
+	var text_w: float = minf(l.get_theme_font("font").get_string_size(tr(l.text), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x, WIDTH - 52.0)
+	var bar := ColorRect.new()
+	bar.name = "Strike"
+	bar.color = _ink
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.position = Vector2(-3.0, float(font_size) * 0.72)
+	bar.size = Vector2(0.0, 3.0)
+	l.add_child(bar)
+	l.create_tween().tween_property(bar, "size:x", text_w + 6.0, STRIKE_SEC)
+
+
+## 在最下面補寫一行（另一種墨色，淡進來）：紙跟著長高
+func add_line(key: String, ink: Color) -> void:
+	line_keys.append(key)
+	var l: Label = _add_label(key, 19, false)
+	l.add_theme_color_override("font_color", ink)
+	l.modulate.a = 0.0
+	l.create_tween().tween_property(l, "modulate:a", 1.0, WRITE_SEC)
+	_refit.call_deferred()
+
+
+func _refit() -> void:
+	_paper.reset_size()
+	size = _paper.size
 
 
 func _ready() -> void:

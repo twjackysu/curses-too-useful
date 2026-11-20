@@ -17,6 +17,30 @@ const FLAG_NOODLE_BACK: String = "ch1.noodle_redeemed"
 const RETURN_DIALOGUE: String = "ch1_town_return"
 const NOODLE_BACK_DIALOGUE: String = "ch1_town_noodle_back"
 const RETURN_LIDS_LINE: String = "DLG_CH1_TRET_002"
+## 交蕈那段話裡看得到的東西（_on_return_line）：諾恩開口的那一句把一籃毒蕈擱上櫃檯；阿展改辭工單的那一句把紙拿到眼前、
+## 劃掉「獨自採集」、補寫「帶學徒認路」；店主的下一句（_005 開頭的三種）紙收起來；開收據的那一句給席菈的收據、她收進手套那一句收起來
+const RETURN_BASKET_LINE: String = "DLG_CH1_TRET_001"
+const RETURN_SLIP_LINE: String = "DLG_CH1_TRET_003"
+const RETURN_SLIP_AWAY: String = "DLG_CH1_TRET_005"
+const RETURN_RECEIPT_LINE: String = "DLG_CH1_TRET_006_RECEIPT"
+const RETURN_RECEIPT_AWAY: String = "DLG_CH1_TRET_007_RECEIPT"
+const RETURN_SLIP_LINES: PackedStringArray = ["AZHAN_SLIP_LINE_1", "AZHAN_SLIP_LINE_2", "AZHAN_SLIP_DUTY", "AZHAN_SLIP_ALONE"]
+const SLIP_STRIKE_INDEX: int = 3
+const SLIP_NEW_LINE: String = "AZHAN_SLIP_GUIDE"
+## 紙拿到眼前之後多久劃掉、多久補寫（秒）；補寫的字是另一種墨色（左手寫的）
+const SLIP_STRIKE_AFTER: float = 0.9
+const SLIP_WRITE_AFTER: float = 1.5
+const SLIP_NEW_INK: Color = Color(0.16, 0.26, 0.5)
+const SLIP_PAPER: Color = Color(0.9, 0.88, 0.8)
+const SLIP_INK: Color = Color(0.2, 0.18, 0.16)
+const RECEIPT_LINES: PackedStringArray = ["RECEIPT_LINE_1", "RECEIPT_LINE_2"]
+## 對話的鏡頭一起看的東西（TalkCamera.cast 的 key；"look" 寫這個）：櫃檯上那一排保溫杯
+const CUPS_KEY: String = "TOWN_CUPS"
+## 看杯子的那一句鏡頭站哪（街上、櫃檯西北邊斜斜往下看：杯子在中間、店主在右後面、籃子與阿展在左後面；
+## 諾恩不管從哪一頭走過來都在鏡頭後面或畫面外——開始講話時他離櫃檯 2.6 m，比鏡頭遠）
+const CUPS_CAMERA: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(-1.3, 1.9, -2.5)
+## 回程一開始席菈站在諾恩的哪裡（他面向西、鏡頭在東邊：左後方，不貼在鏡頭前）
+const SERA_RETURN_OFFSET: Vector3 = Vector3(0.7, 0, 1.6)
 const AZHAN_KEY: String = RailEvent.AZHAN_KEY
 const AZHAN_POS: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(1.9, 0, -0.5)
 ## 回程從東門裡面開始、朝西（yaw 90°）
@@ -27,8 +51,25 @@ const GUILD_ENTER_DIST: float = 2.4
 ## 櫃檯上的五只保溫杯（回程才擺出來）：杯蓋一個接一個亮，隔幾秒
 const CUP_COUNT: int = 5
 const CUP_LIGHT_EVERY: float = 0.35
-const CUP_GLOW: Color = Color(0.55, 1.0, 0.9)
-const CUP_LIT: float = 1.8
+## 杯蓋亮起來的顏色（夜光毒蕈的青綠；太亮會被打成一片白）、亮度，照在櫃檯與店主身上的那一盞小燈
+const CUP_GLOW: Color = Color(0.22, 0.95, 0.72)
+const CUP_LIT: float = 1.25
+const CUP_LIGHT_ENERGY: float = 0.4
+## 櫃檯上那一籃夜光毒蕈（回程；諾恩開口才擱上去，蕈放進杯子之後只剩空籃）：籃子、裡面那一叢多大
+const BASKET_POS: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(1.12, 0.92, -0.37)
+## 回程櫃檯上那面盾放哪（櫃檯東半邊靠裡面；傍晚那兩瓶藥收掉了，TownScenery.COUNTER_BOTTLES_DUSK）
+const SHIELD_ON_COUNTER: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(0.95, 0.95, 0.18)
+const RETURN_SHIELD_LINE: String = "DLG_CH1_TRET_005_TAKEN"
+const BASKET_MODEL: String = "quaternius/FarmCrate_Empty"
+const BASKET_SCALE: float = 0.62
+const BASKET_MUSHROOM_SCALE: float = 0.3
+## 回程的麵攤（鍋的蒸氣、火光、紅燈籠是 TownScenery 傍晚擺的）：兌了麵票攤車上多兩碗熱湯；
+## 當初把黴泥趕進酒桶的，鍋底下縮著那一團（一下一下地打嗝）
+const BOWL_MODEL: String = "quaternius/Pot_1"
+const BOWL_SCALE: float = 0.42
+const BOWL_SPOTS: Array[Vector3] = [Vector3(-0.32, 0.9, 0.3), Vector3(0.3, 0.9, 0.34)]
+const SOUP_COLOR: Color = Color(0.86, 0.62, 0.3)
+const HICCUP_EVERY: float = 1.7
 const FLAG_BASKET: String = "ch1.basket_delivered"
 ## 藥錢記在誰名下：together＝「等我們兩個一起回來收」、receipt＝「給做杯子的人開張收據吧」（結尾用）
 const FLAG_LEDGER: String = "ch1.ledger"
@@ -154,6 +195,13 @@ var card: ChapterCard
 var azhan: Npc
 var core: GolemCore
 var cup_lids: Array[MeshInstance3D] = []
+var cups_focus: Node3D
+var cup_light: OmniLight3D
+var basket: Node3D
+var basket_mushrooms: Node3D
+var receipt_note: PaperNote
+var pot_blob: Node3D
+var soup_bowls: Array[Node3D] = []
 var _leaving: bool = false
 var _gate_nag_t: float = 0.0
 
@@ -176,13 +224,19 @@ func _ready() -> void:
 	# 截圖用：`--delivered` 籃子送到了（可以去東門）
 	if s.in_story() and args.has("delivered"):
 		s.set_flag(FLAG_BASKET, true)
-	# 截圖用：`--return` 回程的傍晚（祭壇打完了；`--delivered` 蕈交出去了）
+	# 截圖用：`--return` 回程的傍晚（祭壇打完了；`--delivered` 蕈交出去了；`--noodle` 麵票兌過了、當初把黴泥趕進酒桶；
+	# `--shield=iou｜taken` 盾補過借據／帶回來）
 	if s.in_story() and args.has("return"):
 		RuinedAltar.skip_to_altar(s)
 		for flag: String in ["ch1.altar_talked", "ch1.golem_down", "ch1.altar_done"]:
 			s.set_flag(flag, true)
 		if args.has("delivered"):
 			s.set_flag(FLAG_DELIVERED, true)
+		if args.has("noodle"):
+			s.set_flag(FLAG_CELLAR_WAY, "barrel")
+			s.set_flag(FLAG_NOODLE_BACK, true)
+		if args.has("shield"):
+			s.set_flag(FLAG_SHIELD, str(args["shield"]))
 	scenery = TownScenery.build(self, is_return())
 	_mark("Pharmacy", TownScenery.PHARMACY_COUNTER + Vector3(0, 0, -1.4))
 	_mark("EastGate", Vector3(TownScenery.GATE_X, 0, 0))
@@ -204,7 +258,9 @@ func _ready() -> void:
 		if r.dialogue_id == SERA_LIST_DIALOGUE:
 			r.line_shown.connect(_on_list_line)
 		elif r.dialogue_id == RETURN_DIALOGUE:
-			r.line_shown.connect(_on_return_line))
+			# 第一句在 dialogue_started 之前就發過了：自己補叫一次
+			r.line_shown.connect(_on_return_line)
+			_on_return_line("", r.current_text()))
 	# 開局的零錢寫進旗標（對話的條件「錢夠不夠」讀旗標）
 	if s.in_story():
 		Gear.new(s.state).ensure_coins()
@@ -297,12 +353,14 @@ func _spawn_cast() -> void:
 		sera.holstered = true
 		sera.target = _player
 		sera.collision_mask |= GuildScenery.PEOPLE_LAYER
-		sera.position = _player.global_position + Vector3(1.6, 0, 1.1)
+		sera.position = _player.global_position + SERA_RETURN_OFFSET
 		add_child(sera)
 		azhan = Npc.create("Azhan", "azhan", AZHAN_POS, -25.0)
 		azhan.doll_colors(Color(0.5, 0.42, 0.3), Color(0.3, 0.42, 0.36))
 		add_child(azhan)
 		_build_cups()
+		_build_basket()
+		_build_noodle_evening()
 	elif not _flag(FLAG_LEFT):
 		sera = Sera.new()
 		sera.name = "Sera"
@@ -367,33 +425,139 @@ func _build_cups() -> void:
 	body.roughness = 0.5
 	for i: int in CUP_COUNT:
 		# 櫃檯面高 0.92；擺在靠街的那一排（後面一排是原本的藥瓶）
-		var at: Vector3 = TownScenery.PHARMACY_COUNTER + Vector3(-0.7 + 0.35 * float(i), 0.92, -0.42)
-		var cup := MeshInstance3D.new()
-		cup.name = "Cup%d" % (i + 1)
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.07
-		cyl.bottom_radius = 0.06
-		cyl.height = 0.2
-		cyl.material = body
-		cup.mesh = cyl
-		cup.position = at + Vector3(0, 0.1, 0)
-		add_child(cup)
-		var lid := MeshInstance3D.new()
-		lid.name = "CupLid%d" % (i + 1)
-		var top := CylinderMesh.new()
-		top.top_radius = 0.05
-		top.bottom_radius = 0.075
-		top.height = 0.05
-		var glow := StandardMaterial3D.new()
-		glow.albedo_color = Color(0.3, 0.3, 0.32)
-		glow.emission_enabled = true
-		glow.emission = CUP_GLOW
-		glow.emission_energy_multiplier = CUP_LIT if _flag(FLAG_DELIVERED) else 0.0
-		top.material = glow
-		lid.mesh = top
-		lid.position = at + Vector3(0, 0.225, 0)
-		add_child(lid)
-		cup_lids.append(lid)
+		cup_lids.append(_add_cup("%d" % (i + 1), TownScenery.PHARMACY_COUNTER + Vector3(-0.7 + 0.35 * float(i), 0.92, -0.42), body, _flag(FLAG_DELIVERED)))
+	# 對話的鏡頭看的地方（那一排杯子的中間；腳下的位置）與杯蓋照出來的一點青綠
+	cups_focus = Node3D.new()
+	cups_focus.name = "CupsFocus"
+	cups_focus.position = TownScenery.PHARMACY_COUNTER + Vector3(0, 0, -0.42)
+	cups_focus.set_meta(TalkCamera.HEIGHT_META, 1.1)
+	cups_focus.set_meta(TalkCamera.SPOT_META, CUPS_CAMERA)
+	add_child(cups_focus)
+	cup_light = OmniLight3D.new()
+	cup_light.name = "CupLight"
+	cup_light.light_color = CUP_GLOW
+	cup_light.light_energy = CUP_LIGHT_ENERGY if _flag(FLAG_DELIVERED) else 0.0
+	cup_light.omni_range = 2.0
+	cup_light.shadow_enabled = false
+	cup_light.position = TownScenery.PHARMACY_COUNTER + Vector3(0, 1.4, -0.42)
+	add_child(cup_light)
+
+
+## 一只保溫杯：杯身（Cup<名字>）＋杯蓋（CupLid<名字>，回傳的是杯蓋）。at＝杯底
+func _add_cup(cup_name: String, at: Vector3, body: StandardMaterial3D, lit: bool) -> MeshInstance3D:
+	var cup := MeshInstance3D.new()
+	cup.name = "Cup" + cup_name
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.07
+	cyl.bottom_radius = 0.06
+	cyl.height = 0.2
+	cyl.material = body
+	cup.mesh = cyl
+	cup.position = at + Vector3(0, 0.1, 0)
+	add_child(cup)
+	var lid := MeshInstance3D.new()
+	lid.name = "CupLid" + cup_name
+	var top := CylinderMesh.new()
+	top.top_radius = 0.05
+	top.bottom_radius = 0.075
+	top.height = 0.05
+	var glow := StandardMaterial3D.new()
+	glow.albedo_color = Color(0.3, 0.3, 0.32)
+	glow.emission_enabled = true
+	glow.emission = CUP_GLOW
+	glow.emission_energy_multiplier = CUP_LIT if lit else 0.0
+	top.material = glow
+	lid.mesh = top
+	lid.position = at + Vector3(0, 0.225, 0)
+	add_child(lid)
+	return lid
+
+
+## 回程櫃檯上的那面盾：盾面朝上平放（綁帶在下面）。補過借據的當熱敷盤——上面溫著一只杯（WarmCup）；帶回來的是諾恩推到阿展面前的
+func _lay_shield(with_cup: bool) -> void:
+	shield.position = SHIELD_ON_COUNTER
+	shield.rotation_degrees = Vector3(-90.0, 18.0, 0.0)
+	shield.visible = true
+	if with_cup and get_node_or_null("CupWarm") == null:
+		var body := StandardMaterial3D.new()
+		body.albedo_color = Color(0.62, 0.56, 0.5)
+		body.metallic = 0.3
+		body.roughness = 0.5
+		_add_cup("Warm", SHIELD_ON_COUNTER + Vector3(0.05, 0.03, 0.05), body, false)
+
+
+## 櫃檯上那一籃夜光毒蕈：籃子（模型不在就只有蕈）＋一叢縮小的夜光毒蕈。還沒開口＝不在櫃檯上；交出去了＝空籃
+func _build_basket() -> void:
+	basket = Node3D.new()
+	basket.name = "MushroomBasket"
+	basket.position = BASKET_POS
+	basket.rotation_degrees.y = -14.0
+	var crate: Node3D = PropModels.instance(BASKET_MODEL)
+	if crate != null:
+		crate.scale = Vector3.ONE * BASKET_SCALE
+		basket.add_child(crate)
+	basket_mushrooms = ForestScenery.small_prop(ForestScenery.MUSHROOM_MODEL, Vector3(0, 0.03, 0), 0.6, true)
+	basket_mushrooms.name = "Mushrooms"
+	basket_mushrooms.scale = Vector3.ONE * BASKET_MUSHROOM_SCALE
+	var glow: OmniLight3D = basket_mushrooms.get_node("Glow") as OmniLight3D
+	glow.light_energy = 0.7
+	glow.omni_range = 2.2
+	basket.add_child(basket_mushrooms)
+	basket.visible = _flag(FLAG_DELIVERED)
+	basket_mushrooms.visible = not _flag(FLAG_DELIVERED)
+	add_child(basket)
+
+
+## 回程的麵攤（看的；鍋的蒸氣、火光、紅燈籠在 TownScenery）：黴泥趕進酒桶的那一條，鍋底下縮著一團；兌過麵票的話兩碗熱湯已經在攤車上
+func _build_noodle_evening() -> void:
+	if str(Game.session.state.get_flag(FLAG_CELLAR_WAY, "")) == "barrel":
+		pot_blob = PropModels.instance("tripo/enemy_mold_slime")
+		if pot_blob == null:
+			pot_blob = _blob_stand_in()
+		pot_blob.name = "PotBlob"
+		pot_blob.position = TownScenery.POT_POS + Vector3(0.62, 0, 0.5)
+		pot_blob.scale = Vector3.ONE * 0.4
+		add_child(pot_blob)
+		# 打嗝：隔一陣子往上一頂、再攤回去
+		var hic: Tween = pot_blob.create_tween().set_loops()
+		hic.tween_interval(HICCUP_EVERY)
+		hic.tween_property(pot_blob, "scale", Vector3(0.36, 0.52, 0.36), 0.07)
+		hic.tween_property(pot_blob, "scale", Vector3.ONE * 0.4, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if _flag(FLAG_NOODLE_BACK):
+		_serve_soup()
+
+
+## 兩碗熱湯擺上攤車（兌麵票的那段話講完；讀檔時已經兌過的直接擺好）
+func _serve_soup() -> void:
+	if not soup_bowls.is_empty():
+		return
+	for i: int in BOWL_SPOTS.size():
+		var bowl := Node3D.new()
+		bowl.name = "SoupBowl%d" % (i + 1)
+		bowl.position = TownScenery.NOODLE_STALL + BOWL_SPOTS[i]
+		var pot: Node3D = PropModels.instance(BOWL_MODEL)
+		if pot != null:
+			pot.scale = Vector3.ONE * BOWL_SCALE
+			bowl.add_child(pot)
+		# 湯面：一片暖色的圓（碗的模型不在時就只有這一片）
+		var soup := MeshInstance3D.new()
+		soup.name = "Soup"
+		var disc := CylinderMesh.new()
+		disc.top_radius = 0.085
+		disc.bottom_radius = 0.085
+		disc.height = 0.012
+		var sm := StandardMaterial3D.new()
+		sm.albedo_color = SOUP_COLOR
+		sm.roughness = 0.25
+		disc.material = sm
+		soup.mesh = disc
+		soup.position.y = 0.075
+		bowl.add_child(soup)
+		var steam: CPUParticles3D = TownScenery.steam(0.16, 5)
+		steam.position.y = 0.1
+		bowl.add_child(steam)
+		add_child(bowl)
+		soup_bowls.append(bowl)
 
 
 ## 亮了幾只杯蓋（測試用）
@@ -405,15 +569,67 @@ func lids_lit() -> int:
 	return n
 
 
-## 交蕈那段話：店主把蕈放進保溫杯的那一句，五只杯蓋一個接一個亮起來
+## 交蕈那段話裡看得到的東西（哪一句做什麼見上面的 RETURN_* 常數）
 func _on_return_line(_speaker: String, text_key: String) -> void:
-	if text_key != RETURN_LIDS_LINE:
+	if text_key == RETURN_BASKET_LINE:
+		_show_basket()
+	elif text_key == RETURN_LIDS_LINE:
+		_light_lids()
+	elif text_key == RETURN_SLIP_LINE:
+		_show_return_slip()
+	elif text_key.begins_with(RETURN_SLIP_AWAY):
+		_close_note(slip_note)
+		slip_note = null
+		if text_key == RETURN_SHIELD_LINE:
+			_lay_shield(false)
+	elif text_key == RETURN_RECEIPT_LINE:
+		receipt_note = PaperNote.create("RECEIPT_TITLE", RECEIPT_LINES, SLIP_PAPER, SLIP_INK)
+		_hud.add_child(receipt_note)
+		receipt_note.stamp("RECEIPT_STAMP")
+	elif text_key == RETURN_RECEIPT_AWAY:
+		_close_note(receipt_note)
+		receipt_note = null
+
+
+## 諾恩把一整籃擱上櫃檯（從小彈到原來的大小）
+func _show_basket() -> void:
+	if basket.visible:
 		return
+	basket.visible = true
+	basket.scale = Vector3.ONE * 0.6
+	basket.create_tween().tween_property(basket, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## 店主把蕈一朵一朵放進保溫杯：她伸手、籃子裡那一叢越來越小，五只杯蓋一個接一個亮起來，櫃檯上多一點青綠的光
+func _light_lids() -> void:
+	pharmacist.gesture("reach")
+	var all_sec: float = CUP_LIGHT_EVERY * float(cup_lids.size())
 	for i: int in cup_lids.size():
 		var mat: StandardMaterial3D = (cup_lids[i].mesh as CylinderMesh).material as StandardMaterial3D
 		var t: Tween = cup_lids[i].create_tween()
 		t.tween_interval(CUP_LIGHT_EVERY * float(i))
 		t.tween_property(mat, "emission_energy_multiplier", CUP_LIT, 0.25)
+	cup_light.create_tween().tween_property(cup_light, "light_energy", CUP_LIGHT_ENERGY, all_sec)
+	var shrink: Tween = basket_mushrooms.create_tween()
+	shrink.tween_property(basket_mushrooms, "scale", Vector3.ONE * 0.02, all_sec)
+	shrink.tween_callback(basket_mushrooms.hide)
+
+
+## 阿展的辭工單拿到眼前：下半頁的「獨自採集」劃掉，用另一種墨色補寫「帶學徒認路」
+func _show_return_slip() -> void:
+	_close_note(slip_note)
+	slip_note = PaperNote.create("AZHAN_SLIP_TITLE", RETURN_SLIP_LINES, SLIP_PAPER, SLIP_INK)
+	_hud.add_child(slip_note)
+	var t: Tween = slip_note.create_tween()
+	t.tween_interval(SLIP_STRIKE_AFTER)
+	t.tween_callback(slip_note.strike.bind(SLIP_STRIKE_INDEX))
+	t.tween_interval(SLIP_WRITE_AFTER - SLIP_STRIKE_AFTER)
+	t.tween_callback(slip_note.add_line.bind(SLIP_NEW_LINE, SLIP_NEW_INK))
+
+
+func _close_note(note: PaperNote, after: float = 0.0) -> void:
+	if note != null and is_instance_valid(note):
+		note.close(after)
 
 
 ## 回程：走到藥房交蕈 → 走回公會大門，換到大廳的結尾。東門不能再出去
@@ -421,7 +637,7 @@ func _tick_return() -> void:
 	_player.global_position.x = minf(_player.global_position.x, GATE_STOP_X)
 	if not _flag(FLAG_DELIVERED):
 		if _player.global_position.distance_to(TownScenery.PHARMACY_COUNTER + Vector3(0, 0.05, -1.2)) < PHARMACY_TALK_DIST:
-			_talk(RETURN_DIALOGUE, ["SPK_NOEN", PHARMACIST_KEY, AZHAN_KEY, APPRENTICE_KEY, Sera.NAME_KEY])
+			_talk(RETURN_DIALOGUE, ["SPK_NOEN", PHARMACIST_KEY, AZHAN_KEY, APPRENTICE_KEY, Sera.NAME_KEY, CUPS_KEY])
 	elif not Game.is_in_dialogue() and _player.global_position.distance_to(TownScenery.GUILD_DOOR + Vector3(0, 0.05, 1.0)) < GUILD_ENTER_DIST:
 		_leaving = true
 		Game.session.set_flag(FLAG_RETURNED, true)
@@ -466,6 +682,8 @@ func _speaker_node(key: String) -> Node3D:
 			return uncle
 		VENDOR_KEY:
 			return vendor
+		CUPS_KEY:
+			return cups_focus
 	return null
 
 
@@ -509,7 +727,11 @@ func _refresh_interactables() -> void:
 			it.enabled = false
 		var st: GameState = Game.session.state
 		vendor_use.enabled = not _leaving and not _flag(FLAG_NOODLE_BACK) and int(st.items.get(NOODLE_TICKET, 0)) > 0
-		shield.visible = str(st.get_flag(FLAG_SHIELD, "")) == "iou"
+		# 盾：補過借據的在櫃檯上當熱敷盤；帶回來的要到店主那一句才推上櫃檯（交完之後留在那裡）；沒碰過的不在
+		var way: String = str(st.get_flag(FLAG_SHIELD, ""))
+		shield.visible = false
+		if way == "iou" or (way == "taken" and _flag(FLAG_DELIVERED)):
+			_lay_shield(way == "iou")
 		return
 	merchant_use.enabled = Game.session.in_story() and not _leaving
 	sera_use.enabled = Game.session.in_story() and not _leaving and sera != null and is_instance_valid(sera) and _flag(FLAG_BASKET)
@@ -608,7 +830,7 @@ func talk_uncle() -> bool:
 func check_shield() -> bool:
 	if not _talk(SHIELD_DIALOGUE, ["SPK_NOEN"]):
 		return false
-	slip_note = PaperNote.create("AZHAN_SLIP_TITLE", SLIP_LINES, Color(0.9, 0.88, 0.8), Color(0.2, 0.18, 0.16))
+	slip_note = PaperNote.create("AZHAN_SLIP_TITLE", SLIP_LINES, SLIP_PAPER, SLIP_INK)
 	_hud.add_child(slip_note)
 	return true
 
@@ -636,6 +858,11 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 	var g := Gear.new(Game.session.state)
 	match dialogue_id:
 		RETURN_DIALOGUE:
+			# 紙還在畫面上（整段跳過）就收起來
+			_close_note(slip_note, 0.4)
+			slip_note = null
+			_close_note(receipt_note, 0.4)
+			receipt_note = null
 			if _flag(FLAG_DELIVERED):
 				# 帶去問阿展的那面盾，他自己簽名還了
 				if str(Game.session.state.get_flag(FLAG_SHIELD, "")) == "taken":
@@ -644,6 +871,7 @@ func _on_dialogue_ended(dialogue_id: String) -> void:
 				Game.session.autosave()
 		NOODLE_BACK_DIALOGUE:
 			if _flag(FLAG_NOODLE_BACK):
+				_serve_soup()
 				_player.health.heal(_player.health.max_hp, {"source": "noodles"})
 				# 當初全砍了的：席菈拿桶壁上剩的黴多調一瓶
 				if str(Game.session.state.get_flag(FLAG_CELLAR_WAY, "")) != "barrel":

@@ -13,13 +13,13 @@
       "speaker": "SPK_PHARMACIST",
       "text": "DLG_CH1_TRET_002",
       "emote": "sparkle",
+      "look": "TOWN_CUPS",
       "next": "r2"
     },
     "r2": {
       "speaker": "SPK_AZHAN",
       "text": "DLG_CH1_TRET_003",
       "head": "down",
-      "shot": "two",
       "next": "r3"
     },
     "r3": {

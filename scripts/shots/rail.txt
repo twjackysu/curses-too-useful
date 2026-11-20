@@ -1,6 +1,7 @@
 # 森林的斷軌事件（第一章 ⑥，增補劇本「自由時段 B」）與回程的固定鏡頭組：名稱 幀數 旗標…（都用玩家的鏡頭或對話的鏡頭）
 # 木軌盡頭的阿展與卡在棧橋上的車／阿展那段話／坡頂的絞盤、藤與網／坡底的泥灘與倒下的枯木／車停穩之後／
-# 回程：傍晚的賒帳街／藥房交蕈（杯蓋亮起來）。
+# 回程：傍晚的賒帳街（窗與壁燈亮著）／藥房交蕈（杯蓋亮起來：看杯子的鏡頭）／阿展改辭工單（畫面右邊那張紙）／
+# 麵攤（紅燈籠、鍋的蒸氣、兩碗湯、鍋底下那一團）／往公會走（西頭）。
 # 用法同 forest.txt：scripts/shots.sh rail [--save-baseline]
 rail-azhan 40 --level=corrupt_forest --explore --rail=met --at=45.5,-41.2 --cam-yaw=-90 --locale=zh_TW
 rail-talk 70 --level=corrupt_forest --explore --rail=talk --at=47.2,-40.9 --cam-yaw=-90 --talk-skip=2 --locale=zh_TW
@@ -8,4 +9,7 @@ rail-winch 40 --level=corrupt_forest --explore --rail=tried --at=63.6,-41.4 --ca
 rail-mud 40 --level=corrupt_forest --explore --rail=tree --at=54.5,-49.5 --cam-yaw=165 --locale=zh_TW
 rail-saved 40 --level=corrupt_forest --explore --rail=saved --at=44.6,-40.6 --cam-yaw=-110 --locale=zh_TW
 town-dusk 40 --level=town_street --return --at=24,0 --cam-yaw=90 --locale=zh_TW
-town-deliver 80 --level=town_street --return --at=5.5,0.4 --cam-yaw=180 --talk-skip=1 --locale=zh_TW
+town-deliver 80 --level=town_street --return --shield=iou --at=7.6,0.6 --cam-yaw=120 --talk-skip=1 --locale=zh_TW
+town-slip 80 --level=town_street --return --at=7.6,0.6 --cam-yaw=120 --talk-skip=2 --locale=zh_TW
+town-dusk-noodle 40 --level=town_street --return --delivered --noodle --at=14,1.2 --cam-yaw=0 --locale=zh_TW
+town-dusk-guild 40 --level=town_street --return --delivered --at=9,0 --cam-yaw=90 --locale=zh_TW

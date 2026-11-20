@@ -7,6 +7,7 @@ extends RefCounted
 ##   （scripts/gen_props.sh 的 QUAT）；公會的招牌、佈告欄、門外的樹是 Tripo 的。模型檔不在的就不擺。
 ## - 房子有碰撞（第 1 層：也擋鏡頭——戶外鏡頭退到牆上就往前推，不會看進盒子裡）；走得到的範圍是幾個長方形（WALK），keep_inside 拉回來。
 ## - 光：早上，太陽從東南邊斜斜照下來（有影子），天空是程式的 ProceduralSky，淡淡的霧。
+##   傍晚（回程）：太陽從西邊低低地照過來，房子的窗一扇一扇亮起來（town_facade 的 dusk）、牆上的壁燈點著（白天不點）。
 
 ## 街的半寬（兩邊房子的正面在 ±STREET_HALF）
 const STREET_HALF: float = 5.0
@@ -82,8 +83,24 @@ const SUN_DIR: Vector3 = Vector3(-0.55, -0.62, -0.56)
 ## 傍晚（回程，TownStreet 的 return_pharmacy 階段）：太陽從西邊低低地照過來
 const DUSK_SUN_DIR: Vector3 = Vector3(0.82, -0.3, -0.36)
 
+## 麵攤的鍋；傍晚（回程）鍋煮開了——蒸氣、鍋底的火光，遮雨棚前緣掛出紅燈籠（整個攤子是暖的）
+const POT_POS: Vector3 = NOODLE_STALL + Vector3(-2.4, 0, -0.6)
+const STALL_LANTERN: Vector3 = NOODLE_STALL + Vector3(1.9, 2.2, 0.75)
+const STALL_LANTERN_COLOR: Color = Color(1.0, 0.42, 0.2)
+## 藥房櫃檯上的藥瓶傍晚只留西邊這幾瓶（東半邊空出來：回程擺盾與那一籃毒蕈，TownStreet）
+const COUNTER_BOTTLES_DUSK: int = 3
+## 傍晚的壁燈：火苗的大小、燈多亮、照多遠（白天不點：只有燈籠的模型）
+const LAMP_FLAME: Vector2 = Vector2(0.15, 0.28)
+const LAMP_ENERGY: float = 2.4
+const LAMP_REACH: float = 7.5
+const LAMP_COLOR: Color = Color(1.0, 0.68, 0.36)
+
 ## 傍晚的街（第一章的回程）
 var dusk: bool = false
+## 點著的壁燈（傍晚才有；測試看）
+var lamps: Array[CandleFlame] = []
+## 麵攤鍋上的蒸氣（傍晚才有）
+var pot_steam: CPUParticles3D
 var _root: Node3D
 ## 每一棟房子（節點名 → 那個節點）：測試看
 var buildings: Dictionary = {}
@@ -247,6 +264,7 @@ func _house(spec: Array) -> Node3D:
 	wm.set_shader_parameter("ground_windows", 1.0 if bool(spec[8]) else 0.0)
 	wm.set_shader_parameter("seed", seed_value)
 	wm.set_shader_parameter("shutter", Color.from_hsv(fmod(seed_value * 0.137, 1.0), 0.35, 0.55))
+	wm.set_shader_parameter("dusk", 1.0 if dusk else 0.0)
 	box.material = wm
 	walls.mesh = box
 	walls.position.y = eave * 0.5
@@ -333,16 +351,24 @@ func _awning(node_name: String, center_x: float, z_wall: float, width: float, re
 		_box(a, "Flap%d" % i, Vector3(width / float(stripes), 0.28, 0.03), Vector3(piece.position.x, height - reach * 0.27 - 0.14, z_wall + dir * reach), m)
 
 
+## 牆上的一盞壁燈：燈籠的模型（不在就不擺）；傍晚點著——籠子裡一朵火苗＋一盞會閃的暖燈，照得到牆與腳下的石板
 func _lamp_on_wall(at: Vector3, yaw_deg: float) -> void:
-	var lamp: Node3D = _prop("quaternius/Lantern_Wall", at, yaw_deg)
-	if lamp == null:
+	var holder := Node3D.new()
+	holder.name = "WallLamp%d" % _root.get_child_count()
+	holder.position = at
+	holder.rotation_degrees.y = yaw_deg
+	_root.add_child(holder)
+	_prop("quaternius/Lantern_Wall", Vector3.ZERO, 0.0, 1.0, holder)
+	if not dusk:
 		return
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.72, 0.4)
-	light.light_energy = 0.6
-	light.omni_range = 3.5
-	light.position = Vector3(0, 0.3, 0.8)
-	lamp.add_child(light)
+	var f: CandleFlame = CandleFlame.create(LAMP_FLAME, float(lamps.size()) * 1.9 + 0.4, 0.5, GuildScenery.LANTERN_PULL, LAMP_ENERGY, LAMP_REACH, LAMP_COLOR)
+	f.position = GuildScenery.LANTERN_FLAME
+	# 整條街十盞：遠的那幾盞淡掉（站在東門看不到西頭的燈照在地上的那一圈）
+	f.light.distance_fade_enabled = true
+	f.light.distance_fade_begin = 38.0
+	f.light.distance_fade_length = 10.0
+	holder.add_child(f)
+	lamps.append(f)
 
 
 ## 公會的正面：大門（兩片木門板，開著一條縫）、門上的木框、門口的招牌與兩盞壁燈
@@ -371,7 +397,7 @@ func _build_pharmacy() -> void:
 	if counter != null:
 		counter.name = "PharmacyCounter"
 	_block("PharmacyCounterBlock", Vector3(3.0, 1.0, 1.1), c + Vector3(0, 0.5, 0))
-	for i: int in 5:
+	for i: int in (COUNTER_BOTTLES_DUSK if dusk else 5):
 		_prop(["quaternius/Potion_1", "quaternius/Potion_2", "quaternius/Potion_4", "quaternius/SmallBottles_1", "quaternius/Potion_2"][i], c + Vector3(-1.1 + 0.55 * float(i), 0.92, -0.15 + 0.12 * float(i % 2)), 20.0 * float(i))
 	_prop("quaternius/Shelf_Small_Bottles", Vector3(c.x - 3.2, 0, z_wall - 0.35), 180.0)
 	_prop("quaternius/Shelf_Small_Bottles", Vector3(c.x + 3.2, 0, z_wall - 0.35), 180.0)
@@ -430,12 +456,99 @@ func _build_noodle_stall() -> void:
 	if cart != null:
 		cart.name = "NoodleCart"
 	_block("NoodleCartBlock", Vector3(2.6, 1.2, 1.4), s + Vector3(0, 0.6, 0))
-	_prop("quaternius/Cauldron", s + Vector3(-2.4, 0, -0.6), 0.0)
+	_prop("quaternius/Cauldron", POT_POS, 0.0)
+	if dusk:
+		pot_steam = steam(0.5, 10)
+		pot_steam.name = "PotSteam"
+		pot_steam.position = POT_POS + Vector3(0, 0.82, 0)
+		_root.add_child(pot_steam)
+		var fire := OmniLight3D.new()
+		fire.name = "PotFire"
+		fire.light_color = Color(1.0, 0.5, 0.2)
+		fire.light_energy = 1.3
+		fire.omni_range = 3.2
+		fire.shadow_enabled = false
+		fire.position = POT_POS + Vector3(0, 0.25, 0.75)
+		_root.add_child(fire)
+		_root.add_child(_stall_lantern())
 	for i: int in 3:
 		_prop("quaternius/Stool", s + Vector3(-1.0 + 1.0 * float(i), 0, 1.5), 15.0 * float(i))
 	var door := _box(_root, "CellarDoor", Vector3(1.4, 0.08, 1.2), CELLAR_DOOR + Vector3(0, 0.4, 0.5), wood(Color(0.3, 0.2, 0.13), Vector3(1, 0, 0), 0.2))
 	door.rotation_degrees.x = -38.0
 	_box(_root, "CellarFrame", Vector3(1.6, 0.2, 1.4), CELLAR_DOOR + Vector3(0, 0.1, 0.55), wood(Color(0.2, 0.13, 0.08), Vector3(1, 0, 0)))
+
+
+## 麵攤的紅燈籠：一條繩、上下兩個木蓋、中間一顆發光的紙球，裡面一朵會閃的火（帶燈）
+func _stall_lantern() -> Node3D:
+	var root := Node3D.new()
+	root.name = "StallLantern"
+	root.position = STALL_LANTERN
+	var paper := StandardMaterial3D.new()
+	paper.albedo_color = Color(0.8, 0.22, 0.14)
+	paper.emission_enabled = true
+	paper.emission = STALL_LANTERN_COLOR
+	paper.emission_energy_multiplier = 1.1
+	var ball := MeshInstance3D.new()
+	ball.name = "Paper"
+	var sm := SphereMesh.new()
+	sm.radius = 0.17
+	sm.height = 0.4
+	sm.radial_segments = 12
+	sm.rings = 6
+	sm.material = paper
+	ball.mesh = sm
+	root.add_child(ball)
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.16, 0.1, 0.07)
+	for y: float in [0.2, -0.2]:
+		var cap := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.07
+		cm.bottom_radius = 0.07
+		cm.height = 0.04
+		cm.material = dark
+		cap.mesh = cm
+		cap.position.y = y
+		root.add_child(cap)
+	var cord := MeshInstance3D.new()
+	var cord_mesh := CylinderMesh.new()
+	cord_mesh.top_radius = 0.008
+	cord_mesh.bottom_radius = 0.008
+	cord_mesh.height = 0.5
+	cord_mesh.material = dark
+	cord.mesh = cord_mesh
+	cord.position.y = 0.46
+	root.add_child(cord)
+	var flame: CandleFlame = CandleFlame.create(Vector2(0.01, 0.01), 2.3, 0.0, 0.0, 2.0, 6.0, STALL_LANTERN_COLOR)
+	flame.name = "LanternFlame"
+	root.add_child(flame)
+	return root
+
+
+## 一縷往上飄的白蒸氣（鍋、湯碗）：puff＝一團多大（公尺）
+static func steam(puff: float, amount: int) -> CPUParticles3D:
+	var ps := CPUParticles3D.new()
+	ps.name = "Steam"
+	ps.amount = amount
+	ps.lifetime = 2.2
+	ps.preprocess = 2.2
+	ps.direction = Vector3.UP
+	ps.spread = 12.0
+	ps.gravity = Vector3(0.12, 0.25, 0)
+	ps.initial_velocity_min = puff * 0.7
+	ps.initial_velocity_max = puff * 1.3
+	ps.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	ps.emission_sphere_radius = puff * 0.45
+	var fade := Gradient.new()
+	fade.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
+	fade.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0.5), Color(1, 1, 1, 0)])
+	ps.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2(puff, puff)
+	quad.material = ParticleLook.material(Color(1.0, 0.96, 0.9, 0.5))
+	ps.mesh = quad
+	ps.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return ps
 
 
 ## 訓練場的倉庫：門口堆木箱與木桶、一個練習用的木人、武器架

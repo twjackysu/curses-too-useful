@@ -62,6 +62,9 @@ const LOOK_FLOOR: float = 0.32
 const LOOK_HEADROOM: float = 0.06
 const LOOK_TOWARD_SPEAKER: float = 0.35
 const HEIGHT_META: String = "talk_height"
+## 一起看的那個東西身上寫了鏡頭站哪（世界座標）：鏡頭就站在那裡、對準它（高度照 HEIGHT_META）——櫃檯上那一排小杯子：
+## 照講話的人與它的位置算（look_shot），鏡頭落在哪一邊看玩家從哪裡走過來，站在櫃檯兩頭的人會擋在鏡頭前
+const SPOT_META: String = "talk_spot"
 const DEFAULT_HEIGHT: float = 1.8
 
 var cast: Dictionary[String, Node3D] = {}
@@ -157,6 +160,11 @@ static func look_shot(speaker: Vector3, target: Vector3, home: Vector3, top: flo
 	var pitch: float = atan2(-LOOK_EYE, dist) + deg_to_rad(LOOK_FOV * (0.5 - LOOK_FLOOR))
 	var ahead: Vector3 = -dir * cos(pitch) + Vector3.UP * sin(pitch)
 	return Transform3D(Basis.looking_at(ahead, Vector3.UP), eye)
+
+
+## 關卡指定鏡頭站哪（SPOT_META）：站在 eye、對準 aim（aim 在畫面正中間；下面四分之一是對話框，鏡位要自己留）
+static func spot_shot(eye: Vector3, aim: Vector3) -> Transform3D:
+	return Transform3D(Basis.looking_at(aim - eye, Vector3.UP), eye)
 
 
 static func aim_point(speaker: Vector3, drop: float = 0.0) -> Vector3:
@@ -379,8 +387,12 @@ func _frame(who: Node3D, kind: String = "", to: Node3D = null, look: Node3D = nu
 	var aim: Vector3
 	if look != null:
 		var top: float = maxf(float(look.get_meta(HEIGHT_META, DEFAULT_HEIGHT)), DEFAULT_HEIGHT - drop)
-		s = look_shot(from, look.global_position, home, top)
-		aim = from.lerp(look.global_position, 0.5) + Vector3.UP * (top * 0.5)
+		if look.has_meta(SPOT_META):
+			aim = look.global_position + Vector3.UP * float(look.get_meta(HEIGHT_META, DEFAULT_HEIGHT))
+			s = spot_shot(look.get_meta(SPOT_META) as Vector3, aim)
+		else:
+			s = look_shot(from, look.global_position, home, top)
+			aim = from.lerp(look.global_position, 0.5) + Vector3.UP * (top * 0.5)
 	elif kind == "two" and other != null and drop_of(other) <= 0.0 and drop <= 0.0:
 		s = two_shot(from, other.global_position, home)
 		aim = from.lerp(other.global_position, TWO_FAVOR) + Vector3.UP * TWO_AIM

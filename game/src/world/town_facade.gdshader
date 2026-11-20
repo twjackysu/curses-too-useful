@@ -13,6 +13,11 @@ uniform vec3 shutter : source_color = vec3(0.32, 0.5, 0.42);
 // 面向街的那一面（本地座標的 +Z）一樓也畫窗；0＝不畫（門口另外擺東西的店）
 uniform float ground_windows = 1.0;
 uniform float seed = 0.0;
+// 傍晚（回程的街）：亮著的窗變多（二樓六成、一樓面向街的四成），亮的玻璃自己發光；白天 0＝照舊（少數幾扇暖黃、不發光）
+uniform float dusk = 0.0;
+// 亮著的窗發多亮、什麼顏色（暖橘；太亮會連窗櫺一起被打成一片白）
+uniform float window_glow = 0.85;
+uniform vec3 window_light : source_color = vec3(1.0, 0.58, 0.22);
 
 varying vec3 local_pos;
 varying vec3 local_n;
@@ -30,8 +35,9 @@ void vertex() {
 	local_n = NORMAL;
 }
 
-// 一扇窗：c＝窗的中心（沿牆、高），回傳 (是不是窗的範圍, 顏色)
-vec4 window(vec2 p, vec2 c, float lit) {
+// 一扇窗：c＝窗的中心（沿牆、高），回傳 (是不是窗的範圍, 顏色)；glow＝這一點是不是亮著的玻璃（0～1，窗櫺與窗框是 0）
+vec4 window(vec2 p, vec2 c, float lit, out float glow) {
+	glow = 0.0;
 	vec2 d = abs(p - c);
 	vec2 size = vec2(0.42, 0.55);
 	if (d.x > size.x + 0.42 || d.y > size.y + 0.1) {
@@ -46,9 +52,12 @@ vec4 window(vec2 p, vec2 c, float lit) {
 		return vec4(1.0, timber * 0.85);
 	}
 	// 玻璃：暗的藍灰、十字的窗櫺；亮著的是暖黃
-	vec3 glass = mix(vec3(0.16, 0.2, 0.27), vec3(1.0, 0.78, 0.42), lit);
+	// 傍晚亮著的玻璃自己發光：底色壓暗一點，不然被夕陽照到的那幾扇是白的
+	vec3 glass = mix(vec3(0.16, 0.2, 0.27), mix(vec3(1.0, 0.78, 0.42), vec3(0.62, 0.4, 0.2), dusk), lit);
 	glass *= 0.85 + 0.3 * smoothstep(-size.y, size.y, p.y - c.y + (p.x - c.x) * 0.6);
 	float bar = 1.0 - step(0.035, min(abs(p.x - c.x), abs(p.y - c.y + 0.08)));
+	// 亮著的窗：下半截比較亮（屋裡的燈在下面）、每一扇深淺差一點
+	glow = lit * (1.0 - bar) * (0.75 + 0.25 * smoothstep(size.y, -size.y, p.y - c.y));
 	return vec4(1.0, mix(glass, timber * 0.7, bar));
 }
 
@@ -67,11 +76,12 @@ void fragment() {
 	vec2 c2 = vec2(cell * bay, floor_y + 1.25);
 	float edge = wall_half - abs(cell * bay);
 	vec4 w = vec4(0.0);
+	float glow = 0.0;
 	if (edge > 0.9 && y > floor_y + 0.3) {
-		w = window(vec2(s, y), c2, step(0.72, hash(vec2(cell, seed + 7.0))));
+		w = window(vec2(s, y), c2, step(mix(0.72, 0.4, dusk), hash(vec2(cell, seed + 7.0))), glow);
 	}
 	if (w.x < 0.5 && n.z > 0.5 && ground_windows > 0.5 && edge > 0.9 && y < floor_y - 0.2) {
-		w = window(vec2(s, y), vec2(cell * bay, 1.55), 0.0);
+		w = window(vec2(s, y), vec2(cell * bay, 1.55), dusk * step(0.6, hash(vec2(cell, seed + 10.0))), glow);
 	}
 	if (w.x > 0.5) {
 		col = w.yzw;
@@ -95,6 +105,7 @@ void fragment() {
 		col = mix(stone * 0.45, stone * (0.8 + 0.3 * hash(floor(q) + seed)), gap);
 	}
 	ALBEDO = col;
+	EMISSION = window_light * glow * dusk * window_glow * (0.75 + 0.5 * hash(vec2(cell, seed)));
 	ROUGHNESS = 0.9;
 	SPECULAR = 0.12;
 }

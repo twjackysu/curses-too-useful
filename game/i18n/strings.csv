@@ -467,6 +467,13 @@ AZHAN_SLIP_TITLE,Letter of resignation,辭工單
 AZHAN_SLIP_LINE_1,Gatherer: Zhan,採集員：阿展
 AZHAN_SLIP_LINE_2,"After I bring the handcart back, I quit.",把手推車拿回來之後，我就不做了。
 AZHAN_SLIP_LINE_3,(signed with half a thumbprint),（落款只有半枚指印）
+AZHAN_SLIP_DUTY,Duties from now on:,往後的工作：
+AZHAN_SLIP_ALONE,Gathering alone,獨自採集
+AZHAN_SLIP_GUIDE,Showing the apprentice the paths,帶學徒認路
+RECEIPT_TITLE,Receipt,收據
+RECEIPT_LINE_1,Sera — ingredients received and checked.,席菈，藥材驗收。
+RECEIPT_LINE_2,Glowing toxic mushrooms: five,夜光毒蕈　五朵
+RECEIPT_STAMP,CHECKED,驗訖
 DLG_CH1_SHIELD_ASK_001,You're the new registrant? Good timing. A rusty iron shield went missing from the training yard.,你是剛登錄的那個？正好。訓練場少了一面生鏽的鐵盾。
 DLG_CH1_SHIELD_ASK_002,"I'll pay if you find it. But... if you do, don't ask whoever has it in front of people, all right?",找到的話我出錢。不過……找到了，別當眾問主人，好嗎？
 DLG_CH1_SHIELD_ASK_003,...Got it.,……知道了。
