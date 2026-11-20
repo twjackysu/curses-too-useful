@@ -937,6 +937,12 @@ func test_slimes_glow_green_in_the_purple_fog_and_mushrooms_have_colour() -> voi
 	for other: Slime in [level.slimes[1], level.slimes[2]]:
 		other.set_physics_process(false)
 	assert_true(slime.rim_surface_count() > 0, "身上有綠邊（%d 塊）" % slime.rim_surface_count())
+	var rim_mat: ShaderMaterial = null
+	for n: Node in slime.find_children("*", "MeshInstance3D", true, false):
+		var m: Material = (n as MeshInstance3D).get_surface_override_material(0)
+		if m != null and m.next_pass is ShaderMaterial:
+			rim_mat = m.next_pass as ShaderMaterial
+	assert_true(rim_mat != null and float(rim_mat.get_shader_parameter("top_boost")) > 0.0, "圓頂朝上的那一段輪廓多一圈綠（紫霧前面看得出上緣）")
 	var glow: OmniLight3D = slime.glow_light()
 	assert_true(glow.light_color.g > glow.light_color.r * 2.0 and glow.light_color.g > glow.light_color.b * 2.0, "腳下的光是綠的（霧是紫的）")
 	assert_false(glow.shadow_enabled, "小燈不算影子")

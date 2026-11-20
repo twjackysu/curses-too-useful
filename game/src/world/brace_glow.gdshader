@@ -11,13 +11,17 @@ uniform float fill = 0.55;
 uniform float rim = 2.6;
 uniform float rim_power = 1.8;
 uniform float strength = 1.0;
+// 上緣多一圈（史萊姆的綠邊）：朝上的那一段輪廓邊寬一點、亮一點——圓頂的上緣襯在紫霧前面時，細細的一圈幾乎看不到（紫對紫）
+uniform float top_boost = 0.0;
 // 貼在鏡頭上的時候跟著身體一起淡掉（身體是抖動淡出，CameraFade；這一層不淡的話會剩一個紅色的殘影）
 uniform float fade_near = 0.4;
 uniform float fade_far = 1.0;
 
 void fragment() {
 	float facing = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
-	float edge = pow(1.0 - facing, rim_power);
+	float sil = 1.0 - facing;
+	float up = clamp((INV_VIEW_MATRIX * vec4(normalize(NORMAL), 0.0)).y, 0.0, 1.0);
+	float edge = pow(sil, rim_power) + pow(sil, rim_power * 0.5) * smoothstep(0.55, 0.85, sil) * up * top_boost;
 	float near_fade = smoothstep(fade_near, fade_far, length(VERTEX));
 	ALBEDO = glow_color * (fill + rim * edge) * strength * near_fade;
 }

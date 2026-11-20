@@ -344,6 +344,8 @@ const RIM_COLOR: Color = Color(0.35, 1.0, 0.2)
 const RIM_FILL: float = 0.0
 const RIM_EDGE: float = 1.3
 const RIM_POWER: float = 4.5
+## 朝上的那一段輪廓多一圈（brace_glow.gdshader 的 top_boost）：圓頂的上緣在紫霧前面也看得出來
+const RIM_TOP: float = 1.2
 ## 腳下的綠光（照地面與旁邊的人，不照牠自己：燈在身體裡面）。放低、範圍小：染綠的是地面，不是站在旁邊的人的臉
 const GLOW_ENERGY: float = 1.1
 const GLOW_RANGE: float = 2.2
@@ -398,6 +400,7 @@ func add_toxic_glow(look: Node3D, lamp_range: float = GLOW_RANGE) -> void:
 	_rim.set_shader_parameter("fill", RIM_FILL)
 	_rim.set_shader_parameter("rim", RIM_EDGE)
 	_rim.set_shader_parameter("rim_power", RIM_POWER)
+	_rim.set_shader_parameter("top_boost", RIM_TOP)
 	for mi: MeshInstance3D in _glow_meshes():
 		for surface: int in mi.mesh.get_surface_count():
 			var src: Material = mi.get_active_material(surface)
