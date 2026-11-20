@@ -17,8 +17,9 @@ loop 自己的美術待辦（不是給 Jacky 的需求單）。來源優先順�
 | 主角 | `noen_rank_f_v2`（諾恩）、`sheila_rank_f`（席菈） | **都在遊戲裡**（`PlayerController`、`Sera`） |
 | 人物（mixamo 骨架） | `leo`、`leo_party_mage`、`leo_party_tank` | **在遊戲裡**（廢棄祭壇：倒在地上的雷歐小隊；遊戲裡的 id 是 `leo`、`leo_mage`、`leo_tank`） |
 | 人物（mixamo 骨架） | `lilith`、`royal_inspector`、`guild_adventurer_a`、`guild_adventurer_b` | **在遊戲裡**（公會大廳：櫃檯的莉莉絲、兩個冒險者、結尾二樓的巡察官） |
-| 人物（mixamo 骨架） | `black_market_merchant` | **在遊戲裡**（11/18：公會大廳角落坐著喝酒的客人；⑤ 城鎮的黑市商人也是他） |
+| 人物（mixamo 骨架） | `black_market_merchant` | **在遊戲裡**（11/18：公會大廳角落坐著喝酒的客人；11/20 也站在賒帳街街尾的攤子後面賣詛咒戒指） |
 | 人物（mixamo 骨架） | `guild_patron_a`～`c`（老練的矮壯冒險者、見習魔法師、斥候） | **11/18 排進佇列、還沒產**（約 165 點）：公會大廳坐著的客人，`GuildHall.PATRONS` 的位子已經留好 |
+| 人物（mixamo 骨架） | `town_pharmacist`、`town_apprentice`、`town_noodle_vendor`、`town_warehouse_uncle`（藥房店主、小學徒、麵攤攤主、倉庫大叔） | **11/20 排進佇列、還沒產**（約 220 點）：賒帳街的人，`TownStreet` 已經用這些 id（現在是程式人偶）；產出來 `gen_art.sh` 的 `SRC`／`ARGS`、`import_characters.py` 的 `KNOWN`、`check_character_glb.py` 的 `BUDGETS` 各加一行 |
 | 怪物 | `enemy_poison_slime`、`enemy_mold_slime`、`enemy_miasma_wolf`（四足骨架＋走路）、`enemy_spore_treant`（雙足骨架） | **都在遊戲裡**（`Slime`、`MoldSlime`、`MiasmaWolf`、`SporeTreant`） |
 | 怪物 | `boss_plague_golem`（雙足骨架；48140 面，收件檢查的上限另外開到 52000） | **在遊戲裡**（`PlagueGolem`，3.6 m） |
 | 武器 | `weapon_rusty_miasma_sword`、`weapon_alchemy_crossbow`、`weapon_ominous_split_blade` | **在遊戲裡**（諾恩右手的兩把、席菈右手） |
@@ -26,13 +27,13 @@ loop 自己的美術待辦（不是給 Jacky 的需求單）。來源優先順�
 | 森林（佇列） | `prop_corrupt_tree_tall`、`prop_corrupt_tree_low`（高瘦、矮胖傘狀的樹） | **11/20 排進佇列、還沒產**（約 40 點）：`gen_props.sh` 已經有轉檔的那一行，`ForestScenery.TREE_MODELS` 照位置混著種（`tree_kind`）；產出來先看有沒有自帶的土丘（有的話照 `prop_corrupt_tree` 加 `--moss-below`／`--bury-rim`）、高度與隨風擺 |
 | 森林 | `prop_corrupt_tree`、`prop_glow_toxic_mushroom`、`prop_rotten_fruit_bush`、`prop_campfire_v2`、`prop_cursed_chest`、`prop_poison_vent`（只留底座）、`prop_paralysis_web_v2` | **都在遊戲裡**（腐敗之森） |
 | 祭壇 | `prop_ruined_altar`（顏色貼圖是灰的：顏色用 `ruin_stone.gdshader` 照形狀算，不重產） | **在遊戲裡**（廢棄祭壇，放大 1.7 倍） |
-| 飾品 | `prop_cursed_ring`（還沒擺正） | 還沒（⑤） |
+| 飾品 | `prop_cursed_ring` | **在遊戲裡**（11/20：賒帳街街尾商人攤上的【生鏽的痛覺戒指】，`gen_props.sh` 的 `ARGS`，買了就收起來；面板的資料在 `gear.json`） |
 | 公會 | `prop_guild_counter_v2`、`prop_aptitude_crystal`、`prop_guild_quest_board`、`prop_guild_signboard` | **都在遊戲裡**（公會大廳；四件的顏色貼圖都有顏色。櫃檯長 1.78 m，遊戲裡把長邊拉成 1.45 倍接上兩邊的矮櫃） |
 
 - 「已擺正」＝寫在 `scripts/gen_props.sh` 的 `ARGS` 裡，建置時會出現在 `game/assets/props/tripo/`，可以直接 `PropModels.instance("tripo/<id>")`。
 - `prop_poison_vent` 的毒煙是實心模型、還帶兩顆眼睛：只取底座（`tripo_prop.py --keep-below`），煙用粒子＋`PoisonMist`。底座很扁，在遊戲裡幾乎被霧蓋住——之後要好看可以重產一個只有石頭與裂縫的（約 20 點），不急。
 - **顏色貼圖是灰的**（預覽圖有顏色、模型的貼圖沒有；11/15 掃過全部）：`prop_glow_toxic_mushroom`（已經在遊戲裡，顏色改用 `glow_mushroom.gdshader` 照形狀算，不重產）、`prop_ruined_altar`（11/16 接了，一樣用 shader 算：`ruin_stone.gdshader`——藍灰的石塊、苔、會亮的符文；沒有重產）。其他的貼圖都有顏色。
-- **Quaternius 的 CC0 小物**（`art-inbox/props/`）第一次用進遊戲（公會大廳）：長桌、長凳、凳子、木桶、木箱、吊燈、壁燈、旗子、書櫃、矮櫃、杯盤、武器架、盾、瓶子、書——清單是 `scripts/gen_props.sh` 的 `QUAT`。11/18 加了森林營火旁的布袋、皮袋、木桶。
+- **Quaternius 的 CC0 小物**（`art-inbox/props/`）第一次用進遊戲（公會大廳）：長桌、長凳、凳子、木桶、木箱、吊燈、壁燈、旗子、書櫃、矮櫃、杯盤、武器架、盾、瓶子、書——清單是 `scripts/gen_props.sh` 的 `QUAT`。11/18 加了森林營火旁的布袋、皮袋、木桶。11/20 加了賒帳街的攤子、攤車、大鍋、水果箱、藥瓶架與藥瓶、木人、花瓶、錢堆、繩子、酒桶架。
 - 沒用到的在 `art-inbox/tripo/_unused/`（那裡有 README）；不刪。
 - 點數：第一批約 500、第二批 1015；餘額約 1985（≈19.85 美元）。11/18 排了三個客人（約 165 點，還沒產）。預算上限 100 美元。
 
