@@ -14,6 +14,9 @@ const STORY_END_DELAY: float = 4.5
 const CENTER_LINE1_COLOR: Color = Color(0.95, 0.42, 0.38)
 ## 左上目標後面的暗底比字多出多少（背景很花：樹、草、孢子）
 const OBJECTIVE_BACK_PAD: Vector2 = Vector2(18.0, 10.0)
+## 橫幅（畫面上方中間的一行字）平常離上緣多遠；會碰到目標框的時候跟框隔多遠
+const BANNER_TOP: int = 110
+const BANNER_GAP: float = 16.0
 const SAVED_SHOW_SEC: float = 2.2
 ## 狀態列後面的「可以釋放」提示
 const RELEASE_HINT_KEY: String = "HUD_RELEASE_HINT"
@@ -142,6 +145,15 @@ func _notification(what: int) -> void:
 		_refresh_hint()
 
 
+## 橫幅離畫面上緣多遠：平常 BANNER_TOP；字長到會伸進左上角的目標框（探索時操作提示那一行很長）就放到框的下面，不疊在一起
+func banner_top(banner_width: float) -> int:
+	var left: float = (get_viewport().get_visible_rect().size.x - banner_width) * 0.5
+	var box_right: float = _objective_box.position.x + _objective_box.size.x + OBJECTIVE_BACK_PAD.x
+	if _objective_box.visible and left < box_right + BANNER_GAP:
+		return maxi(BANNER_TOP, int(_objective_box.position.y + _objective_box.size.y + OBJECTIVE_BACK_PAD.y + BANNER_GAP))
+	return BANNER_TOP
+
+
 ## 畫面暗一下（營火休息）：out_sec 秒暗到全黑 → 黑著 hold_sec 秒（黑下去的那一刻叫 at_dark：關卡在這時候把人擺好）→ in_sec 秒亮回來
 func dim_blink(out_sec: float, hold_sec: float, in_sec: float, at_dark: Callable = Callable()) -> void:
 	if _dim_tween != null:
@@ -265,7 +277,7 @@ func _build() -> void:
 	_banner.add_theme_constant_override("shadow_offset_y", 2)
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	anchor.add_child(_banner)
-	_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 110)
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, BANNER_TOP)
 	_banner.modulate.a = 0.0
 	_bark_root = Control.new()
 	_bark_root.name = "Barks"
@@ -710,7 +722,7 @@ func hide_death() -> void:
 func show_banner(key: String, seconds: float = 3.0) -> void:
 	_banner.text = key
 	_banner.reset_size()
-	_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 110)
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, banner_top(_banner.size.x))
 	if _banner_tween != null:
 		_banner_tween.kill()
 	_banner_tween = create_tween()

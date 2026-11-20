@@ -301,7 +301,7 @@ func _build_trestle() -> void:
 	var angle: float = atan(DECK_SLOPE)
 	var wedge: StaticBody3D = _wall(self, "TrestleWall", Vector3(a.distance_to(b), WEDGE_THICK, GAUGE + 0.5), a.lerp(b, 0.5) - Vector3(-sin(angle), cos(angle), 0.0) * WEDGE_THICK * 0.5)
 	wedge.rotation.z = angle
-	_lantern(trestle, "CartLantern", Vector3(CART_X - 1.5, deck_y(CART_X) + 1.9, TRACK_Z - 0.75), 3.2, 8.0)
+	_lantern(trestle, "CartLantern", Vector3(CART_X - 1.5, deck_y(CART_X) + 1.9, TRACK_Z - 0.75), 6.5, 9.0)
 	_beam(trestle, "LanternPost", Vector3(CART_X - 1.5, 0.0, TRACK_Z - 0.75), Vector3(CART_X - 1.5, deck_y(CART_X) + 1.75, TRACK_Z - 0.75), 0.05, _dark)
 
 
@@ -436,7 +436,7 @@ func _build_winch() -> void:
 	shape.position = Vector3(0, 0.6, 0)
 	blocker.add_child(shape)
 	winch.add_child(blocker)
-	_lantern(winch, "WinchLantern", Vector3(-0.7, 1.5, -0.6), 2.4, 7.0)
+	_lantern(winch, "WinchLantern", Vector3(-0.7, 1.5, -0.6), 5.0, 8.0)
 	_beam(winch, "LanternPost", Vector3(-0.7, 0, -0.6), Vector3(-0.7, 1.4, -0.6), 0.04, _dark)
 	# 桅杆與繩
 	var mast := Node3D.new()
@@ -578,13 +578,43 @@ func park_cart() -> void:
 	cord_coil.visible = false
 
 
-## 坡底的泥灘：一片發亮的黑泥
+## 坡底的泥灘：一灘發亮的黑泥（邊緣凹凸不齊，不是正圓）與幾個大小形狀不一樣的綠水窪
 func _build_mud() -> void:
-	var mud: MeshInstance3D = _cyl(self, "Mud", Vector2(MUD_RADIUS - 0.3, MUD_RADIUS), 0.05, ForestMap.at(ForestMap.RAIL_MUD) + Vector3(0, 0.02, 0), _mat(Color(0.07, 0.065, 0.06), 0.12, 0.25))
-	(mud.mesh as CylinderMesh).radial_segments = 28
+	var center: Vector3 = ForestMap.at(ForestMap.RAIL_MUD)
+	var mud := MeshInstance3D.new()
+	mud.name = "Mud"
+	mud.mesh = _blob_mesh(MUD_RADIUS, 40, 7)
+	mud.material_override = _mat(Color(0.07, 0.065, 0.06), 0.12, 0.25)
+	mud.position = center + Vector3(0, 0.03, 0)
+	add_child(mud)
+	var water: StandardMaterial3D = _glow(Color(0.2, 0.42, 0.24), 0.25)
 	for i: int in 5:
 		var a: float = float(i) * 1.9
-		_cyl(self, "Puddle", Vector2(0.5, 0.55), 0.02, ForestMap.at(ForestMap.RAIL_MUD) + Vector3(cos(a) * 2.2, 0.05, sin(a) * 2.0), _glow(Color(0.2, 0.42, 0.24), 0.25))
+		var puddle := MeshInstance3D.new()
+		puddle.name = "Puddle"
+		puddle.mesh = _blob_mesh(0.4 + 0.13 * float(i % 3), 16, 11 + i)
+		puddle.material_override = water
+		puddle.position = center + Vector3(cos(a) * 2.2, 0.05, sin(a) * 2.0)
+		puddle.scale = Vector3(1.0 + 0.45 * float(i % 2), 1.0, 1.0)
+		puddle.rotation.y = a * 1.7
+		add_child(puddle, true)
+
+
+## 貼地的一灘（從中心拉出去的扇形）：半徑照角度起伏，seed_value 換一個形狀
+static func _blob_mesh(radius: float, points: int, seed_value: int) -> ArrayMesh:
+	var k: float = float(seed_value)
+	var rim := PackedVector3Array()
+	for i: int in points:
+		var a: float = TAU * float(i) / float(points)
+		var r: float = radius * (1.0 + 0.13 * sin(a * 3.0 + k) + 0.08 * sin(a * 5.0 + k * 2.3) + 0.05 * sin(a * 9.0 + k * 0.7))
+		rim.append(Vector3(cos(a) * r, 0.0, sin(a) * r))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i: int in points:
+		for v: Vector3 in [Vector3.ZERO, rim[i], rim[(i + 1) % points]]:
+			st.set_normal(Vector3.UP)
+			st.add_vertex(v)
+	return st.commit()
 
 
 ## 阿展這一邊：他坐的圓木、提燈、杯架的木箱與繩
@@ -596,7 +626,7 @@ func _build_camp() -> void:
 	seat.position = AZHAN_SEAT + Vector3(0, 0.25, 0)
 	add_child(seat)
 	# 提燈立在軌道的另一邊（最後那一下的鏡頭在阿展這一邊：立在這邊會擋在鏡頭前面）
-	_lantern(self, "CampLantern", Vector3(47.8, 2.3, -44.7), 3.6, 10.0)
+	_lantern(self, "CampLantern", Vector3(47.8, 2.3, -44.7), 7.5, 11.0)
 	_beam(self, "CampLanternPost", Vector3(47.8, 0, -44.7), Vector3(47.8, 2.2, -44.7), 0.05, _dark)
 	var props: Array = [["quaternius/Crate_Wooden", Vector3(46.2, 0, -40.2), 0.4], ["quaternius/Rope_1", Vector3(47.3, 0, -39.8), 1.2],
 		["quaternius/Bucket_Wooden_1", Vector3(50.6, 0, -41.0), 0.0], ["quaternius/Barrel", Vector3(45.2, 0, -40.6), 0.0]]

@@ -124,6 +124,10 @@ func test_meeting_azhan_and_trying_the_lever_opens_two_ways() -> void:
 	level.sera.set_physics_process(false)
 	await _frames(3)
 	assert_true(hud.checklist_lines().size() == 4 and hud.checklist_lines()[1].contains(tr("Q_CH1_LIST_RAIL")), "清單第二項是車：%s" % str(hud.checklist_lines()))
+	# 橫幅（「枯木倒在棧橋上……」這種長的）不疊在左上角的目標框上
+	assert_true(hud.is_objective_shown())
+	assert_eq(hud.banner_top(120.0), Hud.BANNER_TOP, "短的橫幅在平常的位置")
+	assert_true(hud.banner_top(1700.0) > Hud.BANNER_TOP + 40, "長到會伸進目標框的放到框的下面（%d）" % hud.banner_top(1700.0))
 	player.global_position = ForestMap.at(ForestMap.TRAPS) + Vector3(0, 0.05, 3.0)
 	await _frames(3)
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_RAIL_HEARD_LINE1", "CH1_RAIL_HEARD_LINE2"]), "岔路口聽到有人在數數")
