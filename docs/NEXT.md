@@ -7,7 +7,7 @@ Jacky 2026-11-15 定的方向（D-290）：先把第一章鋪到公會大廳（�
 一輪一個主題、最長 2 小時、動到畫面要「改前｜改後」對照，從下面的打磨清單挑相關的幾項一起做完。**順序**：① ⑥ 斷軌與回程還不好的（最新、最粗）→ ② 賒帳街還不好的 → ③ 其餘照清單由上往下。Tripo 的人產出來（阿展、街上四個人、三個客人、兩種樹）先接上。第二章（`docs/story/chapter-2.md`）等 Jacky 在 FOR_JACKY 說要開才開。
 
 - **先看 FOR_JACKY 的回覆**：Jacky 玩過之後說哪裡不對，照他的。
-- **先看 CI**：11/21 最後一個程式 commit a58c332 的 run 44788616209 收尾時測試、匯出、smoke test 都綠，上傳 `latest` 與「盤點截圖」還在跑（看完把這一行刪掉）。
+- **先看 CI**：11/21 最後一個程式 commit a58c332 的 run 44788616209「測試與匯出」整個綠（`latest` 是 a58c332），「盤點截圖」收尾時還在跑——看它有沒有綠、screens 60～66 有沒有拍到（看完把這一行刪掉）。
 - 動到既有畫面之前先 `scripts/shots.sh <forest｜explore｜altar｜guild｜town｜rail> --save-baseline`（或 `--fetch-baseline` 拿 CI 的）。斷軌與回程是 `scripts/shots.sh rail`（CI 的 screens 60～66）。森林多了三塊空地之後，別處的樹可能跟 11/20 的基準不一樣：比之前先重拍基準。
 
 ## 做完的段落
