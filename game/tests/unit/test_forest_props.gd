@@ -127,7 +127,7 @@ func test_tree_stand_places_each_tree_where_it_was_planted() -> void:
 	stand.free()
 
 
-## 遠處的小東西不畫、小燈淡掉（FarCull）：人物不動、大的東西不動、已經設了的不動
+## 遠處的小東西不畫、小燈淡掉（FarCull）：人物不動、大的東西與大的燈不動、已經設了的不動
 func test_far_cull_skips_people_and_big_things() -> void:
 	var root := Node3D.new()
 	var rock := MeshInstance3D.new()
@@ -146,6 +146,9 @@ func test_far_cull_skips_people_and_big_things() -> void:
 	root.add_child(scaled)
 	var lamp := OmniLight3D.new()
 	root.add_child(lamp)
+	var beacon := OmniLight3D.new()
+	beacon.omni_range = 16.0
+	root.add_child(beacon)
 	var near_lamp := OmniLight3D.new()
 	near_lamp.distance_fade_enabled = true
 	near_lamp.distance_fade_begin = 10.0
@@ -165,6 +168,7 @@ func test_far_cull_skips_people_and_big_things() -> void:
 	assert_eq(scaled.visibility_range_end, 0.0, "放大過的照放大後的大小算")
 	assert_true(lamp.distance_fade_enabled and is_equal_approx(lamp.distance_fade_begin, FarCull.LIGHT_BEGIN), "小燈遠了淡掉")
 	assert_eq(near_lamp.distance_fade_begin, 10.0, "自己設了的不動")
+	assert_false(beacon.distance_fade_enabled, "照得很遠的燈是地標（祭壇路口的紅光、營火）：遠遠就要看到")
 	assert_eq(face.visibility_range_end, 0.0, "人物不動")
 	assert_false(glow.distance_fade_enabled, "人物身上的光不動")
 	assert_eq(moon.directional_shadow_max_distance, FarCull.MOON_SHADOW_FAR, "月光的影子只算到近的")
