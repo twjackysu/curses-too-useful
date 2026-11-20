@@ -117,6 +117,11 @@ func _place() -> void:
 	var f: Vector3 = -(head.global_basis.z if head != null and is_instance_valid(head) else who.global_basis.z)
 	var face: Vector3 = Vector3(f.x, 0.0, f.z).normalized() if Vector3(f.x, 0.0, f.z).length() > 0.2 else Vector3.FORWARD
 	var pos: Vector3 = at + right * float(look["side"]) + Vector3.UP * float(look["up"]) + face * float(look["front"])
+	if FACE_KINDS.has(kind) and head != null and is_instance_valid(head):
+		# 貼在臉前面的（臉紅、陰影線）照頭自己的上與前擺：低著頭的時候臉往下、往前，貼的位置跟著低下去
+		# （以前照世界的上擺，雷歐低頭時陰影線浮在頭頂上）
+		var hb: Basis = head.global_basis.orthonormalized()
+		pos = at + right * float(look["side"]) + hb.y * float(look["up"]) - hb.z * float(look["front"])
 	if kind == "sweat":
 		pos += Vector3.DOWN * SWEAT_SLIDE * clampf(age / 1.2, 0.0, 1.0)
 	global_position = pos

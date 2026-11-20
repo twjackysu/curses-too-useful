@@ -183,6 +183,24 @@ func test_marks_pop_follow_the_head_and_fade_away() -> void:
 	who.rotation.y = 0.0
 	await tree.process_frame
 	assert_true(float(blush._mat.get_shader_parameter("alpha")) < 0.05, "背對鏡頭：淡掉")
+	# 陰影線貼在臉前面、照頭自己的方向：低著頭（雷歐）臉往下，陰影線跟著低下去、往前，不浮在頭頂上
+	var face_owner := Node3D.new()
+	face_owner.position = Vector3(0, 0, 0)
+	face_owner.rotation.y = PI
+	root.add_child(face_owner)
+	var head := Node3D.new()
+	head.position = Vector3(0, 1.5, 0)
+	face_owner.add_child(head)
+	var gloom: MangaMark = MangaMark.pop("gloom", face_owner)
+	gloom.head = head
+	await tree.process_frame
+	var level: Vector3 = gloom.global_position
+	assert_true(absf(level.y - 1.5 - float((MangaMark.LOOK["gloom"] as Dictionary)["up"])) < 0.01, "抬著頭：在頭的高度往上一點（%.2f）" % level.y)
+	head.rotation.x = -0.5
+	await tree.process_frame
+	var bowed: Vector3 = gloom.global_position
+	assert_true(bowed.y < level.y - 0.04, "低頭：陰影線跟著低下去（%.2f → %.2f）" % [level.y, bowed.y])
+	assert_true(float(gloom._mat.get_shader_parameter("alpha")) > 0.5, "低著頭臉還是朝鏡頭：看得到")
 	m.dismiss()
 	await tree.create_timer(MangaMark.FADE_SEC + 0.15).timeout
 	await tree.process_frame

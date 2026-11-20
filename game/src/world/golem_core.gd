@@ -82,6 +82,37 @@ func carry_on(who: Node3D, fly_sec: float = 0.0, puppet: Puppet = null) -> void:
 	t.chain().tween_callback(func() -> void: _rest = to)
 
 
+## 從肩上放下來、「咚」一聲擱在地上的 at（腳下的位置；球的底貼地）。parent＝掛到哪（關卡）；puppet＝扛著他的人的外型（換回平常的動作）。
+## 結尾回到公會：一走到大家面前就把核心放到地上（D-309）——之後的對話鏡頭裡核心在地上發光，不會蓋住他的頭與畫面的一邊
+func set_down(parent: Node, at: Vector3, fly_sec: float = 0.45, puppet: Puppet = null) -> void:
+	if puppet != null:
+		puppet.carry = false
+		if puppet.footfall.is_connected(_on_step):
+			puppet.footfall.disconnect(_on_step)
+	_rest = Vector3.INF
+	dip = 0.0
+	var from: Vector3 = global_position if is_inside_tree() else at
+	if get_parent() != null:
+		get_parent().remove_child(self)
+	parent.add_child(self)
+	rotation = Vector3.ZERO
+	scale = Vector3.ONE * CARRY_SCALE
+	var floor_at: Vector3 = at + Vector3.UP * RADIUS * CARRY_SCALE
+	if fly_sec <= 0.0 or not is_inside_tree():
+		global_position = floor_at
+		return
+	global_position = from
+	var t: Tween = create_tween()
+	t.tween_property(self, "global_position", floor_at, fly_sec).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_callback(func() -> void:
+		Sfx.play_at(parent, LAND_SFX, floor_at, LAND_DB, 0.05, 10.0)).set_delay(fly_sec * 0.36)
+
+
+## 放到地上的聲音：跟魔像倒下時核心滾出來落地同一聲（小一點）
+const LAND_SFX: String = "core_land"
+const LAND_DB: float = -6.0
+
+
 ## 扛著的人一腳踩下去：肩上的核心往下頓一下再彈回來
 func _on_step() -> void:
 	if _rest.is_finite():

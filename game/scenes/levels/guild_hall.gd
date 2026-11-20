@@ -41,6 +41,10 @@ const COUNTER_FRONT: Vector3 = Vector3(0.4, 0.05, -5.9)
 ## 走到這條線以北莉莉絲就開口（開場的登錄；結尾是大廳的人看到他）
 const REGISTER_Z: float = -4.4
 const REPORT_Z: float = -1.6
+## 結尾那段話一開始把核心放到腳前的地上：往櫃檯的方向多遠、往他左手邊多遠（公尺）、放下去要多久
+const CORE_DOWN_AHEAD: float = 0.75
+const CORE_DOWN_LEFT: float = 0.3
+const CORE_DOWN_SEC: float = 0.45
 const LILITH_POS: Vector3 = Vector3(0, 0, -8.85)
 ## 雷歐小隊一開始站在佈告欄前面：節點名、角色 id、位置、面向（度）
 const PARTY: Array[Array] = [
@@ -669,8 +673,19 @@ func _tick_report() -> void:
 	if not _return_barked and leo != null:
 		_return_barked = true
 		_hud.show_bark(leo, "BARK_LEO_RETURN", 4.5, LEO_KEY)
-	if _player.global_position.z < REPORT_Z:
-		_talk(RETURN_DIALOGUE, ["SPK_NOEN", LILITH_KEY, LEO_KEY, ADVENTURER_KEY, Sera.NAME_KEY, INSPECTOR_KEY])
+	if _player.global_position.z < REPORT_Z and _talk(RETURN_DIALOGUE, ["SPK_NOEN", LILITH_KEY, LEO_KEY, ADVENTURER_KEY, Sera.NAME_KEY, INSPECTOR_KEY]):
+		_put_core_down()
+
+
+## 走到大家面前：「咚」一聲把核心放到腳前的地上（往櫃檯的方向、偏左手邊一點）。之後的對話鏡頭裡它在地上發光，
+## 不再扛在肩上蓋住他的頭與畫面的一邊（D-309）
+func _put_core_down() -> void:
+	if core == null or not is_instance_valid(core):
+		return
+	var fwd := Vector3(LILITH_POS.x - _player.global_position.x, 0.0, LILITH_POS.z - _player.global_position.z).normalized()
+	var at: Vector3 = _player.global_position + fwd * CORE_DOWN_AHEAD + Vector3.UP.cross(fwd) * CORE_DOWN_LEFT
+	core.set_down(self, Vector3(at.x, 0.0, at.z), CORE_DOWN_SEC, _player.puppet())
+	_player.burden = 1.0
 
 
 func _on_dialogue_ended(dialogue_id: String) -> void:

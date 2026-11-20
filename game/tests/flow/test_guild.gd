@@ -432,6 +432,14 @@ func test_epilogue_returns_to_the_guild_at_dusk_and_ends_the_chapter() -> void:
 	await _until_dialogue(10)
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(str(runner.current().get("speaker", "")), "SPK_LEO")
+	# 一走到大家面前就把核心放到腳前的地上（對話的鏡頭裡不再蓋住他的頭）
+	await _frames(int(GuildHall.CORE_DOWN_SEC * 60.0) + 4)
+	assert_false(level.core.is_carried_by(player.get_node("Body") as Node3D), "核心放下來了")
+	assert_false(player.puppet().carry, "不再是扛東西的動作")
+	var on_floor: Vector3 = level.core.global_position
+	assert_true(absf(on_floor.y - GolemCore.RADIUS * GolemCore.CARRY_SCALE) < 0.03, "球的底貼著地板（%.2f）" % on_floor.y)
+	var ahead: float = Vector2(on_floor.x - player.global_position.x, on_floor.z - player.global_position.z).length()
+	assert_true(ahead > 0.5 and ahead < 1.1 and on_floor.z < player.global_position.z, "在他腳前、往櫃檯那邊（%.2f m）" % ahead)
 	var seen: Array[String] = []
 	var guard: int = 0
 	while runner.is_running() and guard < 40:
