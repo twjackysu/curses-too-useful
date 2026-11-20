@@ -22,7 +22,8 @@ const SAVED_SHOW_SEC: float = 2.2
 const RELEASE_HINT_KEY: String = "HUD_RELEASE_HINT"
 
 var _objective: Label
-## true＝左上的目標先收起來（關卡在演的時候：水晶的警報響著，「把手放到水晶上」已經做了，下一個目標還沒出來）
+## true＝左上的目標與右上的清單先收起來（關卡在演的時候：水晶的警報響著，「把手放到水晶上」已經做了，下一個目標還沒出來；
+## 斷軌的最後一下，鏡頭不在玩家背後）
 var objective_held: bool = false
 var _objective_box: VBoxContainer
 ## 目標下面那一行操作提示（任務階段的 hint；裡面的 {attack} 這類動作名換成現在裝置的按鍵）
@@ -175,6 +176,10 @@ func dim_amount() -> float:
 
 func is_objective_shown() -> bool:
 	return _objective_box.visible
+
+
+func is_checklist_shown() -> bool:
+	return _list_box.visible
 
 
 func objective_text_key() -> String:
@@ -598,7 +603,7 @@ func _refresh_objective(fade_in: bool) -> void:
 ## 要數的寫 [幾/幾]、可選的寫 [可選]、做完的寫 [完成]（金色）。
 func _refresh_checklist(talking: bool) -> void:
 	var lines: PackedStringArray = checklist_lines()
-	_list_box.visible = not lines.is_empty() and not talking
+	_list_box.visible = not lines.is_empty() and not talking and not objective_held
 	if not _list_box.visible:
 		return
 	var items: Array[Dictionary] = Game.session.checklist()

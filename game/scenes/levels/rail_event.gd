@@ -384,6 +384,8 @@ func start_final(route: String) -> void:
 	final_step = 1
 	_final_t = 0.0
 	level.lock_for_cutscene(true)
+	# 演的這幾秒左上的目標與右上的清單先收起來（鏡頭不在玩家背後；頭上的字與等信號的提示照樣在）
+	hud.objective_held = true
 	# 演的這幾秒敵人不動（坡頂的狼、泥灘的樹人不會趁他定在原地的時候咬他）
 	for e: Node in get_tree().get_nodes_in_group("enemies"):
 		if e.is_physics_processing():
@@ -507,6 +509,7 @@ func _tick_final(delta: float) -> void:
 			if _final_t >= DIM.x + DIM.y + DIM.z:
 				final_step = 0
 				level.lock_for_cutscene(false)
+				hud.objective_held = false
 				for e: Node in _paused_foes:
 					if is_instance_valid(e):
 						e.set_physics_process(true)

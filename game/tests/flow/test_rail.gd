@@ -260,6 +260,7 @@ func test_top_route_cut_vines_fast_then_sera_waits_for_the_signal() -> void:
 	var prompt: InteractPrompt = level.find_child("InteractPrompt", true, false) as InteractPrompt
 	prompt.refresh(0.0)
 	assert_true(prompt.is_shown(), "演的時候（不能動）這一行提示照樣顯示得出來")
+	assert_true(hud.objective_held and not hud.is_objective_shown() and not hud.is_checklist_shown(), "左上的目標、右上的清單先收起來")
 	assert_true(level.sera.global_position.distance_to(RailSite.SERA_SHOT) < 1.0, "她在阿展這一邊")
 	await _frames(120)
 	assert_eq(rail.final_step, 2, "不給信號她不射")
@@ -280,6 +281,7 @@ func test_top_route_cut_vines_fast_then_sera_waits_for_the_signal() -> void:
 	await _frames(160)
 	assert_eq(rail.final_step, 0, "演完了")
 	assert_false(player.is_sheathed(), "劍回到手上")
+	assert_false(hud.objective_held, "目標不再收著")
 	assert_eq(player.puppet().pose, "")
 	assert_false(bool(_game().call("is_player_locked")) and not bool(_game().call("is_in_dialogue")))
 	assert_eq(str(s.state.get_flag(RailEvent.FLAG_ROUTE, "")), "top")
