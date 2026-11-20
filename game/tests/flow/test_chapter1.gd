@@ -267,10 +267,11 @@ func test_level_builds_with_markers_miasma_slimes_and_a_clear_path() -> void:
 		assert_not_null(level.get_node_or_null(marker), "有節點 %s" % marker)
 	assert_eq(level.slimes.size(), 3, "三隻史萊姆")
 	assert_eq(level.slimes_alive(), 3)
-	assert_true(level.get_node("Forest").get_child_count() >= ForestScenery.TREE_COUNT + ForestScenery.DEEP_TREE_COUNT - 20, "樹與路邊的小東西都種了（%d）" % level.get_node("Forest").get_child_count())
-	for tree_node: Node in level.get_node("Forest").get_children():
-		if tree_node is StaticBody3D:
-			assert_true(ForestMap.tree_ok(ForestMap.flat((tree_node as Node3D).position)), "樹不擋路：%s" % str((tree_node as Node3D).position))
+	var stand: TreeStand = level.get_node("Forest/Trees") as TreeStand
+	assert_true(stand.count() >= ForestScenery.TREE_COUNT + ForestScenery.DEEP_TREE_COUNT - 20, "樹都種了（%d）" % stand.count())
+	for at: Vector3 in stand.positions:
+		assert_true(ForestMap.tree_ok(ForestMap.flat(at)), "樹不擋路：%s" % str(at))
+	assert_eq((stand.get_node("Trunks") as StaticBody3D).get_child_count(), stand.count(), "每一棵一根擋人的樹幹")
 	assert_true(level._no_tree_here(CorruptForest.MIASMA_POS), "瘴氣裡不種樹")
 	# 認得出來的地方：祭壇路口的斷柱與倒下的橫樑、營火旁坐的圓木
 	var ruins: Node3D = level.get_node_or_null("AltarRuins") as Node3D
@@ -292,24 +293,27 @@ func test_level_builds_with_markers_miasma_slimes_and_a_clear_path() -> void:
 	var moon_dir: Vector3 = night.get_shader_parameter("moon_dir")
 	assert_true(moon_dir.z < -0.8 and moon_dir.y > 0.15 and moon_dir.y < 0.4, "月亮在北邊、低低的（往北走看得到）：%s" % str(moon_dir))
 	assert_true(env.volumetric_fog_sky_affect < 0.5, "霧不把星星蓋掉")
-	# 樹隨風擺、每棵高矮胖瘦與顏色不一樣
-	var heights: Dictionary = {}
-	var swaying: int = 0
-	var trees_seen: int = 0
-	for tree_node: Node in level.get_node("Forest").get_children():
-		if not tree_node is StaticBody3D:
-			continue
-		trees_seen += 1
-		var look: Node3D = (tree_node as Node3D).get_child(1) as Node3D
-		heights[Vector2(look.scale.x, look.scale.y).snappedf(0.001)] = true
-		for mi: Node in look.find_children("*", "MeshInstance3D", true, false):
-			var mat := (mi as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
-			if mat != null and mat.shader == ForestScenery.SWAY_SHADER:
-				swaying += 1
-				break
+	# 樹隨風擺、每棵高矮胖瘦與顏色不一樣；畫成一塊一塊的 MultiMesh（一棵一個節點太多東西要畫）
+	var chunks: Array[Node] = stand.find_children("*", "MultiMeshInstance3D", false, false)
+	var drawn: int = 0
+	var shapes: Dictionary = {}
+	var tints: Dictionary = {}
+	for c: Node in chunks:
+		var mm: MultiMesh = (c as MultiMeshInstance3D).multimesh
+		drawn += mm.instance_count
+		var sway := (c as MultiMeshInstance3D).material_override as ShaderMaterial
+		if PropModels.scene_for(ForestScenery.TREE_MODEL) != null:
+			assert_true(sway != null and sway.shader == ForestScenery.SWAY_SHADER and bool(sway.get_shader_parameter("per_instance")), "每一棵樹都會隨風擺（%s）" % c.name)
+			assert_true(mm.use_custom_data, "每一棵的顏色偏移放在 MultiMesh 裡（%s）" % c.name)
+	for i: int in stand.count():
+		var b: Basis = stand.instance_transform(i, Transform3D.IDENTITY, true).basis
+		shapes[Vector2(b.get_scale().x, b.get_scale().y).snappedf(0.001)] = true
+		tints[stand.tint(i)] = true
+	assert_eq(drawn, stand.count(), "每一棵都畫了、只畫一次")
+	assert_true(chunks.size() >= 4 and chunks.size() < stand.count() / 4, "分成幾塊畫（%d 塊）" % chunks.size())
 	if PropModels.scene_for(ForestScenery.TREE_MODEL) != null:
-		assert_eq(swaying, trees_seen, "每一棵樹都會隨風擺")
-		assert_true(heights.size() > trees_seen / 2, "樹的高矮胖瘦每棵不一樣（%d 種／%d 棵）" % [heights.size(), trees_seen])
+		assert_true(shapes.size() > stand.count() / 2, "樹的高矮胖瘦每棵不一樣（%d 種／%d 棵）" % [shapes.size(), stand.count()])
+		assert_true(tints.size() > stand.count() / 2, "顏色每棵偏一點（%d 種）" % tints.size())
 	var grass: MultiMeshInstance3D = level.get_node_or_null("Forest/GrassTufts") as MultiMeshInstance3D
 	assert_not_null(grass, "有草叢")
 	assert_true(grass.multimesh.instance_count > 3000, "草叢不只幾叢（%d）" % grass.multimesh.instance_count)

@@ -109,12 +109,12 @@ func test_altar_level_builds_a_paved_ring_with_pillars_and_the_altar() -> void:
 	assert_true(altar.global_position.distance_to(AltarScenery.ALTAR_POS) < 0.01)
 	assert_not_null(altar.get_node_or_null("Omen"), "祭壇上面那盞紅光")
 	assert_eq(level.get_node("Ruins").get_child_count(), AltarScenery.PILLARS.size() + AltarScenery.FALLEN.size(), "一圈斷柱＋倒在地上的兩截")
-	assert_true(level.get_node("Forest").get_child_count() > 30, "外圍有樹")
-	for tree_node: Node in level.get_node("Forest").get_children():
-		if tree_node is StaticBody3D:
-			var at: Vector3 = (tree_node as Node3D).global_position
-			assert_true(Vector2(at.x, at.z).length() > AltarScenery.PLAZA_RADIUS + 2.0, "石板上沒有樹")
-			assert_false(at.z > 0.0 and absf(at.x) < AltarScenery.PATH_WALK_HALF, "路上沒有樹")
+	var stand: TreeStand = level.get_node("Forest/Trees") as TreeStand
+	assert_true(stand.count() > 30, "外圍有樹")
+	assert_eq((stand.get_node("Trunks") as StaticBody3D).get_child_count(), stand.count(), "每一棵一根擋人的樹幹")
+	for at: Vector3 in stand.positions:
+		assert_true(Vector2(at.x, at.z).length() > AltarScenery.PLAZA_RADIUS + 2.0, "石板上沒有樹")
+		assert_false(at.z > 0.0 and absf(at.x) < AltarScenery.PATH_WALK_HALF, "路上沒有樹")
 	assert_true(level.scenery.stones.size() >= AltarScenery.PILLARS.size() + 2, "每一塊石頭有自己的符文材質")
 	# 走得到的範圍：石板＋南邊那條路
 	assert_eq(AltarScenery.keep_inside(Vector3(3, 0, -5)), Vector3(3, 0, -5))

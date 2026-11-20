@@ -93,6 +93,35 @@ func test_tree_kind_mixes_three_models_by_spot() -> void:
 		seen[k] = int(seen.get(k, 0)) + 1
 	assert_eq(seen.size(), 3, "三種都有")
 	assert_true(int(seen[0]) > 20, "第一種最多（%d）" % int(seen[0]))
-	var t: Node3D = ForestScenery.tree(Vector3(3.0, 0.0, -50.0), 1.0, 0.0)
-	assert_true(t.get_child_count() >= 2, "檔案不在的那一種也種得出樹（碰撞＋外型）")
-	t.free()
+	var stand := TreeStand.new()
+	for i: int in 40:
+		stand.add(Vector3(float(i) * 4.3 - 80.0, 0.0, float(i * 11 % 37) * 3.1 - 50.0), 1.0, 0.0)
+	stand.build()
+	var drawn: int = 0
+	for c: Node in stand.find_children("*", "MultiMeshInstance3D", false, false):
+		drawn += (c as MultiMeshInstance3D).multimesh.instance_count
+	assert_eq(drawn, stand.count(), "檔案不在的那一種也種得出樹（種成第一種）")
+	assert_eq(stand.get_node("Trunks").get_child_count(), stand.count(), "每一棵一根擋人的樹幹")
+	stand.free()
+
+
+## 一片樹畫成一塊一塊的 MultiMesh：位置、大小、朝向照種下去的那樣（跟以前一棵一個節點時一樣），樹幹的碰撞在腳下。
+func test_tree_stand_places_each_tree_where_it_was_planted() -> void:
+	var stand := TreeStand.new()
+	stand.add(Vector3(5.0, -0.3, 7.0), 1.2, 0.6)
+	stand.add(Vector3(-40.0, 0.0, 33.0), 0.9, 2.0)
+	stand.build()
+	var chunks: Array[Node] = stand.find_children("*", "MultiMeshInstance3D", false, false)
+	assert_true(chunks.size() >= 2, "離 %d m 以上的兩棵在不同塊" % int(TreeStand.CHUNK))
+	for c: Node in chunks:
+		assert_eq((c as MultiMeshInstance3D).multimesh.instance_count, 1, "一塊一棵（%s）" % c.name)
+	var v: Vector3 = ForestScenery.variation(Vector3(5.0, -0.3, 7.0))
+	var t0: Transform3D = stand.instance_transform(0, Transform3D.IDENTITY, true)
+	assert_true(t0.origin.distance_to(Vector3(5.0, -0.3, 7.0)) < 0.001, "種在種下去的地方（模型的原點在樹腳下）")
+	assert_true(absf(t0.basis.get_scale().y - 1.2 * v.y) < 0.001 and absf(t0.basis.get_scale().x - 1.2 * v.x) < 0.001, "高矮胖瘦照位置變")
+	assert_true(t0.basis.z.normalized().dot(Vector3(sin(0.6), 0.0, cos(0.6))) > 0.99, "朝向照種的時候給的")
+	assert_ne(stand.tint(0), stand.tint(1), "兩棵的顏色偏得不一樣")
+	var trunk := stand.get_node("Trunks").get_child(0) as CollisionShape3D
+	assert_true(trunk.position.distance_to(Vector3(5.0, -0.3 + TreeStand.TRUNK_HEIGHT * 0.5, 7.0)) < 0.01, "樹幹立在樹腳下")
+	assert_true(absf((trunk.shape as CylinderShape3D).radius - TreeStand.TRUNK_RADIUS * 1.2) < 0.001, "樹幹粗細照大小")
+	stand.free()

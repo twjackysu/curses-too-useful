@@ -125,6 +125,8 @@ static func build_forest(level: Node3D, rng: RandomNumberGenerator, keep_out: Ca
 	var forest := Node3D.new()
 	forest.name = "Forest"
 	level.add_child(forest)
+	var stand := TreeStand.new()
+	forest.add_child(stand)
 	var trees := PackedVector3Array()
 	# 森林口那一帶：亂數照只有入口的時候的順序抽，樹的位置跟那時候一樣；後來變成路或空地的位置就不種
 	var placed: int = 0
@@ -139,7 +141,7 @@ static func build_forest(level: Node3D, rng: RandomNumberGenerator, keep_out: Ca
 		placed += 1
 		if not ForestMap.tree_ok(ForestMap.flat(p)):
 			continue
-		forest.add_child(tree(on_ground(p), size, yaw))
+		stand.add(on_ground(p), size, yaw)
 		trees.append(Vector3(p.x, size, p.z))
 	for i: int in 9:
 		var side: float = -1.0 if i % 2 == 0 else 1.0
@@ -158,9 +160,10 @@ static func build_forest(level: Node3D, rng: RandomNumberGenerator, keep_out: Ca
 		if minf(ForestMap.path_distance(ForestMap.flat(p)), ForestMap.clearing_distance(ForestMap.flat(p))) > DEEP_TREE_REACH or crowded(trees, p, 3.2):
 			continue
 		var size: float = deep.randf_range(0.85, 1.35)
-		forest.add_child(tree(on_ground(p), size, deep.randf_range(0.0, TAU)))
+		stand.add(on_ground(p), size, deep.randf_range(0.0, TAU))
 		trees.append(Vector3(p.x, size, p.z))
 		placed += 1
+	stand.build()
 	var spots: PackedVector3Array = _grass_spots(rng, trees, GRASS_PATCHES, Rect2(-28.0, -38.0, 56.0, 64.0))
 	spots.append_array(_grass_spots(deep, trees, DEEP_GRASS_PATCHES, Rect2(-50.0, -92.0, 104.0, 54.0)))
 	forest.add_child(GrassTufts.create(spots, rng))
@@ -223,42 +226,6 @@ static func moss_mask(trees: PackedVector3Array) -> Image:
 	return img
 
 
-static func tree(at: Vector3, size: float, yaw: float) -> Node3D:
-	var body := StaticBody3D.new()
-	body.position = at
-	body.rotation.y = yaw
-	var shape := CollisionShape3D.new()
-	var trunk := CylinderShape3D.new()
-	trunk.radius = 0.45 * size
-	trunk.height = 4.0
-	shape.shape = trunk
-	shape.position = Vector3(0, 2.0, 0)
-	body.add_child(shape)
-	var look: Node3D = PropModels.instance(TREE_MODELS[tree_kind(at)])
-	if look == null:
-		look = PropModels.instance(TREE_MODEL)
-	if look == null:
-		var mesh := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.2
-		cyl.bottom_radius = 0.45
-		cyl.height = 6.0
-		var bark := StandardMaterial3D.new()
-		bark.albedo_color = Color(0.2, 0.15, 0.2)
-		cyl.material = bark
-		mesh.mesh = cyl
-		mesh.position = Vector3(0, 3.0, 0)
-		mesh.scale = Vector3.ONE * size
-		look = mesh
-	else:
-		# 每棵長得不太一樣：高矮胖瘦、顏色偏一點（只有一種樹的模型，照位置算、每次都一樣）
-		var v: Vector3 = variation(at)
-		look.scale = Vector3(size * v.x, size * v.y, size * v.x)
-		sway(look, TREE_SWAY, tree_tint(v.z))
-	body.add_child(look)
-	return body
-
-
 ## 照位置算的三個 0～1 之間的亂數換成：寬（x）、高（y）的倍數，與顏色偏移用的一個數（z）。純函式。
 static func variation(at: Vector3) -> Vector3:
 	var h1: float = fposmod(sin(at.x * 12.9898 + at.z * 78.233) * 43758.5453, 1.0)
@@ -283,7 +250,7 @@ static func tree_tint(t: float) -> Color:
 
 
 ## 把模型的材質換成會隨風擺的（wind_sway.gdshader；顏色、法線、粗糙度照原本的貼圖）。
-## params＝(從多高開始擺, 擺到多高, 最多擺幾公尺)。同一個原本的材質只換一次（記在它的 meta 上，所有的樹共用）。
+## params＝(從多高開始擺, 擺到多高, 最多擺幾公尺)。
 static func sway(model: Node3D, params: Vector3, tint: Color = Color.WHITE) -> void:
 	var meshes: Array[Node] = model.find_children("*", "MeshInstance3D", true, false)
 	if model is MeshInstance3D:
@@ -292,26 +259,32 @@ static func sway(model: Node3D, params: Vector3, tint: Color = Color.WHITE) -> v
 		var mi := n as MeshInstance3D
 		for surface: int in mi.mesh.get_surface_count():
 			var src := mi.get_active_material(surface) as BaseMaterial3D
-			if src == null:
-				continue
-			var key: String = "sway_%d_%d_%d" % [int(params.x * 100.0), int(params.y * 100.0), int(params.z * 1000.0)]
-			var mat: ShaderMaterial = src.get_meta(key) if src.has_meta(key) else null
-			if mat == null:
-				mat = ShaderMaterial.new()
-				mat.shader = SWAY_SHADER
-				mat.set_shader_parameter("albedo_tex", src.albedo_texture)
-				mat.set_shader_parameter("normal_tex", src.normal_texture)
-				mat.set_shader_parameter("has_normal", src.normal_enabled and src.normal_texture != null)
-				mat.set_shader_parameter("orm_tex", src.roughness_texture)
-				mat.set_shader_parameter("has_orm", src.roughness_texture != null)
-				mat.set_shader_parameter("sway_from", params.x)
-				mat.set_shader_parameter("sway_height", params.y)
-				mat.set_shader_parameter("sway_amount", params.z)
-				src.set_meta(key, mat)
-			mi.set_surface_override_material(surface, mat)
+			if src != null:
+				mi.set_surface_override_material(surface, sway_material(src, params))
 		mi.set_instance_shader_parameter("tint", Vector3(tint.r, tint.g, tint.b))
 		if mi != model:
 			mi.set_instance_shader_parameter("base_y", mi.position.y)
+
+
+## 原本的材質換成會擺的那一份：同一個原本的材質只做一次（記在它的 meta 上，所有的樹共用）。
+## per_instance＝給 MultiMesh 用（TreeStand：每一棵的顏色偏移在 INSTANCE_CUSTOM，不是 instance uniform 的 tint）。
+static func sway_material(src: BaseMaterial3D, params: Vector3, per_instance: bool = false) -> ShaderMaterial:
+	var key: String = "sway_%d_%d_%d_%d" % [int(params.x * 100.0), int(params.y * 100.0), int(params.z * 1000.0), int(per_instance)]
+	if src.has_meta(key):
+		return src.get_meta(key) as ShaderMaterial
+	var mat := ShaderMaterial.new()
+	mat.shader = SWAY_SHADER
+	mat.set_shader_parameter("albedo_tex", src.albedo_texture)
+	mat.set_shader_parameter("normal_tex", src.normal_texture)
+	mat.set_shader_parameter("has_normal", src.normal_enabled and src.normal_texture != null)
+	mat.set_shader_parameter("orm_tex", src.roughness_texture)
+	mat.set_shader_parameter("has_orm", src.roughness_texture != null)
+	mat.set_shader_parameter("sway_from", params.x)
+	mat.set_shader_parameter("sway_height", params.y)
+	mat.set_shader_parameter("sway_amount", params.z)
+	mat.set_shader_parameter("per_instance", per_instance)
+	src.set_meta(key, mat)
+	return mat
 
 
 ## 路邊的小東西（夜光毒蕈、灌木）。glows＝夜光毒蕈：顏色照形狀算、旁邊掛一盞青色的小燈（節點名 Glow）。

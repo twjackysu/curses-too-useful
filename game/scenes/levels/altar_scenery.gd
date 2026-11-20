@@ -106,6 +106,8 @@ func _build_trees(level: Node3D, rng: RandomNumberGenerator) -> PackedVector3Arr
 	var forest := Node3D.new()
 	forest.name = "Forest"
 	level.add_child(forest)
+	var stand := TreeStand.new()
+	forest.add_child(stand)
 	var trees := PackedVector3Array()
 	var tries: int = 0
 	while trees.size() < TREE_COUNT and tries < TREE_COUNT * 30:
@@ -114,8 +116,9 @@ func _build_trees(level: Node3D, rng: RandomNumberGenerator) -> PackedVector3Arr
 		if _open_ground(Vector2(p.x, p.z)) or Vector2(p.x, p.z).length() > 44.0 or ForestScenery.crowded(trees, p, 3.4):
 			continue
 		var size: float = rng.randf_range(0.9, 1.4)
-		forest.add_child(ForestScenery.tree(p, size, rng.randf_range(0.0, TAU)))
+		stand.add(p, size, rng.randf_range(0.0, TAU))
 		trees.append(Vector3(p.x, size, p.z))
+	stand.build()
 	var spots := PackedVector3Array()
 	for c: int in GRASS_PATCHES:
 		var center := Vector3(rng.randf_range(-34.0, 34.0), 0.0, rng.randf_range(-34.0, 38.0))

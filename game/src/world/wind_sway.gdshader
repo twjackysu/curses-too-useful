@@ -1,7 +1,7 @@
 shader_type spatial;
 // 會隨風晃的樹與灌木（ForestScenery.sway()）：顏色、法線、粗糙度照原本模型的貼圖（Tripo 匯出的 glTF），
 // 頂點往風吹的方向擺——離地越高擺越多（sway_from 以下不動），整棵一起慢慢擺、樹梢再多一點細的抖；
-// 每棵照自己的位置錯開，不會整片森林一起晃。tint＝這一棵的顏色偏移（每棵不一樣，看起來不像同一棵複製的）。
+// 每棵照自己的位置錯開，不會整片森林一起晃（MultiMesh 的 MODEL_MATRIX 是每一棵自己的）。tint＝這一棵的顏色偏移（每棵不一樣，看起來不像同一棵複製的）。
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D normal_tex : hint_roughness_normal, filter_linear_mipmap, repeat_enable;
@@ -15,10 +15,14 @@ uniform float sway_amount = 0.16;
 uniform float sway_speed = 0.7;
 uniform vec2 wind_dir = vec2(0.8, -0.6);
 instance uniform vec3 tint = vec3(1.0);
+// 一片樹畫成 MultiMesh（TreeStand）：每一棵的顏色偏移放在 INSTANCE_CUSTOM.rgb（instance uniform 是整片共用的）
+uniform bool per_instance = false;
+varying vec3 v_tint;
 // 這個網格的原點離模型的原點多高（模型拆成好幾個節點時：灌木上一顆一顆的果子原點在果子中間，要照整棵的高度擺）
 instance uniform float base_y = 0.0;
 
 void vertex() {
+	v_tint = per_instance ? INSTANCE_CUSTOM.rgb : tint;
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	float h = clamp((VERTEX.y + base_y - sway_from) / max(sway_height - sway_from, 0.01), 0.0, 1.0);
 	float phase = origin.x * 0.21 + origin.z * 0.17;
@@ -30,7 +34,7 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = texture(albedo_tex, UV).rgb * tint;
+	ALBEDO = texture(albedo_tex, UV).rgb * v_tint;
 	if (has_normal) {
 		NORMAL_MAP = texture(normal_tex, UV).rgb;
 	}
