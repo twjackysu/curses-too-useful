@@ -174,6 +174,7 @@ func _ready() -> void:
 						App.burst_start_in(1))
 	elif not bool(Game.session.state.get_flag(FLAG_AFTER_TALK, false)):
 		_after_talk_in = AFTER_TALK_DELAY  # 打完、話還沒講就離開的存檔：讀回來接著講
+	FarCull.apply(self)  # 遠處的小東西不畫、小燈淡掉、月光的影子只算到 60 m
 	QualityPreset.apply_tree(self, Settings.quality as QualityPreset.Level)
 
 
