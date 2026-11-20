@@ -183,6 +183,21 @@ func test_marks_pop_follow_the_head_and_fade_away() -> void:
 	who.rotation.y = 0.0
 	await tree.process_frame
 	assert_true(float(blush._mat.get_shader_parameter("alpha")) < 0.05, "背對鏡頭：淡掉")
+	# 站得遠的人頭上的漫符放大（最多 GROW_MAX 倍），近的照原本的大小
+	var near_one := Node3D.new()
+	near_one.position = Vector3(0, 0, 1.2)
+	root.add_child(near_one)
+	var far_one := Node3D.new()
+	far_one.position = Vector3(0, 0, -12)
+	root.add_child(far_one)
+	var near_mark: MangaMark = MangaMark.pop("anger", near_one)
+	var far_mark: MangaMark = MangaMark.pop("anger", far_one)
+	await tree.create_timer(MangaMark.POP_SEC + 0.05).timeout
+	await tree.process_frame
+	assert_true(absf(near_mark.scale.x - 1.0) < 0.01, "近的照原本的大小（%.2f）" % near_mark.scale.x)
+	assert_true(absf(far_mark.scale.x - MangaMark.GROW_MAX) < 0.01, "遠的放大（%.2f）" % far_mark.scale.x)
+	near_mark.dismiss()
+	far_mark.dismiss()
 	# 陰影線貼在臉前面、照頭自己的方向：低著頭（雷歐）臉往下，陰影線跟著低下去、往前，不浮在頭頂上
 	var face_owner := Node3D.new()
 	face_owner.position = Vector3(0, 0, 0)

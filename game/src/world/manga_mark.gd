@@ -30,6 +30,10 @@ const FADE_SEC: float = 0.25
 const SWEAT_SLIDE: float = 0.06
 ## 頭骨頭在頸子上面：臉的中間大約再高這麼多（找不到頭的時候從腳下量 HEAD_FALLBACK）
 const HEAD_FALLBACK: float = 1.55
+## 離鏡頭遠的人（雷歐羞辱時站在幾公尺外）頭上的漫符跟著放大：離鏡頭 GROW_FROM 公尺以內照原本的大小，
+## 再遠照距離放大、最多 GROW_MAX 倍（D-309；以前一律幾公分，遠的人頭上只剩一個小點）。貼在臉上的（臉紅、陰影線）不放大：會蓋出臉外面
+const GROW_FROM: float = 3.0
+const GROW_MAX: float = 2.0
 
 static var _shader: Shader
 
@@ -116,7 +120,10 @@ func _place() -> void:
 	# 臉朝哪：Puppet 的頭掛點跟人偶同一個方向（−Z 朝前），轉頭、低頭都跟著；沒有就用整個人的方向
 	var f: Vector3 = -(head.global_basis.z if head != null and is_instance_valid(head) else who.global_basis.z)
 	var face: Vector3 = Vector3(f.x, 0.0, f.z).normalized() if Vector3(f.x, 0.0, f.z).length() > 0.2 else Vector3.FORWARD
-	var pos: Vector3 = at + right * float(look["side"]) + Vector3.UP * float(look["up"]) + face * float(look["front"])
+	var grow: float = 1.0
+	if cam != null and not FACE_KINDS.has(kind):
+		grow = clampf(cam.global_position.distance_to(at) / GROW_FROM, 1.0, GROW_MAX)
+	var pos: Vector3 = at + (right * float(look["side"]) + Vector3.UP * float(look["up"])) * grow + face * float(look["front"])
 	if FACE_KINDS.has(kind) and head != null and is_instance_valid(head):
 		# 貼在臉前面的（臉紅、陰影線）照頭自己的上與前擺：低著頭的時候臉往下、往前，貼的位置跟著低下去
 		# （以前照世界的上擺，雷歐低頭時陰影線浮在頭頂上）
@@ -125,7 +132,7 @@ func _place() -> void:
 	if kind == "sweat":
 		pos += Vector3.DOWN * SWEAT_SLIDE * clampf(age / 1.2, 0.0, 1.0)
 	global_position = pos
-	var s: float = pop_scale(age)
+	var s: float = pop_scale(age) * grow
 	scale = Vector3.ONE * maxf(s, 0.001)
 	var a: float = 1.0
 	if FACE_KINDS.has(kind):
