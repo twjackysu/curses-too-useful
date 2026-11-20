@@ -102,6 +102,13 @@ func test_rail_site_is_on_the_map_and_builds() -> void:
 	assert_not_null(_level.get_node_or_null("RailSite/Winch/Vine3"), "絞盤上三股藤")
 	assert_not_null(_level.get_node_or_null("RailSite/DeadTree/Crack"), "有裂紋的枯木")
 	assert_not_null(_level.get_node_or_null("Azhan"), "阿展")
+	# 棧橋底下的擋板是斜的：頂面跟著橋面（低的那一頭上面沒有看不見的牆）
+	var wedge: StaticBody3D = _level.get_node("RailSite/TrestleWall") as StaticBody3D
+	var space: PhysicsDirectSpaceState3D = _level.get_world_3d().direct_space_state
+	for x: float in [RailSite.TRESTLE_X.x + 1.0, RailSite.CART_X, RailSite.TRESTLE_X.y - 1.0]:
+		var hit: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(x, 12.0, RailSite.TRACK_Z), Vector3(x, -1.0, RailSite.TRACK_Z), 1))
+		assert_true(not hit.is_empty() and hit["collider"] == wedge and absf((hit["position"] as Vector3).y - RailSite.deck_y(x)) < 0.12,
+			"x＝%.1f 擋板的頂面在橋面的高度（%s，橋面 %.2f）" % [x, str(hit.get("position", "沒打到")), RailSite.deck_y(x)])
 	assert_eq(rail.azhan.pose, "sit", "坐在木軌盡頭")
 	assert_true(_level.explore.packs.has("rail_top") and _level.explore.packs.has("rail_mud"), "坡頂的狼、泥灘的樹人")
 	assert_false(rail.azhan_use.enabled or rail.reach_use.enabled or rail.vine_knot.active, "探索開放之前都不能用")

@@ -15,6 +15,8 @@ const TRESTLE_X: Vector2 = Vector2(52.0, 66.0)
 const DECK_LOW: float = 1.2
 const DECK_SLOPE: float = 0.25
 const GAUGE: float = 0.8
+## 棧橋底下那塊斜的擋板多厚（往地面下伸）
+const WEDGE_THICK: float = 6.0
 ## 手推車卡在棧橋上的位置、救下來之後停在主軌上的位置（x）
 const CART_X: float = 54.6
 const CART_HOME_X: float = 46.4
@@ -205,7 +207,7 @@ func _build_track() -> void:
 		_box(track, "Stump", Vector3(0.16, 0.35 + 0.2 * float(i % 2), 0.16), Vector3(px, 0.2, TRACK_Z + (0.5 if i % 2 == 0 else -0.55)), _dark, Vector3(0.2, 0.3 * float(i), 0.25))
 	_box(track, "Fallen", Vector3(0.2, 0.08, 1.2), Vector3(GAP_X.x + 1.1, 0.05, TRACK_Z + 0.2), _wood, Vector3(0, 0.7, 0))
 	# 斷口擋著（人走不進棧橋底下）
-	_wall(self, "GapWall", Vector3(0.4, 2.4, GAUGE + 0.9), Vector3(GAP_X.x + 0.75, 1.2, TRACK_Z))
+	_wall(self, "GapWall", Vector3(0.4, 1.3, GAUGE + 0.9), Vector3(GAP_X.x + 0.75, 0.65, TRACK_Z))
 
 
 ## 往東爬上去的棧橋：兩條軌、枕木、一對一對的樁與斜撐；底下整條是牆
@@ -229,8 +231,10 @@ func _build_trestle() -> void:
 				_beam(trestle, "Post", Vector3(x, 0.0, TRACK_Z + side * (GAUGE * 0.5 + 0.28)), Vector3(x, y - 0.1, TRACK_Z + side * (GAUGE * 0.5 + 0.12)), 0.09, _dark)
 			_beam(trestle, "Brace", Vector3(x, 0.15, TRACK_Z - GAUGE * 0.5 - 0.25), Vector3(x, y - 0.25, TRACK_Z + GAUGE * 0.5 + 0.15), 0.045, _wood)
 		x += 0.7
-	var mid_x: float = (TRESTLE_X.x + TRESTLE_X.y) * 0.5
-	_wall(self, "TrestleWall", Vector3(TRESTLE_X.y - TRESTLE_X.x, 5.0, GAUGE + 0.5), Vector3(mid_x, 2.5, TRACK_Z))
+	# 棧橋底下整條擋住：一塊斜的厚板，頂面就是橋面（不是一路 5 m 高的牆——低的那一頭鏡頭不會被看不見的東西推開）
+	var angle: float = atan(DECK_SLOPE)
+	var wedge: StaticBody3D = _wall(self, "TrestleWall", Vector3(a.distance_to(b), WEDGE_THICK, GAUGE + 0.5), a.lerp(b, 0.5) - Vector3(-sin(angle), cos(angle), 0.0) * WEDGE_THICK * 0.5)
+	wedge.rotation.z = angle
 	_lantern(trestle, "CartLantern", Vector3(CART_X - 1.5, deck_y(CART_X) + 1.9, TRACK_Z - 0.75), 3.2, 8.0)
 	_beam(trestle, "LanternPost", Vector3(CART_X - 1.5, 0.0, TRACK_Z - 0.75), Vector3(CART_X - 1.5, deck_y(CART_X) + 1.75, TRACK_Z - 0.75), 0.05, _dark)
 
