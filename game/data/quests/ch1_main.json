@@ -160,6 +160,10 @@
           "need": 5
         },
         {
+          "text": "Q_CH1_LIST_RAIL",
+          "flag": "ch1.cart_saved"
+        },
+        {
           "text": "Q_CH1_LIST_CAMP",
           "flag": "ch1.campfire_talked",
           "optional": true
@@ -171,9 +175,25 @@
         }
       ],
       "done_when": {
-        "flag": "ch1.mushrooms",
-        "gte": 5
-      }
+        "all": [
+          {
+            "flag": "ch1.mushrooms",
+            "gte": 5
+          },
+          {
+            "flag": "ch1.cart_saved"
+          }
+        ]
+      },
+      "marker_if": [
+        {
+          "when": {
+            "flag": "ch1.mushrooms",
+            "gte": 5
+          },
+          "marker": "node:Azhan"
+        }
+      ]
     },
     {
       "id": "to_altar",

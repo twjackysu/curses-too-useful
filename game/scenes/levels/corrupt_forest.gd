@@ -48,6 +48,8 @@ var sera: Sera
 var talk_camera: TalkCamera
 ## 自由探索（時段 B）的東西：夜光毒蕈、陷阱、野外的敵人、營火、寶箱
 var explore: ForestExplore
+## 森林裡的斷軌事件（增補稿時段 B）：阿展與卡在坡上的手推車
+var rail: RailEvent
 var _talk_skip: int = 0
 ## 離瘴氣裡那段對話還有幾秒（< 0＝沒有在等）
 var _gate_talk_in: float = -1.0
@@ -97,6 +99,8 @@ func _ready() -> void:
 	# 截圖用：`--explore --scream` 再跳到採滿五朵、聽到慘叫之後（配 `--at=0,-74`：往北走幾步就到祭壇路口，換到祭壇那一關）
 	if args.has("scream"):
 		Game.session.add_flag(ForestExplore.FLAG_MUSHROOMS, ForestExplore.MUSHROOM_NEED)
+		Game.session.set_flag(RailEvent.FLAG_ROUTE, "top")
+		Game.session.set_flag(RailEvent.FLAG_SAVED, true)
 	var st0: GameState = Game.session.state
 	_player.global_position = spawn.global_position if bool(st0.get_flag(FLAG_JOINED, false)) else ENTRANCE_POS
 	if ForestExplore.unlocked(st0):
@@ -115,6 +119,8 @@ func _ready() -> void:
 	_spawn_sera()
 	explore = ForestExplore.create(self, _player, _hud, sera)
 	add_child(explore)
+	rail = RailEvent.create(self, _player, _hud, sera, explore)
+	add_child(rail)
 	# 截圖用：`--talk-skip=N` 對話一開始就先按掉 N 句（拍第 N+1 句的鏡位；相遇那一段配 `--at=-0.3,12.2`）
 	_talk_skip = int(str(args.get("talk-skip", "0")))
 	if _talk_skip > 0:

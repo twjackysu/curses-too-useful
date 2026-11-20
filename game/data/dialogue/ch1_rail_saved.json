@@ -1,0 +1,65 @@
+{
+  "id": "ch1_rail_saved",
+  "start": "s0",
+  "nodes": {
+    "s0": {
+      "speaker": "SPK_AZHAN",
+      "text": "DLG_CH1_RAILS_001",
+      "emote": "shock",
+      "head": "down",
+      "next": "s1"
+    },
+    "s1": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_RAILS_002_DUCK",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.after_slimes_answer",
+            "eq": "warn_me"
+          },
+          "text": "DLG_CH1_RAILS_002_SIGNAL"
+        }
+      ],
+      "emote": "blush",
+      "shot": "two",
+      "to": "SPK_NOEN",
+      "next": "s2"
+    },
+    "s2": {
+      "speaker": "SPK_AZHAN",
+      "text": "DLG_CH1_RAILS_003_NOTYET",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.mushrooms",
+            "gte": 5
+          },
+          "text": "DLG_CH1_RAILS_003_FULL"
+        }
+      ],
+      "act": "nod",
+      "to": "SPK_NOEN",
+      "next": "s3"
+    },
+    "s3": {
+      "speaker": "SPK_AZHAN",
+      "text": "DLG_CH1_RAILS_004",
+      "act": "point",
+      "next": "s4"
+    },
+    "s4": {
+      "speaker": "SPK_AZHAN",
+      "text": "DLG_CH1_RAILS_005",
+      "emote": "sweat",
+      "do": {
+        "set": {
+          "ch1.cart_saved": true
+        },
+        "add": {
+          "sera.affinity": 5
+        }
+      }
+    }
+  }
+}

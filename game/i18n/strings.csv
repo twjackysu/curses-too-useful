@@ -509,3 +509,46 @@ GEAR_ITEMS,Carrying: {list},身上的東西：{list}
 ITEM_NOODLE_TICKET,Noodle ticket,麵票
 ITEM_WARM_MUD_PLUG,Warm mud stopper,暖泥塞
 ITEM_RUSTY_SHIELD,Rusty iron shield,生鏽的鐵盾
+SPK_AZHAN,Azhan,阿展
+Q_CH1_LIST_RAIL,Help the man on the rails get his cart down safely,幫木軌上的人把車停穩
+CH1_RAIL_HEARD_LINE1,Someone east of here is counting. Angrily.,東邊的樹林裡，有人在生氣地數數。
+CH1_RAIL_HEARD_LINE2,"""One, two, three, four... where's the last one?""",「一、二、三、四……還有一個咧？」
+BARK_AZHAN_COUNT,"One, two, three, four... where's the last one?",一、二、三、四……還有一個咧？
+HINT_TALK_AZHAN,{key} Talk to the man on the rails,{key} 跟木軌上的人說話
+HINT_RAIL_REACH,{key} Reach for the brake lever,{key} 伸手搆煞車的拉桿
+HINT_RAIL_WINCH,{key} Crank the winch and pay out the rope,{key} 搖絞盤放繩
+HINT_RAIL_SHIELD,{key} Wedge the iron shield onto the dangling rails,{key} 把鐵盾架在垂下來的窄軌上
+HINT_RAIL_HOLD,{key} Step up and brace the front of the cart,{key} 踩上去頂住車頭
+HINT_RAIL_SIGNAL,"{key} Give Sera the signal: ""Now!""",{key} 給席菈信號：「現在！」
+CH1_RAIL_SHORT,Half a step short. Can't reach it.,差半步——搆不到。
+BARK_SERA_RAIL_MUSHROOM,I'll set one mushroom on the rack... it sank an inch. Take it back... and it floats up again.,我放一朵毒蕈到車架上……沉了一寸。拿回來——又浮上來了。
+CH1_RAIL_WAYS_LINE1,Up the slope: cut the vines off the winch and pay out the rope to hold the cart,上坡：砍開纏住絞盤的藤，放繩拉住車
+CH1_RAIL_WAYS_LINE2,Down by the mud: find something to step on and brace the cart's front,坡底的泥灘：架個能踩上去的東西，頂住車頭
+CH1_RAIL_VINE_CUT,Vine cut {have}/{need},砍斷一股藤 {have}/{need}
+BARK_SERA_VINES_BACK,"The vines grew back! You have to be faster... that web, maybe step in it?",藤又纏回去了！要更快——那張網，踩下去試試？
+CH1_RAIL_ROPE_FREE,The winch is free. Crank it to pay out the rope.,絞盤鬆開了——可以放繩了
+CH1_RAIL_PLUG_USED,The warm mud plug pops and flings the rope across. One vine less to cut.,暖泥塞「啵」地把掛繩彈到對岸——省了最後一股藤
+CH1_RAIL_TREE_HINT,The dead tree only cracks a little. It needs a much heavier blow.,枯木只裂開一點——要更重的一下才震得倒
+CH1_RAIL_TREE_DOWN,The dead tree falls against the trestle. You can walk up it.,枯木倒在棧橋上，架成一道踩得上去的斜坡
+BARK_SERA_TREE,It knocked the dead tree over! It's leaning on the trestle... you can climb it!,牠把枯木震倒了！搭在棧橋上——踩得上去！
+CH1_RAIL_SHIELD_SET,The iron shield locks between the two rails. Good enough to stand on.,鐵盾卡進兩條窄軌中間——踩得上去了
+BARK_SERA_WAIT,I'll wait for you.,我等你。
+BARK_SERA_DUCK,"Norn, duck!",諾恩，低頭！
+BARK_AZHAN_BRAKE,...Got it!,……拉住了！
+CH1_RAIL_SAVED,The cart is safe on the main track,車停穩了
+BARK_AZHAN_AFTER,"If you pass the apothecary on the way back, tell her I'll bring the cups myself. Later.",回程經過藥房的話，幫我說一聲——杯子我晚點自己送。
+DLG_CH1_RAIL_001,"Four buckles undone, one to go... and of course it's the one tied to the brake.",四個扣子都解開了，就剩這一個……偏偏跟煞車綁在一起。
+DLG_CH1_RAIL_002,Why not post a request at the guild for this?,這種事，怎麼不去公會發委託？
+DLG_CH1_RAIL_003,I went. The counter told me to write my name. (He lifts his right hand. The fingers won't close.),我去了。櫃檯要我寫名字。（他舉起右手——手指握不起來。）
+DLG_CH1_RAIL_004_BASKET,That's the apothecary's basket. The cups drying in the yard... did any of them break?,那是藥房的籃子吧。院子裡晾的那幾只杯子……有沒有摔破？
+DLG_CH1_RAIL_004_SHIELD,(Norn turns the shield over for him.) ...That shield. The cups drying on it in the yard... did any of them break?,（諾恩把盾面翻給他看。）……那面盾。晾在上面的杯子……有沒有摔破？
+DLG_CH1_RAIL_005,All five are fine. The bottoms still have the letter carved in.,五只都好好的。杯底的字也還在。
+DLG_CH1_RAIL_006,Good. That rack on the cart is what I carry the medicine in every day. Get the cart back down and I'm done with this job.,那就好。車上那個杯架，是我每天送藥用的。把車弄回來，我就算正式不幹了。
+DLG_CH1_RAIL_007,Let me see if I can reach the lever first.,我先試試搆不搆得到拉桿。
+DLG_CH1_RAILS_001,(He lets go of the brake and stares at his left palm.) ...Huh. This one works too.,（他鬆開煞車，盯著自己的左掌。）……原來這隻也行。
+DLG_CH1_RAILS_002_SIGNAL,"When you said ""now""... my hands didn't shake at all.",你說「現在」的時候……我的手居然沒抖。
+DLG_CH1_RAILS_002_DUCK,"S-sorry, I didn't warn you again... but you really did duck.",對、對不起，我又沒先說……可是你真的低頭了。
+DLG_CH1_RAILS_003_FULL,"Got all five? I'll take the rack apart and pack them for you, one portion each.",五朵都齊了？杯架我拆下來，替你們一份一份裝好。
+DLG_CH1_RAILS_003_NOTYET,"Still short on mushrooms, right? Come back when you have five. I'll take the rack apart and pack them, one portion each.",蕈還沒採滿吧。齊了再過來——杯架我拆下來，替你們一份一份裝。
+DLG_CH1_RAILS_004,Before you go back to the main path: there are two golden lights in the fog. The one that stays put is the fire I lit.,回主路之前——霧裡有兩種金光。不動的那個，是我生的火。
+DLG_CH1_RAILS_005,The one that walks... I threw a rock at it last week. It bit the rock in half.,會走的那個……我上星期丟了塊石頭過去，它把石頭咬斷了。

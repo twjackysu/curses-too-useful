@@ -660,6 +660,22 @@
    },
    "animations": [],
    "note": "訓練場倉庫的大叔（佈告二：少了一面生鏽鐵盾、請諾恩找到後別當眾問主人）。TownStreet 的 WarehouseUncle"
+  },
+  {
+   "id": "azhan",
+   "model": "tripo-v3.1",
+   "params": {
+    "texture_quality": "detailed",
+    "face_limit": 40000
+   },
+   "prompt": "Stylized anime JRPG 3D game character, modern anime action RPG party member style: slim young-adult body, youthful anime proportions about 5.5 heads tall, slightly large head, sturdy legs, anime face with medium-large eyes, clean cel-shaded hand-painted textures, detailed layered fantasy clothing, slightly worn. Full body, strict T-pose, arms straight out to the sides, legs slightly apart, facing forward, empty open hands. A lean weathered forest herb gatherer man in his late twenties, tanned skin, tired stubborn eyes, short messy dark green-black hair tied with a faded headband. Rolled-sleeve mustard work tunic, dark teal sleeveless vest with many small pockets, a coil of rope over one shoulder, his right hand and forearm wrapped in old cloth bandages, patched brown trousers, muddy lace-up boots.",
+   "negative_prompt": "weapon, sword, staff, lantern, wings, text, logo, base, pedestal",
+   "rig": {
+    "type": "biped",
+    "spec": "mixamo"
+   },
+   "animations": [],
+   "note": "採集員阿展（第一章 ⑥ 森林的斷軌事件：右手握不住東西、坐在木軌盡頭）。CorruptForest 的 Azhan（RailEvent）；回程在藥房也會出現"
   }
  ]
 }

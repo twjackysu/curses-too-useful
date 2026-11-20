@@ -145,6 +145,8 @@ static func skip_to_altar(session: GameSession) -> void:
 			CorruptForest.FLAG_MISFIRE, CorruptForest.FLAG_SLIMES, CorruptForest.FLAG_AFTER_TALK]:
 		session.set_flag(flag, true)
 	session.add_flag(ForestExplore.FLAG_MUSHROOMS, ForestExplore.MUSHROOM_NEED)
+	session.set_flag(RailEvent.FLAG_ROUTE, "top")
+	session.set_flag(RailEvent.FLAG_SAVED, true)
 	session.set_flag(ForestExplore.FLAG_ALTAR, true)
 
 

@@ -134,14 +134,18 @@ func test_quest_follows_the_four_flags_and_continue_restores_it() -> void:
 	assert_eq(s.state.checkpoint, "ch1_explore")
 	assert_eq(s.quests.marker_spec("ch1_main"), "nearest:Mushroom", "指引指向最近的夜光毒蕈")
 	var list: Array[Dictionary] = s.checklist()
-	assert_eq(list.size(), 3, "右上角的清單三項")
+	assert_eq(list.size(), 4, "右上角的清單四項")
 	assert_true(int(list[0]["need"]) == 5 and int(list[0]["have"]) == 0 and not bool(list[0]["optional"]), "第一項要採 5 朵")
-	assert_true(bool(list[1]["optional"]) and bool(list[2]["optional"]), "另外兩項是可選的")
+	assert_true(not bool(list[1]["optional"]) and str(list[1]["text"]) == "Q_CH1_LIST_RAIL", "第二項：把斷軌上的車停穩（⑥）")
+	assert_true(bool(list[2]["optional"]) and bool(list[3]["optional"]), "另外兩項是可選的")
 	s.add_flag(ForestExplore.FLAG_MUSHROOMS, 4)
 	assert_eq(s.quests.stage_of("ch1_main"), "gather", "四朵還不夠")
 	assert_eq(int(s.checklist()[0]["have"]), 4)
 	s.add_flag(ForestExplore.FLAG_MUSHROOMS, 1)
-	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "採滿五朵：慘叫聲，往祭壇")
+	assert_eq(s.quests.stage_of("ch1_main"), "gather", "蕈採滿了、車還沒停穩")
+	assert_eq(s.quests.marker_spec("ch1_main"), "node:Azhan", "指引改指向阿展")
+	s.set_flag(RailEvent.FLAG_SAVED, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "蕈採滿且車停穩：慘叫聲，往祭壇")
 	assert_eq(s.state.checkpoint, "ch1_scream")
 	assert_eq(s.quests.marker_spec("ch1_main"), "node:AltarGate")
 	assert_eq(str(_game().call("level_for_checkpoint", s.state.checkpoint)), "corrupt_forest")
@@ -1038,7 +1042,7 @@ func test_clearing_the_slimes_leads_to_the_talk_and_opens_the_forest() -> void:
 	assert_eq(hud.objective_text_key(), "Q_CH1_OBJ_GATHER")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_EXPLORE_LINE1", "CH1_EXPLORE_LINE2"]), "劇本的系統提示：探索解鎖")
 	assert_true(hud.hint_text().contains("[F]") and hud.hint_text().contains("[Q]"), "操作提示有互動與向席菈要藥：%s" % hud.hint_text())
-	assert_eq(hud.checklist_lines().size(), 3, "右上角有目標清單：%s" % str(hud.checklist_lines()))
+	assert_eq(hud.checklist_lines().size(), 4, "右上角有目標清單：%s" % str(hud.checklist_lines()))
 	assert_true(hud.checklist_lines()[0].begins_with("[0/5]"), "第一行寫採了幾朵：%s" % hud.checklist_lines()[0])
 
 
@@ -1215,7 +1219,9 @@ func test_gathering_five_mushrooms_brings_the_scream_and_the_road_to_the_altar()
 	last.use(player)
 	last.use(player)
 	assert_eq(int(s.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), 5, "同一朵按兩次只算一次")
-	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "採滿五朵")
+	assert_eq(s.quests.stage_of("ch1_main"), "gather", "採滿五朵，但斷軌上的車還沒停穩（⑥；那一段在 test_rail.gd）")
+	s.set_flag(RailEvent.FLAG_SAVED, true)
+	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "蕈採滿且車停穩")
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_SCREAM_LINE1", "CH1_SCREAM_LINE2"]), "慘叫聲")
 	assert_true(_playing(level, ForestExplore.SCREAM_SFX), "真的聽得到慘叫（遠遠的，不分位置）")
 	assert_true(hud.bark_keys().has("BARK_SERA_SCREAM"))
@@ -1624,7 +1630,7 @@ func test_campfire_rest_tells_seras_past_and_unlocks_the_double_brew() -> void:
 	player.stand_up()
 	assert_false(sera.is_seated(), "諾恩站起來，席菈也起來")
 	assert_eq(player.puppet().pose, "", "站起來了")
-	assert_true(hud.checklist_lines()[1].begins_with(tr("HUD_LIST_DONE").get_slice(" ", 0)), "清單上營火那一項完成：%s" % hud.checklist_lines()[1])
+	assert_true(hud.checklist_lines()[2].begins_with(tr("HUD_LIST_DONE").get_slice(" ", 0)), "清單上營火那一項完成：%s" % hud.checklist_lines()[2])
 	assert_eq(sera.ask_source, ForestExplore.DUO_SOURCE, "向她要的煙霧彈換成連攜的")
 	assert_true(sera.ask())
 	var frames: int = 0
@@ -1750,7 +1756,7 @@ func test_cursed_chest_in_the_bog_curses_norn_and_hands_him_the_split_blade() ->
 	assert_eq(s.state.get_flag(ForestExplore.FLAG_CHEST), true)
 	assert_eq(hud.center_lines(), PackedStringArray(["CH1_CHEST_LINE1", "CH1_CHEST_LINE2"]))
 	await tree.physics_frame
-	assert_true(hud.checklist_lines()[2].begins_with(tr("HUD_LIST_DONE").get_slice(" ", 0)), "清單上「異常波動」完成：%s" % hud.checklist_lines()[2])
+	assert_true(hud.checklist_lines()[3].begins_with(tr("HUD_LIST_DONE").get_slice(" ", 0)), "清單上「異常波動」完成：%s" % hud.checklist_lines()[3])
 	assert_false(explore.chest.enabled, "開過了")
 	explore.chest.use(player)
 	assert_true(absf(player.status_effects.rate("weakness") - 3.0) < 0.01, "不能再開一次")
@@ -1879,7 +1885,38 @@ func test_walkthrough_from_new_game_to_the_end_of_chapter_one() -> void:
 		await tree.physics_frame
 		picked += 1
 		assert_eq(int(s.state.get_flag(ForestExplore.FLAG_MUSHROOMS, 0)), picked, "第 %d 朵" % picked)
-	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "採滿：慘叫聲")
+	assert_eq(s.quests.stage_of("ch1_main"), "gather", "採滿了，車還沒停穩")
+	# ⑥ 斷軌：跟阿展說話 → 伸手差半步 → 坡頂夠快地砍開三股藤 → 搖絞盤 → 席菈照約定打開車扣、阿展拉煞車 → 兩種金光
+	var rail: RailEvent = level.rail
+	player.global_position = RailSite.AZHAN_SEAT + Vector3(-1.5, 0.05, 0.5)
+	await tree.physics_frame
+	await _press_interact()
+	assert_true(bool(_game().call("is_in_dialogue")), "阿展那段話")
+	_finish_dialogue(0)
+	player.global_position = RailSite.REACH_SPOT + Vector3(-0.3, 0.05, 0.0)
+	await tree.physics_frame
+	await tree.physics_frame
+	await _press_interact()
+	assert_true(bool(s.state.get_flag(RailEvent.FLAG_TRIED, false)), "伸手試過")
+	await tree.physics_frame
+	player.global_position = RailSite.WINCH + Vector3(-1.2, 0.05, 1.0)
+	for i: int in RailRescue.VINES:
+		rail.vine_knot.health.apply_damage(5.0, {})
+		for f: int in 12:
+			await tree.physics_frame
+	assert_true(rail.rescue.rope_free, "三股藤砍開了")
+	await _press_interact()
+	assert_true(rail.final_step > 0, "搖絞盤：最後那一下開始")
+	var waited: int = 0
+	while rail.final_step != 0 and waited < 900:
+		rail.give_signal()
+		await tree.physics_frame
+		waited += 1
+	assert_eq(rail.final_step, 0, "演完（%d 幀）" % waited)
+	assert_true(bool(_game().call("is_in_dialogue")), "救完車那段話")
+	_finish_dialogue(0)
+	assert_true(rail.is_saved(), "車停穩了")
+	assert_eq(s.quests.stage_of("ch1_main"), "to_altar", "蕈採滿且車停穩：慘叫聲")
 	# 往祭壇：走到路口換關卡
 	player.global_position = ForestMap.at(ForestMap.ALTAR_GATE) + Vector3(0, 0.05, 1.5)
 	for i: int in 4:

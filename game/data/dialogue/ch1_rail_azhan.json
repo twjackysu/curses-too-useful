@@ -1,0 +1,68 @@
+{
+  "id": "ch1_rail_azhan",
+  "start": "a0",
+  "nodes": {
+    "a0": {
+      "speaker": "SPK_AZHAN",
+      "text": "DLG_CH1_RAIL_001",
+      "emote": "anger",
+      "look": "RAIL_CART",
+      "next": "a1"
+    },
+    "a1": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_RAIL_002",
+      "shot": "two",
+      "to": "SPK_AZHAN",
+      "next": "a2"
+    },
+    "a2": {
+      "speaker": "SPK_AZHAN",
+      "text": "DLG_CH1_RAIL_003",
+      "emote": "gloom",
+      "head": "down",
+      "next": "a3"
+    },
+    "a3": {
+      "speaker": "SPK_AZHAN",
+      "text": "DLG_CH1_RAIL_004_BASKET",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.shield",
+            "eq": "taken"
+          },
+          "text": "DLG_CH1_RAIL_004_SHIELD"
+        }
+      ],
+      "emote": "question",
+      "head": "up",
+      "to": "SPK_NOEN",
+      "next": "a4"
+    },
+    "a4": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_RAIL_005",
+      "emote": "blush",
+      "to": "SPK_AZHAN",
+      "next": "a5"
+    },
+    "a5": {
+      "speaker": "SPK_AZHAN",
+      "text": "DLG_CH1_RAIL_006",
+      "act": "shrug",
+      "look": "RAIL_CART",
+      "next": "a6"
+    },
+    "a6": {
+      "speaker": "SPK_NOEN",
+      "text": "DLG_CH1_RAIL_007",
+      "act": "fist",
+      "do": {
+        "set": {
+          "ch1.azhan_met": true
+        }
+      }
+    }
+  }
+}

@@ -7,6 +7,9 @@ extends EnemyActor
 ## 模型不在時是放大的程式人偶。動作（tools/blender/common.py 的 monster_actions，D-303）：走路、兩手舉過頭一起砸下去
 ## （前兆＝舉到頂停著，越撐越亮；剩 0.19 秒砸下去）、失衡滿了單膝跪地。以前借人的重劈＋整棵往後仰。
 
+## 兩手砸到地上的那一刻（at＝砸在哪裡）：斷軌旁邊有裂紋的枯木會被震倒（RailEvent）
+signal slammed(at: Vector3)
+
 const CHARACTER_ID: String = "spore_treant"
 const SLAM_SOURCE: String = "treant_slam"
 ## 一步：很重的木頭「咚」＋樹幹的吱嘎＋葉子沙沙；醒來時整棵樹被扭的低沉一聲、倒下時樹幹裂開砸地
@@ -91,6 +94,7 @@ func fall_sfx() -> String:
 func _on_strike() -> void:
 	var origin: Vector3 = global_position
 	var fwd: Vector3 = forward()
+	slammed.emit(origin + fwd * 1.8)
 	var reach: float = CombatTuning.num("spore_treant.slam_reach", 3.4)
 	var arc: float = CombatTuning.num("spore_treant.slam_arc_deg", 140.0)
 	Sfx.play_at(self, "blunt_weak", origin + fwd * 1.6 + Vector3.UP * 0.3, -2.0)

@@ -284,6 +284,13 @@ func sit_at(spot: Vector3, face_yaw: float) -> void:
 	snap_camera()
 
 
+## 站到 spot、面向 face_yaw 不動（過場用：站到斷軌的車頭旁邊頂住車）——跟坐著一樣整個人定在那裡，stand_up() 放開
+func stand_at(spot: Vector3, face_yaw: float) -> void:
+	sit_at(spot, face_yaw)
+	_puppet.set_pose("", 0.0)
+	remove_meta(TalkCamera.DROP_META)
+
+
 func stand_up() -> void:
 	if not is_seated():
 		return
@@ -876,6 +883,13 @@ func auto_target() -> Node3D:
 		if d <= best_d:
 			best_d = d
 			best = e
+	# 可以砍的東西（纏住絞盤的藤、有裂紋的枯木：Choppable）也自己砍——沒有敵人在旁邊的時候
+	if best == null:
+		for n: Node in get_tree().get_nodes_in_group(Choppable.GROUP):
+			var c := n as Node3D
+			if c != null and _flat_distance_to(c) <= best_d:
+				best_d = _flat_distance_to(c)
+				best = c
 	return best
 
 

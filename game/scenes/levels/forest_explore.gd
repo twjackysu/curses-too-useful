@@ -26,7 +26,8 @@ const MUSHROOM_SIZE: float = 1.3
 const PICKUP_RING_RADIUS: float = 1.1
 ## 三種陷阱（劇本：一般遊戲要閃，這裡要故意踩進去）。毒氣噴發口：一小團比瘴氣濃的毒（PoisonMist）；
 ## 麻痺蜘蛛網（WebTrap）：x、z、網張開的方向（度）；腐敗野果：走近按鍵吃一顆，過一下子才再長
-const VENT_SPOTS: Array[Vector3] = [Vector3(-3.6, 0, -31.5), Vector3(4.6, 0, -40.5), Vector3(18.5, 0, -39.0), Vector3(5.5, 0, -55.5)]
+## 最後一個在斷軌的坡頂（毒霧剛好遮住那裡的狼）
+const VENT_SPOTS: Array[Vector3] = [Vector3(-3.6, 0, -31.5), Vector3(4.6, 0, -40.5), Vector3(18.5, 0, -39.0), Vector3(5.5, 0, -55.5), Vector3(68.6, 0, -35.2)]
 const VENT_RADIUS: float = 2.3
 const VENT_MODEL: String = "tripo/prop_poison_vent"
 ## 底座只留模型最下面那一截（gen_props 的 --keep-below）：放大到從霧盤裡露出來（2.2 倍時幾乎整個被霧蓋住）
@@ -37,7 +38,8 @@ const VENT_RIM_RADIUS: float = 0.85
 const VENT_RIM_SIZE: float = 0.3
 const VENT_CRACK_RADIUS: float = 1.7
 const VENT_CRACK_SHADER: Shader = preload("res://src/world/vent_cracks.gdshader")
-const WEB_SPOTS: Array[Vector3] = [Vector3(-0.9, -28.5, 90.0), Vector3(11.5, -39.8, 20.0), Vector3(-1.0, -51.0, 90.0), Vector3(31.5, -53.5, 130.0)]
+## 最後一張在斷軌的坡頂、絞盤旁邊（踩它吃麻痺，才砍得完纏住絞盤的藤）
+const WEB_SPOTS: Array[Vector3] = [Vector3(-0.9, -28.5, 90.0), Vector3(11.5, -39.8, 20.0), Vector3(-1.0, -51.0, 90.0), Vector3(31.5, -53.5, 130.0), Vector3(62.2, -36.6, 60.0)]
 const BUSH_SPOTS: Array[Vector3] = [Vector3(5.6, 0, -33.0), Vector3(-20.0, 0, -50.0), Vector3(27.0, 0, -37.5), Vector3(-4.5, 0, -55.0)]
 const FRUIT_SOURCE: String = "rotten_fruit"
 const FRUIT_REGROW_SEC: float = 8.0
@@ -53,6 +55,9 @@ const PACKS: Dictionary = {
 	"wolves": [["wolf", 21.0, -45.0], ["wolf", 27.0, -41.5], ["wolf", 25.5, -48.0]],
 	"swamp": [["mold", 36.5, -61.0], ["mold", 43.5, -62.5], ["slime", 40.5, -68.0]],
 	"hollow": [["treant", 0.0, -63.0], ["slime", -4.5, -58.5], ["slime", 4.5, -60.0]],
+	# 斷軌（RailEvent）：坡頂毒霧裡的狼、坡底泥灘的樹人（引牠到枯木旁砸地）
+	"rail_top": [["wolf", 68.2, -32.6]],
+	"rail_mud": [["treant", 59.6, -50.4]],
 }
 ## 營火（劇本的營火休息事件）：休息＝補滿血、存檔、之後從這裡重來；第一次休息席菈講她的過去（對話 ch1_campfire），
 ## 講完解鎖連攜（旗標 sera.duo_unlocked）：向她要的煙霧彈換成多調一份麻痺的 DUO_SOURCE
@@ -219,9 +224,11 @@ func _physics_process(delta: float) -> void:
 		return
 	var st: GameState = Game.session.state
 	var open: bool = unlocked(st)
+	# 採滿五朵就不用再採（剩下的不再亮提示；目標指引改指向下一件事）
+	var need_more: bool = int(st.get_flag(FLAG_MUSHROOMS, 0)) < MUSHROOM_NEED
 	for m: Interactable in mushrooms:
 		if m != null:
-			m.enabled = open
+			m.enabled = open and need_more
 	_tick_traps(delta)
 	_tick_packs()
 	_tick_sera(st, open)

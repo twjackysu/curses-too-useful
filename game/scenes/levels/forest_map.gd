@@ -1,7 +1,7 @@
 class_name ForestMap
 extends RefCounted
 ## 腐敗之森的地圖（純資料＋純函式；docs/story/chapter-1.md 節點 2 與時段 B）：空地、路、哪裡是毒沼。
-## 森林口在南邊（+z），往北（−z）走：史萊姆空地 → 陷阱林 → 岔路（西邊營火、東邊狼徑 → 東北角的毒沼）→ 樹人窪地 → 祭壇路口。
+## 森林口在南邊（+z），往北（−z）走：史萊姆空地 → 陷阱林 → 岔路（西邊營火、東邊狼徑 → 東北角的毒沼；狼徑再往東是斷軌）→ 樹人窪地 → 祭壇路口。
 ## 關卡照這張表放東西（CorruptForest）、種樹與草（ForestScenery）、畫地面（forest_ground.gdshader 讀 trail_mask()）。
 ## 空地寫成 Vector3(x, z, 半徑)，路寫成 Vector4(x1, z1, x2, z2)。
 
@@ -31,7 +31,11 @@ const WOLVES: Vector3 = Vector3(24, -44, 8.0)
 const SWAMP: Vector3 = Vector3(40, -64, 10.0)
 const HOLLOW: Vector3 = Vector3(0, -60, 9.0)
 const ALTAR_GATE: Vector3 = Vector3(0, -80, 4.5)
-const CLEARINGS: Array[Vector3] = [GLADE, TRAPS, CAMP, WOLVES, SWAMP, HOLLOW, ALTAR_GATE]
+## 斷軌事件（增補稿時段 B，RailSite／RailEvent）：狼徑往東——阿展坐的木軌盡頭、坡頂（絞盤）、坡底的泥灘（靠毒沼的那一邊）
+const RAIL: Vector3 = Vector3(47, -41.5, 6.0)
+const RAIL_TOP: Vector3 = Vector3(66, -34, 5.5)
+const RAIL_MUD: Vector3 = Vector3(56.5, -49, 4.5)
+const CLEARINGS: Array[Vector3] = [GLADE, TRAPS, CAMP, WOLVES, SWAMP, HOLLOW, ALTAR_GATE, RAIL, RAIL_TOP, RAIL_MUD]
 const PATHS: Array[Vector4] = [
 	Vector4(0, 34, 0, -15),
 	Vector4(0, -15, 0, -36),
@@ -41,6 +45,10 @@ const PATHS: Array[Vector4] = [
 	Vector4(0, -36, 0, -60),
 	Vector4(-24, -46, 0, -60),
 	Vector4(0, -60, 0, -80),
+	# 狼徑 → 木軌盡頭；上坡的路（繞到坡頂的絞盤）；毒沼邊的近道（到坡底的泥灘）
+	Vector4(24, -44, 47, -41.5),
+	Vector4(47, -41.5, 66, -34),
+	Vector4(40, -64, 56.5, -49),
 ]
 
 static var _mask: Image
