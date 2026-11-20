@@ -2,7 +2,7 @@ class_name GearPanel
 extends Control
 ## 裝備面板（按「裝備」鍵開關；劇本「裝備與技能面板教學」）：右半邊一張深色的板子——
 ## 銅幣、武器那一格（名字、說明、拿著時給自己什麼）、飾品那一格（戴著的、詛咒寫什麼、實際每秒回多少血）、
-## 下面一列身上的狀態圖示（StatusHud：剛戴上的詛咒先是紅的、0.3 秒後翻成金的），最下面一行操作提示。
+## 身上帶著的道具一行，下面一列身上的狀態圖示（StatusHud：剛戴上的詛咒先是紅的、0.3 秒後翻成金的），最下面一行操作提示。
 ## 開著的時候遊戲不暫停（詛咒的回血看得到在跑），但玩家不能動（Game.CUTSCENE_GROUP）。互動鍵＝戴上／拿下飾品。
 ## 資料都從 Gear（GameState 的旗標）讀；戴上／拿下也寫回 Gear。對話中、沒有劇情時打不開。
 
@@ -54,7 +54,7 @@ func _ready() -> void:
 		["Title", 28, COL_TITLE], ["Coins", 20, COL_GOLD], ["Gap1", 6, COL_DIM],
 		["WeaponSlot", 16, COL_DIM], ["WeaponName", 22, COL_TEXT], ["WeaponDesc", 17, COL_DIM], ["WeaponCurse", 17, COL_GOLD], ["Gap2", 6, COL_DIM],
 		["AccessorySlot", 16, COL_DIM], ["AccessoryName", 22, COL_TEXT], ["AccessoryDesc", 17, COL_DIM], ["AccessoryCurse", 17, COL_GOLD],
-		["AccessoryActual", 18, COL_GOLD], ["Gap3", 6, COL_DIM],
+		["AccessoryActual", 18, COL_GOLD], ["Gap3", 6, COL_DIM], ["Items", 17, COL_TEXT],
 	]:
 		var l := Label.new()
 		l.name = str(spec[0])
@@ -166,6 +166,10 @@ func refresh() -> void:
 		_put("AccessoryDesc", tr(str(a.get("desc_key", ""))))
 		_put("AccessoryCurse", _curse_line(rules, str(a.get("curse", "")), "GEAR_WORN"))
 		_put("AccessoryActual", _actual_line(rules, str(a.get("curse", ""))))
+	var carried: PackedStringArray = []
+	for it: Array in g.carried():
+		carried.append("%s ×%d" % [tr(str(it[0])), int(it[1])])
+	_put("Items", tr("GEAR_ITEMS").format({"list": "、".join(carried) if not carried.is_empty() else tr("GEAR_EMPTY")}))
 	var can_toggle: bool = a_id != "" or _owns_any(g)
 	var hint: String = tr("GEAR_HINT_CLOSE").format({"key": InputGlyphs.label_for_action(ACTION, App.last_device)})
 	if can_toggle:

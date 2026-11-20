@@ -53,7 +53,22 @@ static func validate(d: Dictionary, rules: StatusRules) -> PackedStringArray:
 				errors.append("%s.%s 的 curse %s 不在 statuses.json 的 sources" % [section, id, curse])
 			if section == "accessories" and int(it.get("price", -1)) < 0:
 				errors.append("accessories.%s 沒有 price" % id)
+	var items: Dictionary = d.get("items", {}) as Dictionary
+	for id: String in items:
+		if str((items[id] as Dictionary).get("name_key", "")) == "":
+			errors.append("items.%s 沒有 name_key" % id)
 	return errors
+
+
+## 身上帶著的道具（認得名字的，照 gear.json 的順序）：[[名字的翻譯 key, 數量], …]
+func carried() -> Array[Array]:
+	var out: Array[Array] = []
+	var items: Dictionary = data.get("items", {}) as Dictionary
+	for id: String in items:
+		var n: int = int(state.items.get(id, 0))
+		if n > 0:
+			out.append([str((items[id] as Dictionary)["name_key"]), n])
+	return out
 
 
 func coins() -> int:

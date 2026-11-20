@@ -503,3 +503,9 @@ DLG_CH1_NOODLE_REPORT_LAMP,"Cut them all down, huh... That's fine. As long as th
 DLG_CH1_NOODLE_REPORT_PAY,Here — two noodle tickets. And this bottle.,謝禮：兩張麵票。還有這一瓶。
 DLG_CH1_NOODLE_REPORT_PLUG,...A warm mud stopper?,……暖泥塞？
 DLG_CH1_NOODLE_REPORT_SERA,The alchemist girl from the apothecary ran over and bottled some of the mold. Says warm it in your palm and the cork pops.,藥房那個鍊金術師的女孩跑來分裝的。說拿手心暖一暖，瓶塞就會彈開。
+DLG_CH1_RETURN_LEDGER_TOGETHER,"...And the medicine money at the apothecary — we said we'd collect it together, right?",……還有藥房的藥錢，說好我們兩個一起去領的，對吧？
+DLG_CH1_RETURN_LEDGER_RECEIPT,"(She takes out the receipt with her name on it, and looks at it again and again.) ...My first one.",（她從口袋拿出那張寫著自己名字的收據，看了又看）……第一張。
+GEAR_ITEMS,Carrying: {list},身上的東西：{list}
+ITEM_NOODLE_TICKET,Noodle ticket,麵票
+ITEM_WARM_MUD_PLUG,Warm mud stopper,暖泥塞
+ITEM_RUSTY_SHIELD,Rusty iron shield,生鏽的鐵盾

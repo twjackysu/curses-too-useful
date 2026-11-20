@@ -93,3 +93,16 @@ func test_panel_shows_the_slots_and_toggles_the_ring() -> void:
 		for f: String in DirAccess.get_files_at(dir):
 			DirAccess.remove_absolute(dir.path_join(f))
 		DirAccess.remove_absolute(dir)
+
+
+func test_carried_items_are_listed_by_name() -> void:
+	var st := GameState.new()
+	var g := Gear.new(st)
+	assert_eq(g.carried().size(), 0)
+	st.items["noodle_ticket"] = 2
+	st.items["sera_poison_vial"] = 3
+	st.items["pain_ring"] = 1
+	var c: Array[Array] = g.carried()
+	assert_eq(c.size(), 2, "飾品不算、認得的道具才列")
+	assert_eq(c[0], ["ITEM_SERA_POISON", 3])
+	assert_eq(c[1], ["ITEM_NOODLE_TICKET", 2])

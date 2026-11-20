@@ -72,7 +72,7 @@
       "emote": "blush",
       "act": "nod",
       "head": "up",
-      "next": "l07"
+      "next": "led"
     },
     "b": {
       "speaker": "SPK_SHEILA",
@@ -80,6 +80,21 @@
       "emote": "blush",
       "act": "fist",
       "head": "up",
+      "next": "led"
+    },
+    "led": {
+      "speaker": "SPK_SHEILA",
+      "text": "DLG_CH1_RETURN_LEDGER_TOGETHER",
+      "text_if": [
+        {
+          "if": {
+            "flag": "ch1.ledger",
+            "eq": "receipt"
+          },
+          "text": "DLG_CH1_RETURN_LEDGER_RECEIPT"
+        }
+      ],
+      "emote": "blush",
       "next": "l07"
     },
     "l07": {

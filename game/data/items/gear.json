@@ -1,5 +1,5 @@
 {
-	"_doc": "諾恩的裝備（裝備面板）與錢（Gear）。weapons 的 id 跟 PlayerController.WEAPONS 一樣；curse＝拿著／戴著時給自己的狀態來源（statuses.json 的 sources），面板照它的狀態畫紅圖示翻金。accessories 的 price 是街尾商人的價錢（銅幣）。start_coins＝開局的零錢（旗標 noen.coins 還沒有時用它）。",
+	"_doc": "諾恩的裝備（裝備面板）與錢（Gear）。weapons 的 id 跟 PlayerController.WEAPONS 一樣；curse＝拿著／戴著時給自己的狀態來源（statuses.json 的 sources），面板照它的狀態畫紅圖示翻金。accessories 的 price 是街尾商人的價錢（銅幣）。start_coins＝開局的零錢（旗標 noen.coins 還沒有時用它）。 items＝裝備面板最下面「身上的東西」那一行認得的道具（GameState.items 的 id → 名字）。",
 	"start_coins": 12,
 	"weapons": {
 		"rusty_sword": {
@@ -20,6 +20,20 @@
 			"curse": "pain_ring",
 			"price": 5,
 			"model": "tripo/prop_cursed_ring"
+		}
+	},
+	"items": {
+		"sera_poison_vial": {
+			"name_key": "ITEM_SERA_POISON"
+		},
+		"noodle_ticket": {
+			"name_key": "ITEM_NOODLE_TICKET"
+		},
+		"warm_mud_plug": {
+			"name_key": "ITEM_WARM_MUD_PLUG"
+		},
+		"rusty_shield": {
+			"name_key": "ITEM_RUSTY_SHIELD"
 		}
 	}
 }

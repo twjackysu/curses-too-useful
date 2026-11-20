@@ -448,3 +448,16 @@ func test_cellar_valve_first_turn_is_wrong_then_they_roll_into_the_barrel() -> v
 	var runner: DialogueRunner = _game().get("dialogue") as DialogueRunner
 	assert_eq(runner.current_text(), "DLG_CH1_NOODLE_REPORT_BARREL", "養在保溫鍋底")
 	_finish_dialogue(0)
+
+
+func test_return_to_the_guild_remembers_whose_name_the_money_is_under() -> void:
+	var db: DialogueDB = DialogueDB.load_default()
+	var led: Dictionary = db.node("ch1_guild_return", "led")
+	assert_false(led.is_empty(), "回公會那段話有記帳的那一句")
+	var st := GameState.new()
+	st.set_flag(TownStreet.FLAG_LEDGER, "together")
+	assert_eq(DialogueRunner.text_for(led, st), "DLG_CH1_RETURN_LEDGER_TOGETHER", "兩人一起領")
+	st.set_flag(TownStreet.FLAG_LEDGER, "receipt")
+	assert_eq(DialogueRunner.text_for(led, st), "DLG_CH1_RETURN_LEDGER_RECEIPT", "席菈的第一張收據")
+	assert_eq(str(db.node("ch1_guild_return", "a").get("next", "")), "led")
+	assert_eq(str(db.node("ch1_guild_return", "b").get("next", "")), "led")
